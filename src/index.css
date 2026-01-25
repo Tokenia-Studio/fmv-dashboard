@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #1a365d;
+  --brand-light: #2c5282;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  background: linear-gradient(180deg, #f7fafc 0%, #e2e8f0 100%);
+  min-height: 100vh;
+}
+
+/* Scrollbar personalizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Clases utilitarias */
+@layer components {
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  }
+
+  .card-header {
+    @apply px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-slate-800 to-slate-700;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-slate-800 text-white rounded-lg font-medium
+           hover:bg-slate-700 transition-colors disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium
+           hover:bg-gray-200 transition-colors;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg
+           focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none;
+  }
+
+  .kpi-card {
+    @apply bg-white rounded-xl p-5 shadow-sm border border-gray-100
+           hover:shadow-md transition-shadow;
+  }
+
+  .table-header {
+    @apply bg-slate-50 text-slate-700 font-semibold text-sm uppercase tracking-wide;
+  }
+
+  .table-row {
+    @apply border-t border-gray-100 hover:bg-slate-50 transition-colors;
+  }
+
+  .subtotal-row {
+    @apply bg-gradient-to-r from-blue-50 to-indigo-50 font-semibold;
+  }
+
+  .total-row {
+    @apply bg-gradient-to-r from-slate-800 to-slate-700 text-white font-bold;
+  }
+
+  .tab-active {
+    @apply bg-white text-slate-800 shadow-sm;
+  }
+
+  .tab-inactive {
+    @apply text-slate-300 hover:text-white hover:bg-white/10;
+  }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Tooltip de Recharts */
+.recharts-tooltip-wrapper {
+  z-index: 1000 !important;
+}
+
+.custom-tooltip {
+  @apply bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3;
+}
