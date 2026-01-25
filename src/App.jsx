@@ -2,7 +2,7 @@
 // APP - Componente principal FMV Dashboard v2.0
 // ============================================
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useData } from './context/DataContext'
 import Header from './components/Layout/Header'
 import Footer from './components/Layout/Footer'
@@ -12,6 +12,7 @@ import FinanciacionTab from './components/Financiacion/FinanciacionTab'
 import ProveedoresTab from './components/Proveedores/ProveedoresTab'
 import CashFlowTab from './components/CashFlow/CashFlowTab'
 import UploadTab from './components/Upload/UploadTab'
+import LoginScreen, { useAuth } from './components/Auth/LoginScreen'
 
 // Error Boundary
 class ErrorBoundary extends React.Component {
@@ -54,6 +55,13 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   const { tabActiva, movimientos, loading } = useData()
+  const { isAuthenticated } = useAuth()
+  const [authenticated, setAuthenticated] = useState(isAuthenticated())
+
+  // Si no está autenticado, mostrar login
+  if (!authenticated) {
+    return <LoginScreen onLogin={() => setAuthenticated(true)} />
+  }
 
   // Renderizar pestaña activa
   const renderTab = () => {

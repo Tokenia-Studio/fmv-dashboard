@@ -5,9 +5,11 @@
 import React from 'react'
 import { useData } from '../../context/DataContext'
 import { TABS, BRAND } from '../../utils/constants'
+import { useAuth } from '../Auth/LoginScreen'
 
 export default function Header() {
   const { tabActiva, setTab, años, añoActual, setAño, validacion } = useData()
+  const { logout } = useAuth()
 
   const getEstadoCuadre = () => {
     if (!validacion) return { icon: '⏳', color: 'gray', text: 'Sin datos' }
@@ -72,6 +74,19 @@ export default function Header() {
                 )}
               </div>
             )}
+
+            {/* Botón cerrar sesión */}
+            <button
+              onClick={logout}
+              className="px-3 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm
+                         transition-colors flex items-center gap-1.5"
+              title="Cerrar sesión"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+              </svg>
+              <span className="hidden sm:inline">Salir</span>
+            </button>
           </div>
         </div>
 
