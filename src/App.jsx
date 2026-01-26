@@ -2,8 +2,9 @@
 // APP - Componente principal FMV Dashboard v2.0
 // ============================================
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useData } from './context/DataContext'
+import { auth } from './lib/supabase'
 import Header from './components/Layout/Header'
 import Footer from './components/Layout/Footer'
 import PyGTab from './components/PyG/PyGTab'
@@ -12,7 +13,7 @@ import FinanciacionTab from './components/Financiacion/FinanciacionTab'
 import ProveedoresTab from './components/Proveedores/ProveedoresTab'
 import CashFlowTab from './components/CashFlow/CashFlowTab'
 import UploadTab from './components/Upload/UploadTab'
-import LoginScreen, { useAuth } from './components/Auth/LoginScreen'
+import LoginScreen from './components/Auth/LoginScreen'
 
 // Error Boundary
 class ErrorBoundary extends React.Component {
@@ -33,7 +34,7 @@ class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="p-8 bg-red-50 rounded-lg m-4">
-          <h2 className="text-xl font-bold text-red-700 mb-2">Error en la aplicación</h2>
+          <h2 className="text-xl font-bold text-red-700 mb-2">Error en la aplicacion</h2>
           <pre className="text-sm text-red-600 bg-red-100 p-4 rounded overflow-auto">
             {this.state.error?.message || 'Error desconocido'}
           </pre>
@@ -55,17 +56,64 @@ class ErrorBoundary extends React.Component {
 
 function App() {
   const { tabActiva, movimientos, loading } = useData()
-  const { isAuthenticated } = useAuth()
-  const [authenticated, setAuthenticated] = useState(isAuthenticated())
+  const [user, setUser] = useState(null)
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
-  // Si no está autenticado, mostrar login
-  if (!authenticated) {
-    return <LoginScreen onLogin={() => setAuthenticated(true)} />
+  // Verificar sesion al cargar
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { session } = await auth.getSession()
+        setUser(session?.user || null)
+      } catch (error) {
+        console.error('Error checking session:', error)
+        setUser(null)
+      } finally {
+        setCheckingAuth(false)
+      }
+    }
+
+    checkSession()
+
+    // Escuchar cambios de autenticacion
+    const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event)
+      setUser(session?.user || null)
+    })
+
+    return () => {
+      subscription?.unsubscribe()
+    }
+  }, [])
+
+  // Funcion de logout (exportada via contexto si es necesario)
+  const handleLogout = async () => {
+    await auth.signOut()
+    setUser(null)
   }
 
-  // Renderizar pestaña activa
+  // Pantalla de carga inicial
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl mb-4 shadow-lg animate-pulse">
+            <span className="text-2xl font-bold text-white tracking-tight">FMV</span>
+          </div>
+          <p className="text-gray-400">Cargando...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Si no esta autenticado, mostrar login
+  if (!user) {
+    return <LoginScreen onLogin={(u) => setUser(u)} />
+  }
+
+  // Renderizar pestana activa
   const renderTab = () => {
-    // Si no hay datos, mostrar siempre la pestaña de carga
+    // Si no hay datos, mostrar siempre la pestana de carga
     if (movimientos.length === 0 && tabActiva !== 'cargar') {
       return <UploadTab />
     }
@@ -100,8 +148,8 @@ function App() {
         </div>
       )}
 
-      {/* Header con navegación */}
-      <Header />
+      {/* Header con navegacion */}
+      <Header user={user} onLogout={handleLogout} />
 
       {/* Contenido principal */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">

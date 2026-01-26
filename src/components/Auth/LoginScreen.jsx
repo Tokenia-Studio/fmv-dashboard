@@ -1,34 +1,54 @@
 // ============================================
-// LOGIN SCREEN - Pantalla de acceso simple
+// LOGIN SCREEN - Autenticacion con Supabase
 // ============================================
 
 import React, { useState } from 'react'
-
-// Contraseña del dashboard
-const PASSWORD = 'FMV2025'
+import { auth } from '../../lib/supabase'
 
 export default function LoginScreen({ onLogin }) {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState(false)
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [mode, setMode] = useState('login') // 'login' o 'register'
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setError(false)
+    setError('')
 
-    // Pequeño delay para simular verificación
-    setTimeout(() => {
-      if (password === PASSWORD) {
-        localStorage.setItem('fmv-auth', 'true')
-        onLogin()
+    try {
+      if (mode === 'login') {
+        const { data, error } = await auth.signIn(email, password)
+        if (error) throw error
+        if (data.user) onLogin(data.user)
       } else {
-        setError(true)
-        setPassword('')
+        const { data, error } = await auth.signUp(email, password)
+        if (error) throw error
+        if (data.user) {
+          setError('')
+          setMode('login')
+          alert('Usuario creado. Ya puedes iniciar sesion.')
+        }
       }
+    } catch (err) {
+      console.error('Auth error:', err)
+      setError(getErrorMessage(err.message))
+    } finally {
       setLoading(false)
-    }, 300)
+    }
+  }
+
+  const getErrorMessage = (msg) => {
+    const messages = {
+      'Invalid login credentials': 'Email o contraseña incorrectos',
+      'Email not confirmed': 'Confirma tu email antes de acceder',
+      'User already registered': 'Este email ya está registrado',
+      'Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres',
+      'Unable to validate email address: invalid format': 'Formato de email inválido'
+    }
+    return messages[msg] || msg || 'Error de autenticación'
   }
 
   return (
@@ -40,11 +60,31 @@ export default function LoginScreen({ onLogin }) {
             <span className="text-2xl font-bold text-white tracking-tight">FMV</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-800">FMV Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">Introduce la contraseña para acceder</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {mode === 'login' ? 'Introduce tus credenciales' : 'Crear nueva cuenta'}
+          </p>
         </div>
 
         {/* Formulario */}
         <form onSubmit={handleSubmit}>
+          {/* Email */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              placeholder="tu@email.com"
+              autoFocus
+              disabled={loading}
+              required
+            />
+          </div>
+
+          {/* Password */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Contraseña
@@ -56,9 +96,10 @@ export default function LoginScreen({ onLogin }) {
                 onChange={(e) => setPassword(e.target.value)}
                 className={`w-full px-4 py-3 pr-12 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all
                            ${error ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
-                placeholder="Introduce la contraseña"
-                autoFocus
+                placeholder="Tu contraseña"
                 disabled={loading}
+                required
+                minLength={6}
               />
               <button
                 type="button"
@@ -77,40 +118,49 @@ export default function LoginScreen({ onLogin }) {
                 )}
               </button>
             </div>
-            {error && (
-              <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
-                <span>Contraseña incorrecta</span>
-              </p>
-            )}
           </div>
 
+          {/* Error */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Submit */}
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading || !email || !password}
             className={`w-full py-3 rounded-lg font-semibold text-white transition-all
-                       ${loading || !password
+                       ${loading || !email || !password
                          ? 'bg-gray-300 cursor-not-allowed'
                          : 'bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-lg hover:shadow-xl'}`}
           >
-            {loading ? 'Verificando...' : 'Acceder'}
+            {loading ? 'Procesando...' : (mode === 'login' ? 'Acceder' : 'Crear cuenta')}
           </button>
         </form>
 
+        {/* Toggle mode */}
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setMode(mode === 'login' ? 'register' : 'login')
+              setError('')
+            }}
+            className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            {mode === 'login'
+              ? '¿No tienes cuenta? Crear una'
+              : '¿Ya tienes cuenta? Iniciar sesion'}
+          </button>
+        </div>
+
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 mt-6">
-          Fabricaciones Metálicas Valdepinto
+          Fabricaciones Metalicas Valdepinto
         </p>
       </div>
     </div>
   )
-}
-
-// Hook para verificar autenticación
-export function useAuth() {
-  const isAuthenticated = () => localStorage.getItem('fmv-auth') === 'true'
-  const logout = () => {
-    localStorage.removeItem('fmv-auth')
-    window.location.reload()
-  }
-  return { isAuthenticated, logout }
 }
