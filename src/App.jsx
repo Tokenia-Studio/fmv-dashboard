@@ -55,7 +55,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { tabActiva, movimientos, loading } = useData()
+  const { tabActiva, movimientos, loading, loadingMessage } = useData()
   const [user, setUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
 
@@ -141,9 +141,11 @@ function App() {
       {/* Loading overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 text-center shadow-2xl">
+          <div className="bg-white rounded-xl p-8 text-center shadow-2xl min-w-[280px]">
             <div className="text-4xl mb-4 animate-spin">⚙️</div>
-            <p className="font-medium text-gray-700">Procesando...</p>
+            <p className="font-medium text-gray-700">
+              {loadingMessage || 'Procesando...'}
+            </p>
           </div>
         </div>
       )}

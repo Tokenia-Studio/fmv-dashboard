@@ -1,10 +1,12 @@
 // ============================================
 // DATA CONTEXT - FMV Dashboard v2.0
+// Con integracion Supabase
 // ============================================
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { EXCEL_COLUMN_PATTERNS, findColumn } from '../utils/constants'
+import { db, storage } from '../lib/supabase'
 import {
   calcularPyG,
   calcularTotalesPyG,
@@ -23,12 +25,12 @@ const initialState = {
   movimientos: [],
   proveedores: {},
 
-  // Años disponibles y archivos cargados
+  // Anos disponibles y archivos cargados
   años: [],
   añoActual: new Date().getFullYear(),
-  archivosCargados: {}, // { 2024: { nombre, movimientos, fecha }, 2025: {...} }
+  archivosCargados: {},
 
-  // Datos calculados (se regeneran al cambiar año)
+  // Datos calculados (se regeneran al cambiar ano)
   pyg: [],
   totalesPyG: {},
   serviciosExt: { porMes: [], subcuentas: [] },
@@ -36,7 +38,7 @@ const initialState = {
   pagosProveedores: { top15: [], totalPagos: 0, datosMensuales: [] },
   cashFlow: { meses: [], kpis: {} },
 
-  // Validación
+  // Validacion
   validacion: {
     cuadrado: true,
     diferencia: 0,
@@ -45,16 +47,21 @@ const initialState = {
 
   // UI
   loading: false,
+  loadingMessage: '',
   error: null,
   tabActiva: 'pyg',
-  datosGuardados: null
+  supabaseSync: false // indica si los datos estan sincronizados con Supabase
 }
 
 // Reducer
 function dataReducer(state, action) {
   switch (action.type) {
     case 'SET_LOADING':
-      return { ...state, loading: action.payload }
+      return {
+        ...state,
+        loading: action.payload,
+        loadingMessage: action.message || ''
+      }
 
     case 'SET_ERROR':
       return { ...state, error: action.payload, loading: false }
@@ -66,9 +73,7 @@ function dataReducer(state, action) {
       return { ...state, añoActual: action.payload }
 
     case 'LOAD_MOVIMIENTOS': {
-      // Combinar años existentes con nuevos
       const todosAños = [...new Set([...state.años, ...action.payload.años])].sort((a, b) => b - a)
-      // Mantener año actual si sigue disponible, sino usar el más reciente
       const nuevoAñoActual = todosAños.includes(state.añoActual)
         ? state.añoActual
         : todosAños[0] || state.añoActual
@@ -79,6 +84,7 @@ function dataReducer(state, action) {
         añoActual: nuevoAñoActual,
         archivosCargados: action.payload.archivosCargados || state.archivosCargados,
         validacion: action.payload.validacion,
+        supabaseSync: action.payload.supabaseSync || false,
         loading: false,
         error: null
       }
@@ -98,6 +104,9 @@ function dataReducer(state, action) {
         cashFlow: action.payload.cashFlow
       }
 
+    case 'SET_ARCHIVOS_CARGADOS':
+      return { ...state, archivosCargados: action.payload }
+
     case 'CLEAR_DATA':
       return { ...initialState }
 
@@ -110,76 +119,145 @@ function dataReducer(state, action) {
 export function DataProvider({ children }) {
   const [state, dispatch] = useReducer(dataReducer, initialState)
 
-  // Cargar datos de LocalStorage al inicio
-  // NOTA: Deshabilitado - archivos muy grandes causan problemas
+  // Cargar datos desde Supabase al inicio
   useEffect(() => {
-    // Limpiar cualquier dato antiguo que pueda causar problemas
-    localStorage.removeItem('fmv-dashboard-data')
+    cargarDatosDesdeSupabase()
   }, [])
 
-  // Recalcular datos cuando cambia el año o los movimientos
+  // Funcion para cargar datos desde Supabase
+  const cargarDatosDesdeSupabase = async () => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Cargando datos...' })
+
+    try {
+      // Obtener anos disponibles
+      const { data: años, error: errorAños } = await db.movimientos.getYears()
+      if (errorAños) throw errorAños
+
+      if (años.length === 0) {
+        dispatch({ type: 'SET_LOADING', payload: false })
+        return
+      }
+
+      // Cargar archivos cargados
+      const { data: archivosData } = await db.archivosCargados.getAll()
+      const archivosCargados = {}
+      if (archivosData) {
+        archivosData.forEach(a => {
+          archivosCargados[a.año] = {
+            nombre: a.nombre,
+            fecha: a.fecha_carga,
+            movimientos: a.movimientos,
+            totalDebe: a.total_debe,
+            totalHaber: a.total_haber
+          }
+        })
+      }
+
+      // Cargar movimientos de todos los anos
+      const todosMovimientos = []
+      for (const año of años) {
+        const { data: movs, error } = await db.movimientos.getByYear(año)
+        if (error) {
+          console.error(`Error cargando movimientos de ${año}:`, error)
+          continue
+        }
+        // Mapear de formato Supabase a formato interno
+        movs.forEach(m => {
+          todosMovimientos.push({
+            fecha: new Date(m.fecha),
+            cuenta: m.cuenta,
+            grupo: m.grupo,
+            subcuenta: m.subcuenta,
+            debe: parseFloat(m.debe) || 0,
+            haber: parseFloat(m.haber) || 0,
+            neto: parseFloat(m.neto) || 0,
+            codProcedencia: m.cod_procedencia || '',
+            descripcion: m.descripcion || '',
+            documento: m.documento || '',
+            mes: m.mes
+          })
+        })
+      }
+
+      // Cargar proveedores
+      const { data: proveedoresData } = await db.proveedores.getAll()
+      const proveedores = {}
+      if (proveedoresData) {
+        proveedoresData.forEach(p => {
+          proveedores[p.codigo] = p.nombre
+        })
+      }
+      dispatch({ type: 'LOAD_PROVEEDORES', payload: proveedores })
+
+      // Calcular validacion
+      const totalDebe = todosMovimientos.reduce((sum, m) => sum + m.debe, 0)
+      const totalHaber = todosMovimientos.reduce((sum, m) => sum + m.haber, 0)
+      const diferencia = totalDebe - totalHaber
+      const cuadrado = Math.abs(diferencia) < 0.01
+
+      dispatch({
+        type: 'LOAD_MOVIMIENTOS',
+        payload: {
+          movimientos: todosMovimientos,
+          años,
+          archivosCargados,
+          validacion: {
+            cuadrado,
+            diferencia,
+            totalDebe,
+            totalHaber,
+            numMovimientos: todosMovimientos.length
+          },
+          supabaseSync: true
+        }
+      })
+
+      console.log(`Cargados ${todosMovimientos.length} movimientos desde Supabase`)
+    } catch (error) {
+      console.error('Error cargando datos desde Supabase:', error)
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+    }
+  }
+
+  // Recalcular datos cuando cambia el ano o los movimientos
   useEffect(() => {
     if (state.movimientos.length === 0) return
 
     try {
       console.log('Calculando datos para', state.añoActual, 'con', state.movimientos.length, 'movimientos')
       const saldos = calcularSaldosBalance(state.movimientos, state.añoActual)
-      console.log('Saldos calculados')
       const pyg = calcularPyG(state.movimientos, state.añoActual)
-      console.log('PyG calculado')
       const totalesPyG = calcularTotalesPyG(pyg)
-      console.log('Totales PyG calculados')
       const serviciosExt = calcularServiciosExt(state.movimientos, state.añoActual)
-      console.log('Servicios Ext calculados')
       const financiacion = calcularFinanciacion(state.movimientos, saldos, state.añoActual)
-      console.log('Financiacion calculada')
       const pagosProveedores = calcularPagosProveedores(state.movimientos, state.proveedores, state.añoActual)
-      console.log('Pagos proveedores calculados')
       const cashFlow = calcularCashFlow(state.movimientos, saldos, state.añoActual)
-      console.log('Cash Flow calculado')
 
       dispatch({
         type: 'SET_DATOS_CALCULADOS',
         payload: { pyg, totalesPyG, serviciosExt, financiacion, pagosProveedores, cashFlow }
       })
-      console.log('Datos despachados correctamente')
     } catch (error) {
-      console.error('Error en cálculos:', error)
+      console.error('Error en calculos:', error)
       dispatch({ type: 'SET_ERROR', payload: error.message })
     }
   }, [state.movimientos, state.añoActual, state.proveedores])
 
-  // Guardar en LocalStorage cuando cambian los datos
-  // NOTA: Deshabilitado temporalmente - archivos muy grandes exceden el límite de localStorage
-  /*
-  useEffect(() => {
-    if (state.movimientos.length > 0) {
-      localStorage.setItem('fmv-dashboard-data', JSON.stringify({
-        movimientos: state.movimientos,
-        proveedores: state.proveedores,
-        años: state.años,
-        validacion: state.validacion
-      }))
-    }
-  }, [state.movimientos, state.proveedores, state.años, state.validacion])
-  */
-
-  // Función para parsear Excel del diario
+  // Funcion para parsear Excel del diario y guardar en Supabase
   const cargarDiario = async (file) => {
-    dispatch({ type: 'SET_LOADING', payload: true })
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Leyendo archivo...' })
 
     try {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
       const sheet = workbook.Sheets[workbook.SheetNames[0]]
-      // raw: true para obtener números directamente, no strings formateados
       const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
 
       if (json.length === 0) {
-        throw new Error('El archivo está vacío')
+        throw new Error('El archivo esta vacio')
       }
 
-      // Encontrar columnas de forma flexible (maneja encoding)
+      // Encontrar columnas
       const columns = Object.keys(json[0] || {})
       const COL = {
         fecha: findColumn(columns, EXCEL_COLUMN_PATTERNS.fecha),
@@ -191,44 +269,39 @@ export function DataProvider({ children }) {
         documento: findColumn(columns, EXCEL_COLUMN_PATTERNS.documento)
       }
 
-      // Validar columnas requeridas
-      if (!COL.fecha) throw new Error('No se encontró columna de Fecha')
-      if (!COL.cuenta) throw new Error('No se encontró columna de Cuenta')
-      if (!COL.debe) throw new Error('No se encontró columna de Debe')
-      if (!COL.haber) throw new Error('No se encontró columna de Haber')
+      if (!COL.fecha) throw new Error('No se encontro columna de Fecha')
+      if (!COL.cuenta) throw new Error('No se encontro columna de Cuenta')
+      if (!COL.debe) throw new Error('No se encontro columna de Debe')
+      if (!COL.haber) throw new Error('No se encontro columna de Haber')
 
-      // Mapear columnas
+      dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando movimientos...' })
+
+      // Parsear movimientos
       const movimientos = []
       let totalDebe = 0
       let totalHaber = 0
       const añosSet = new Set()
-      const cuentasDesconocidas = new Set()
 
-      // Función para parsear importes (con raw:true ya vienen como números)
       const parseImporte = (val) => {
         if (typeof val === 'number') return val
         if (!val) return 0
-        // Fallback por si acaso viene como string
         const str = String(val).trim().replace(/,/g, '')
         return parseFloat(str) || 0
       }
 
-      json.forEach((row, idx) => {
-        // Parsear fecha
+      json.forEach((row) => {
         let fecha = null
         const fechaRaw = row[COL.fecha]
 
         if (fechaRaw instanceof Date) {
           fecha = fechaRaw
         } else if (typeof fechaRaw === 'number') {
-          // Excel serial date: días desde 1/1/1900 (con bug de 1900)
           fecha = new Date((fechaRaw - 25569) * 86400 * 1000)
         } else if (typeof fechaRaw === 'string') {
           const str = fechaRaw.trim()
           if (str.match(/^\d{4}-\d{2}-\d{2}/)) {
             fecha = new Date(str.substring(0, 10))
           } else if (str.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) {
-            // Formato MM/DD/YY (americano)
             const [m, d, y] = str.split('/')
             const year = parseInt(y) < 100 ? 2000 + parseInt(y) : parseInt(y)
             fecha = new Date(year, parseInt(m) - 1, parseInt(d))
@@ -241,7 +314,6 @@ export function DataProvider({ children }) {
         if (año < 2020 || año > 2030) return
         añosSet.add(año)
 
-        // Parsear cuenta (puede ser número o string)
         const cuentaRaw = String(row[COL.cuenta] || '').trim()
         if (!cuentaRaw || cuentaRaw.length < 2) return
 
@@ -254,7 +326,6 @@ export function DataProvider({ children }) {
         totalDebe += debe
         totalHaber += haber
 
-        // Crear movimiento
         const mes = `${año}-${String(fecha.getMonth() + 1).padStart(2, '0')}`
 
         movimientos.push({
@@ -273,16 +344,60 @@ export function DataProvider({ children }) {
       })
 
       if (movimientos.length === 0) {
-        throw new Error('No se encontraron movimientos válidos')
+        throw new Error('No se encontraron movimientos validos')
       }
-
-      // Validar cuadre
-      const diferencia = totalDebe - totalHaber
-      const cuadrado = Math.abs(diferencia) < 0.01
 
       const añosNuevos = Array.from(añosSet).sort((a, b) => b - a)
 
-      // Crear registro de archivos cargados por año
+      // ========== GUARDAR EN SUPABASE ==========
+      dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando en Supabase...' })
+
+      // Eliminar movimientos existentes de esos anos
+      for (const año of añosNuevos) {
+        await db.movimientos.deleteByYear(año)
+      }
+
+      // Insertar movimientos en batches de 500
+      const BATCH_SIZE = 500
+      for (let i = 0; i < movimientos.length; i += BATCH_SIZE) {
+        const batch = movimientos.slice(i, i + BATCH_SIZE)
+        const año = parseInt(batch[0].mes.split('-')[0])
+
+        dispatch({
+          type: 'SET_LOADING',
+          payload: true,
+          message: `Guardando ${i + batch.length} de ${movimientos.length}...`
+        })
+
+        const { error } = await db.movimientos.insertBatch(batch, año)
+        if (error) {
+          console.error('Error insertando batch:', error)
+          throw new Error(`Error guardando movimientos: ${error.message}`)
+        }
+      }
+
+      // Registrar archivos cargados
+      for (const año of añosNuevos) {
+        const movsAño = movimientos.filter(m => m.mes.startsWith(String(año)))
+        await db.archivosCargados.register(año, {
+          nombre: file.name,
+          movimientos: movsAño.length,
+          totalDebe: movsAño.reduce((sum, m) => sum + m.debe, 0),
+          totalHaber: movsAño.reduce((sum, m) => sum + m.haber, 0)
+        })
+      }
+
+      // Subir archivo al Storage (opcional)
+      try {
+        const filePath = `diarios/${añosNuevos.join('-')}_${Date.now()}_${file.name}`
+        await storage.uploadExcel(file, filePath)
+        console.log('Archivo subido al Storage:', filePath)
+      } catch (storageError) {
+        console.warn('No se pudo subir al Storage:', storageError)
+        // No es critico, continuamos
+      }
+
+      // ========== ACTUALIZAR ESTADO LOCAL ==========
       const archivosCargados = { ...state.archivosCargados }
       añosNuevos.forEach(año => {
         const movsAño = movimientos.filter(m => m.mes.startsWith(String(año)))
@@ -295,14 +410,13 @@ export function DataProvider({ children }) {
         }
       })
 
-      // Combinar con movimientos existentes (mantener otros años, reemplazar años del nuevo archivo)
+      // Combinar con movimientos existentes
       const movimientosExistentes = state.movimientos.filter(m => {
         const añoMov = parseInt(m.mes.split('-')[0])
-        return !añosNuevos.includes(añoMov) // Mantener solo los que NO están en el nuevo archivo
+        return !añosNuevos.includes(añoMov)
       })
       const movimientosCombinados = [...movimientosExistentes, ...movimientos]
 
-      // Recalcular validación con todos los movimientos
       const totalDebeCombinado = movimientosCombinados.reduce((sum, m) => sum + m.debe, 0)
       const totalHaberCombinado = movimientosCombinados.reduce((sum, m) => sum + m.haber, 0)
       const diferenciaCombinada = totalDebeCombinado - totalHaberCombinado
@@ -319,21 +433,24 @@ export function DataProvider({ children }) {
             diferencia: diferenciaCombinada,
             totalDebe: totalDebeCombinado,
             totalHaber: totalHaberCombinado,
-            numMovimientos: movimientosCombinados.length,
-            cuentasDesconocidas: Array.from(cuentasDesconocidas)
-          }
+            numMovimientos: movimientosCombinados.length
+          },
+          supabaseSync: true
         }
       })
 
       return { success: true, movimientos: movimientos.length, años: añosNuevos }
     } catch (error) {
+      console.error('Error cargando diario:', error)
       dispatch({ type: 'SET_ERROR', payload: error.message })
       return { success: false, error: error.message }
     }
   }
 
-  // Función para cargar maestro de proveedores
+  // Funcion para cargar maestro de proveedores
   const cargarProveedores = async (file) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Cargando proveedores...' })
+
     try {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer, { type: 'array' })
@@ -342,7 +459,6 @@ export function DataProvider({ children }) {
 
       const proveedores = {}
       json.forEach(row => {
-        // Buscar columnas de código y nombre
         const codigo = row['Nº'] ?? row['N°'] ?? row['Codigo'] ?? row['codigo'] ?? row['N']
         const nombre = row['Nombre'] ?? row['nombre'] ?? row['NOMBRE']
 
@@ -351,24 +467,31 @@ export function DataProvider({ children }) {
         }
       })
 
+      // Guardar en Supabase
+      const { error } = await db.proveedores.upsert(proveedores)
+      if (error) {
+        console.error('Error guardando proveedores en Supabase:', error)
+      }
+
       dispatch({ type: 'LOAD_PROVEEDORES', payload: proveedores })
+      dispatch({ type: 'SET_LOADING', payload: false })
       return { success: true, count: Object.keys(proveedores).length }
     } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message })
       return { success: false, error: error.message }
     }
   }
 
-  // Función para formatear número en formato español
+  // Funcion para formatear numero en formato espanol
   const formatoEspañol = (num) => {
     if (typeof num !== 'number' || isNaN(num)) return num
     return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
-  // Función para exportar a Excel con formato
+  // Funcion para exportar a Excel con formato
   const exportarExcel = (datos, nombreArchivo) => {
     const ws = XLSX.utils.json_to_sheet(datos)
 
-    // Ajustar ancho de columnas automáticamente
     const colWidths = {}
     datos.forEach(row => {
       Object.keys(row).forEach(key => {
@@ -384,7 +507,7 @@ export function DataProvider({ children }) {
     XLSX.writeFile(wb, `${nombreArchivo}.xlsx`)
   }
 
-  // Función para exportar movimientos filtrados
+  // Funcion para exportar movimientos filtrados
   const exportarMovimientos = (filtro, nombreArchivo) => {
     const movsFiltrados = state.movimientos.filter(filtro).map(m => ({
       Fecha: m.fecha.toLocaleDateString('es-ES'),
@@ -399,9 +522,20 @@ export function DataProvider({ children }) {
     exportarExcel(movsFiltrados, nombreArchivo)
   }
 
-  // Limpiar datos
-  const limpiarDatos = () => {
-    localStorage.removeItem('fmv-dashboard-data')
+  // Limpiar datos (local y Supabase)
+  const limpiarDatos = async () => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando datos...' })
+
+    try {
+      // Eliminar de Supabase
+      for (const año of state.años) {
+        await db.movimientos.deleteByYear(año)
+      }
+      console.log('Datos eliminados de Supabase')
+    } catch (error) {
+      console.error('Error eliminando de Supabase:', error)
+    }
+
     dispatch({ type: 'CLEAR_DATA' })
   }
 
@@ -410,6 +544,7 @@ export function DataProvider({ children }) {
     dispatch,
     cargarDiario,
     cargarProveedores,
+    cargarDatosDesdeSupabase,
     exportarExcel,
     exportarMovimientos,
     limpiarDatos,
