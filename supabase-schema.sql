@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS movimientos (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indices para optimizar consultas
 CREATE INDEX IF NOT EXISTS idx_movimientos_año ON movimientos(año);
 CREATE INDEX IF NOT EXISTS idx_movimientos_mes ON movimientos(mes);
 CREATE INDEX IF NOT EXISTS idx_movimientos_cuenta ON movimientos(cuenta);
@@ -88,85 +87,82 @@ ALTER TABLE archivos_cargados ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE datos_manuales ENABLE ROW LEVEL SECURITY;
 
--- Politicas: usuarios autenticados pueden todo
-CREATE POLICY "Usuarios autenticados pueden ver movimientos"
-  ON movimientos FOR SELECT
-  TO authenticated
-  USING (true);
+-- ============================================
+-- POLITICAS PARA MOVIMIENTOS
+-- ============================================
+CREATE POLICY "movimientos_select" ON movimientos
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "movimientos_insert" ON movimientos
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "movimientos_update" ON movimientos
+  FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "movimientos_delete" ON movimientos
+  FOR DELETE TO authenticated USING (true);
 
-CREATE POLICY "Usuarios autenticados pueden insertar movimientos"
-  ON movimientos FOR INSERT
-  TO authenticated
-  WITH CHECK (true);
+-- ============================================
+-- POLITICAS PARA PROVEEDORES
+-- ============================================
+CREATE POLICY "proveedores_select" ON proveedores
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "proveedores_insert" ON proveedores
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "proveedores_update" ON proveedores
+  FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "proveedores_delete" ON proveedores
+  FOR DELETE TO authenticated USING (true);
 
-CREATE POLICY "Usuarios autenticados pueden eliminar movimientos"
-  ON movimientos FOR DELETE
-  TO authenticated
-  USING (true);
+-- ============================================
+-- POLITICAS PARA ARCHIVOS_CARGADOS
+-- ============================================
+CREATE POLICY "archivos_select" ON archivos_cargados
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "archivos_insert" ON archivos_cargados
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "archivos_update" ON archivos_cargados
+  FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "archivos_delete" ON archivos_cargados
+  FOR DELETE TO authenticated USING (true);
 
-CREATE POLICY "Usuarios autenticados pueden ver proveedores"
-  ON proveedores FOR SELECT
-  TO authenticated
-  USING (true);
+-- ============================================
+-- POLITICAS PARA CONFIGURACION
+-- ============================================
+CREATE POLICY "config_select" ON configuracion
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "config_insert" ON configuracion
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "config_update" ON configuracion
+  FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "config_delete" ON configuracion
+  FOR DELETE TO authenticated USING (true);
 
-CREATE POLICY "Usuarios autenticados pueden gestionar proveedores"
-  ON proveedores FOR ALL
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Usuarios autenticados pueden ver archivos"
-  ON archivos_cargados FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Usuarios autenticados pueden gestionar archivos"
-  ON archivos_cargados FOR ALL
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Usuarios autenticados pueden ver configuracion"
-  ON configuracion FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Usuarios autenticados pueden gestionar configuracion"
-  ON configuracion FOR ALL
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Usuarios autenticados pueden ver datos manuales"
-  ON datos_manuales FOR SELECT
-  TO authenticated
-  USING (true);
-
-CREATE POLICY "Usuarios autenticados pueden gestionar datos manuales"
-  ON datos_manuales FOR ALL
-  TO authenticated
-  USING (true);
+-- ============================================
+-- POLITICAS PARA DATOS_MANUALES
+-- ============================================
+CREATE POLICY "datos_select" ON datos_manuales
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "datos_insert" ON datos_manuales
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "datos_update" ON datos_manuales
+  FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "datos_delete" ON datos_manuales
+  FOR DELETE TO authenticated USING (true);
 
 -- ============================================
 -- STORAGE BUCKET
 -- ============================================
--- Ejecutar esto en Storage > New Bucket:
+-- Crear manualmente en Storage > New Bucket:
 -- Nombre: excels
 -- Public: No
 -- File size limit: 50MB
--- Allowed MIME types: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel
 
--- Politica de storage (ejecutar en SQL despues de crear el bucket)
--- INSERT INTO storage.buckets (id, name, public) VALUES ('excels', 'excels', false);
-
--- CREATE POLICY "Usuarios autenticados pueden subir excels"
---   ON storage.objects FOR INSERT
---   TO authenticated
---   WITH CHECK (bucket_id = 'excels');
-
--- CREATE POLICY "Usuarios autenticados pueden ver excels"
---   ON storage.objects FOR SELECT
---   TO authenticated
---   USING (bucket_id = 'excels');
-
--- CREATE POLICY "Usuarios autenticados pueden eliminar excels"
---   ON storage.objects FOR DELETE
---   TO authenticated
---   USING (bucket_id = 'excels');
+-- Politicas de storage (ejecutar despues de crear el bucket)
+/*
+CREATE POLICY "excels_insert" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'excels');
+CREATE POLICY "excels_select" ON storage.objects
+  FOR SELECT TO authenticated USING (bucket_id = 'excels');
+CREATE POLICY "excels_update" ON storage.objects
+  FOR UPDATE TO authenticated USING (bucket_id = 'excels');
+CREATE POLICY "excels_delete" ON storage.objects
+  FOR DELETE TO authenticated USING (bucket_id = 'excels');
+*/
