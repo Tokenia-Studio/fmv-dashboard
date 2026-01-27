@@ -82,14 +82,33 @@ export const db = {
       return { data, error }
     },
 
-    // Obtener movimientos por año
+    // Obtener movimientos por año (con paginación para cargar todos)
     getByYear: async (año) => {
-      const { data, error } = await supabase
-        .from('movimientos')
-        .select('*')
-        .eq('año', año)
-        .order('fecha', { ascending: true })
-      return { data, error }
+      const PAGE_SIZE = 10000
+      let allData = []
+      let from = 0
+      let hasMore = true
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('movimientos')
+          .select('*')
+          .eq('año', año)
+          .order('fecha', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1)
+
+        if (error) return { data: null, error }
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data]
+          from += PAGE_SIZE
+          hasMore = data.length === PAGE_SIZE
+        } else {
+          hasMore = false
+        }
+      }
+
+      return { data: allData, error: null }
     },
 
     // Obtener todos los años disponibles
