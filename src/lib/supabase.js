@@ -51,6 +51,22 @@ export const auth = {
   // Escuchar cambios de autenticacion
   onAuthStateChange: (callback) => {
     return supabase.auth.onAuthStateChange(callback)
+  },
+
+  // Enviar email para resetear contraseña
+  resetPassword: async (email) => {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    })
+    return { data, error }
+  },
+
+  // Actualizar contraseña (después de invitación o reset)
+  updatePassword: async (newPassword) => {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+    return { data, error }
   }
 }
 
