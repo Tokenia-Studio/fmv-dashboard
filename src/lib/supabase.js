@@ -88,12 +88,8 @@ export const db = {
       let allData = []
       let from = 0
       let hasMore = true
-      let pageNum = 0
 
       while (hasMore) {
-        pageNum++
-        console.log(`[Supabase] Año ${año} - Cargando página ${pageNum} (desde ${from})...`)
-
         const { data, error } = await supabase
           .from('movimientos')
           .select('*')
@@ -101,12 +97,7 @@ export const db = {
           .order('id', { ascending: true })
           .range(from, from + PAGE_SIZE - 1)
 
-        if (error) {
-          console.error(`[Supabase] Error en página ${pageNum}:`, error)
-          return { data: null, error }
-        }
-
-        console.log(`[Supabase] Año ${año} - Página ${pageNum}: ${data?.length || 0} registros`)
+        if (error) return { data: null, error }
 
         if (data && data.length > 0) {
           allData = [...allData, ...data]
@@ -117,7 +108,6 @@ export const db = {
         }
       }
 
-      console.log(`[Supabase] Año ${año} - Total cargados: ${allData.length}`)
       return { data: allData, error: null }
     },
 
