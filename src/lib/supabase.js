@@ -84,20 +84,29 @@ export const db = {
 
     // Obtener movimientos por año (con paginación para cargar todos)
     getByYear: async (año) => {
-      const PAGE_SIZE = 10000
+      const PAGE_SIZE = 5000
       let allData = []
       let from = 0
       let hasMore = true
+      let pageNum = 0
 
       while (hasMore) {
+        pageNum++
+        console.log(`[Supabase] Año ${año} - Cargando página ${pageNum} (desde ${from})...`)
+
         const { data, error } = await supabase
           .from('movimientos')
           .select('*')
           .eq('año', año)
-          .order('fecha', { ascending: true })
+          .order('id', { ascending: true })
           .range(from, from + PAGE_SIZE - 1)
 
-        if (error) return { data: null, error }
+        if (error) {
+          console.error(`[Supabase] Error en página ${pageNum}:`, error)
+          return { data: null, error }
+        }
+
+        console.log(`[Supabase] Año ${año} - Página ${pageNum}: ${data?.length || 0} registros`)
 
         if (data && data.length > 0) {
           allData = [...allData, ...data]
@@ -108,6 +117,7 @@ export const db = {
         }
       }
 
+      console.log(`[Supabase] Año ${año} - Total cargados: ${allData.length}`)
       return { data: allData, error: null }
     },
 
