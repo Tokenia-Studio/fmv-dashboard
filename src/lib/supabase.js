@@ -111,15 +111,15 @@ export const db = {
       return { data: allData, error: null }
     },
 
-    // Obtener todos los años disponibles
+    // Obtener todos los años disponibles (desde archivos_cargados que es más eficiente)
     getYears: async () => {
       const { data, error } = await supabase
-        .from('movimientos')
+        .from('archivos_cargados')
         .select('año')
         .order('año', { ascending: false })
 
       if (error) return { data: [], error }
-      const años = [...new Set(data.map(d => d.año))]
+      const años = data.map(d => d.año)
       return { data: años, error: null }
     },
 
