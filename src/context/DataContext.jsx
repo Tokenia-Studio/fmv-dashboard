@@ -1011,6 +1011,36 @@ export function DataProvider({ children }) {
     dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: filas })
   }
 
+  // Borrar albaranes de un año/mes
+  const borrarAlbaranes = async (año, mes) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando albaranes...' })
+    try {
+      await supabase.from('albaranes_facturas').delete().eq('año', año).eq('mes', mes)
+      const { data } = await db.albaranesFacturas.getByYear(año)
+      dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: data || [] })
+      dispatch({ type: 'SET_LOADING', payload: false })
+      return { success: true }
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
+  // Borrar pedidos de un año/mes
+  const borrarPedidos = async (año, mes) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando pedidos...' })
+    try {
+      await supabase.from('pedidos_compra').delete().eq('año', año).eq('mes', mes)
+      const { data } = await db.pedidosCompra.getByYear(año)
+      dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: data || [] })
+      dispatch({ type: 'SET_LOADING', payload: false })
+      return { success: true }
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
   // Limpiar datos (local y Supabase)
   const limpiarDatos = async () => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando datos...' })
@@ -1038,6 +1068,8 @@ export function DataProvider({ children }) {
     cargarDatosDesdeSupabase,
     cargarAlbaranes,
     cargarPedidos,
+    borrarAlbaranes,
+    borrarPedidos,
     guardarMapeo,
     exportarExcel,
     exportarMovimientos,

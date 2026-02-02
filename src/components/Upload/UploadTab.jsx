@@ -12,9 +12,13 @@ export default function UploadTab() {
     cargarProveedores,
     cargarAlbaranes,
     cargarPedidos,
+    borrarAlbaranes,
+    borrarPedidos,
     limpiarDatos,
     movimientos,
     proveedores,
+    albaranesFacturas,
+    pedidosCompra,
     validacion,
     años,
     añoActual,
@@ -195,7 +199,7 @@ export default function UploadTab() {
           {/* Selector año/mes */}
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Ano:</span>
+              <span className="text-sm text-gray-600">Año:</span>
               <select
                 value={añoCompras}
                 onChange={(e) => setAñoCompras(parseInt(e.target.value))}
@@ -279,6 +283,106 @@ export default function UploadTab() {
           </div>
         </div>
       </div>
+
+      {/* Resumen Albaranes y Pedidos cargados */}
+      {(albaranesFacturas.length > 0 || pedidosCompra.length > 0) && (
+        <div className="card overflow-hidden">
+          <div className="card-header">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <span>&#128722;</span>
+              <span>Compras Cargadas</span>
+            </h3>
+          </div>
+          <div className="p-4">
+            {(() => {
+              // Agrupar por año/mes
+              const mesesAlb = {}
+              albaranesFacturas.forEach(a => {
+                const key = `${a.año}-${String(a.mes).padStart(2, '0')}`
+                if (!mesesAlb[key]) mesesAlb[key] = { año: a.año, mes: a.mes, count: 0, total: 0 }
+                mesesAlb[key].count++
+                mesesAlb[key].total += Math.abs(a.importe || 0)
+              })
+              const mesesPed = {}
+              pedidosCompra.forEach(p => {
+                const key = `${p.año}-${String(p.mes).padStart(2, '0')}`
+                if (!mesesPed[key]) mesesPed[key] = { año: p.año, mes: p.mes, count: 0, total: 0 }
+                mesesPed[key].count++
+                mesesPed[key].total += Math.abs(p.importe || 0)
+              })
+              const mesesNombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+              const allKeys = [...new Set([...Object.keys(mesesAlb), ...Object.keys(mesesPed)])].sort()
+
+              return (
+                <table className="w-full text-sm">
+                  <thead className="table-header">
+                    <tr>
+                      <th className="p-2 text-left">Período</th>
+                      <th className="p-2 text-right">Albaranes</th>
+                      <th className="p-2 text-right">Importe Alb.</th>
+                      <th className="p-2 text-center"></th>
+                      <th className="p-2 text-right">Pedidos</th>
+                      <th className="p-2 text-right">Importe Ped.</th>
+                      <th className="p-2 text-center"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allKeys.map(key => {
+                      const alb = mesesAlb[key]
+                      const ped = mesesPed[key]
+                      const año = alb?.año || ped?.año
+                      const mes = alb?.mes || ped?.mes
+                      return (
+                        <tr key={key} className="border-b hover:bg-gray-50">
+                          <td className="p-2 font-medium">{mesesNombres[mes - 1]} {año}</td>
+                          <td className="p-2 text-right">{alb ? alb.count : '-'}</td>
+                          <td className="p-2 text-right">{alb ? formatCurrency(alb.total) : '-'}</td>
+                          <td className="p-2 text-center">
+                            {alb && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`¿Eliminar ${alb.count} albaranes de ${mesesNombres[mes - 1]} ${año}?`)) return
+                                  const r = await borrarAlbaranes(año, mes)
+                                  setMensaje(r.success
+                                    ? { tipo: 'success', texto: `Albaranes de ${mesesNombres[mes - 1]} ${año} eliminados` }
+                                    : { tipo: 'error', texto: r.error })
+                                  setTimeout(() => setMensaje(null), 4000)
+                                }}
+                                className="px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 rounded"
+                              >
+                                Borrar
+                              </button>
+                            )}
+                          </td>
+                          <td className="p-2 text-right">{ped ? ped.count : '-'}</td>
+                          <td className="p-2 text-right">{ped ? formatCurrency(ped.total) : '-'}</td>
+                          <td className="p-2 text-center">
+                            {ped && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`¿Eliminar ${ped.count} pedidos de ${mesesNombres[mes - 1]} ${año}?`)) return
+                                  const r = await borrarPedidos(año, mes)
+                                  setMensaje(r.success
+                                    ? { tipo: 'success', texto: `Pedidos de ${mesesNombres[mes - 1]} ${año} eliminados` }
+                                    : { tipo: 'error', texto: r.error })
+                                  setTimeout(() => setMensaje(null), 4000)
+                                }}
+                                className="px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 rounded"
+                              >
+                                Borrar
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Resumen de datos cargados */}
       {tieneDatos && (
