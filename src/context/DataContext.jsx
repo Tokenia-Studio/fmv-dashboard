@@ -594,7 +594,7 @@ export function DataProvider({ children }) {
       }
 
       if (esFormatoGLPPT) {
-        // Procesar formato GL PPT: solo cuentas de 9 dígitos (máximo desglose), agrupar a 3 dígitos
+        // Procesar formato GL PPT: guardar cuentas a 9 dígitos (máximo desglose)
         jsonRaw.forEach((row, i) => {
           if (i < 4) return // Saltar cabeceras
 
@@ -618,9 +618,9 @@ export function DataProvider({ children }) {
             // Invertir signo de ingresos para normalizar (el archivo tiene ingresos negativos)
             if (esIngreso) importe = -importe
 
-            const key = `${cuenta3}-${mes}`
+            const key = `${cuentaLarga}-${mes}`
             if (!presupuestosPorCuentaMes[key]) {
-              presupuestosPorCuentaMes[key] = { año, mes, cuenta: cuenta3, importe: 0 }
+              presupuestosPorCuentaMes[key] = { año, mes, cuenta: cuentaLarga, importe: 0 }
             }
             presupuestosPorCuentaMes[key].importe += importe
           })

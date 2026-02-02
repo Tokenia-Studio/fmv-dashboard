@@ -1,12 +1,12 @@
 // ============================================
-// TABLA PRESUPUESTO - Estructura PyG Analítico
+// TABLA PRESUPUESTO - Estructura PyG Analítico con drill-down
 // ============================================
 
 import React, { useState, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatPercent, formatExcelNumber, getValueClass } from '../../utils/formatters'
-import { MONTHS_SHORT } from '../../utils/constants'
+import { MONTHS_SHORT, ACCOUNT_GROUPS_3 } from '../../utils/constants'
 import ExportButton from '../UI/ExportButton'
 
 // Mapeo de cuentas 3 dígitos a categorías del PyG
@@ -88,28 +88,96 @@ const ESTRUCTURA_PYG = [
 
 export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año }) {
   const { movimientos, presupuestos, pyg3Digitos } = useData()
+  const [expanded, setExpanded] = useState(new Set())
+
+  const toggleExpand = (key) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // Build presupuesto data indexed by cuenta (supports both 3-digit and 9-digit)
+  const presPorCuenta = useMemo(() => {
+    const result = {}
+    presupuestos.forEach(p => {
+      const cuenta = p.cuenta
+      if (!result[cuenta]) result[cuenta] = { meses: {} }
+      if (!result[cuenta].meses[p.mes]) result[cuenta].meses[p.mes] = 0
+      result[cuenta].meses[p.mes] += p.importe
+    })
+    return result
+  }, [presupuestos])
+
+  // Aggregate presupuestos to 3-digit level (handles both 3-digit and 9-digit inputs)
+  const presPorCuenta3 = useMemo(() => {
+    const result = {}
+    Object.entries(presPorCuenta).forEach(([cuenta, data]) => {
+      const c3 = cuenta.substring(0, 3)
+      if (!result[c3]) result[c3] = { meses: {} }
+      Object.entries(data.meses).forEach(([mes, importe]) => {
+        if (!result[c3].meses[mes]) result[c3].meses[mes] = 0
+        result[c3].meses[mes] += importe
+      })
+    })
+    return result
+  }, [presPorCuenta])
+
+  // Get 9-digit presupuestos grouped under their 3-digit parent
+  const presSubcuentas = useMemo(() => {
+    const result = {}
+    Object.entries(presPorCuenta).forEach(([cuenta, data]) => {
+      if (cuenta.length <= 3) return // skip already-3-digit
+      const c3 = cuenta.substring(0, 3)
+      if (!result[c3]) result[c3] = {}
+      result[c3][cuenta] = data
+    })
+    return result
+  }, [presPorCuenta])
+
+  // Real data by subcuenta (full account) from movimientos
+  const realSubcuentas = useMemo(() => {
+    const result = {}
+    movimientos.forEach(mov => {
+      if (!mov.mes.startsWith(String(año))) return
+      const cuenta3 = mov.cuenta.substring(0, 3)
+      if (!ACCOUNT_GROUPS_3[cuenta3]) return
+
+      const subcuenta = mov.cuenta
+      if (!result[subcuenta]) {
+        result[subcuenta] = { cuenta3, meses: {} }
+        for (let m = 1; m <= 12; m++) result[subcuenta].meses[m] = 0
+      }
+      const mes = parseInt(mov.mes.split('-')[1])
+      const neto = mov.debe - mov.haber
+      const valor = ACCOUNT_GROUPS_3[cuenta3].type === 'ingreso' ? -neto : neto
+      result[subcuenta].meses[mes] += valor
+    })
+    return result
+  }, [movimientos, año])
 
   // Calcular datos agrupados por categoría PyG
   const datosAgrupados = useMemo(() => {
-    // Inicializar categorías para presupuesto
     const presPorCategoria = {}
     ESTRUCTURA_PYG.forEach(f => {
       if (!f.calc) presPorCategoria[f.id] = { total: 0, meses: {} }
     })
 
-    // Agrupar presupuestos por categoría
-    presupuestos.forEach(p => {
-      const cat = CUENTA_A_CATEGORIA[p.cuenta]
+    // Agrupar presupuestos por categoría (using 3-digit aggregated)
+    Object.entries(presPorCuenta3).forEach(([cuenta3, data]) => {
+      const cat = CUENTA_A_CATEGORIA[cuenta3]
       if (!cat || !presPorCategoria[cat]) return
-
-      if (!presPorCategoria[cat].meses[p.mes]) {
-        presPorCategoria[cat].meses[p.mes] = 0
-      }
-      presPorCategoria[cat].meses[p.mes] += p.importe
-      presPorCategoria[cat].total += p.importe
+      Object.entries(data.meses).forEach(([mes, importe]) => {
+        const m = parseInt(mes)
+        if (!presPorCategoria[cat].meses[m]) presPorCategoria[cat].meses[m] = 0
+        presPorCategoria[cat].meses[m] += importe
+        presPorCategoria[cat].total += importe
+      })
     })
 
-    // Calcular varExist = varExistPT - varExistMP
+    // Calcular varExist pres
     presPorCategoria['varExist'] = { total: 0, meses: {} }
     for (let m = 1; m <= 12; m++) {
       const varPT = presPorCategoria['varExistPT']?.meses[m] || 0
@@ -118,28 +186,23 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
       presPorCategoria['varExist'].total += varPT - varMP
     }
 
-    // Inicializar categorías para real
+    // Real por categoría
     const realPorCategoria = {}
     ESTRUCTURA_PYG.forEach(f => {
       if (!f.calc) realPorCategoria[f.id] = { total: 0, meses: {} }
     })
 
-    // Agrupar real por categoría desde pyg3Digitos
     Object.entries(pyg3Digitos).forEach(([cuenta, data]) => {
       const cat = CUENTA_A_CATEGORIA[cuenta]
       if (!cat || !realPorCategoria[cat]) return
-
       for (let m = 1; m <= 12; m++) {
         const valor = data.meses[m] || 0
-        if (!realPorCategoria[cat].meses[m]) {
-          realPorCategoria[cat].meses[m] = 0
-        }
+        if (!realPorCategoria[cat].meses[m]) realPorCategoria[cat].meses[m] = 0
         realPorCategoria[cat].meses[m] += valor
         realPorCategoria[cat].total += valor
       }
     })
 
-    // Calcular varExist real
     realPorCategoria['varExist'] = { total: 0, meses: {} }
     for (let m = 1; m <= 12; m++) {
       const varPT = realPorCategoria['varExistPT']?.meses[m] || 0
@@ -149,67 +212,111 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
     }
 
     return { pres: presPorCategoria, real: realPorCategoria }
-  }, [presupuestos, pyg3Digitos])
+  }, [presupuestos, pyg3Digitos, presPorCuenta3])
 
-  // Calcular subtotales
+  // Subtotales
   const calcularSubtotales = (datos, mes = null) => {
-    const get = (cat) => {
-      if (mes) return datos[cat]?.meses[mes] || 0
-      return datos[cat]?.total || 0
-    }
-
-    const ventas = get('ventas')
-    const compras = get('compras')
-    const varExist = get('varExist')
-    const servicios = get('servicios')
-    const personal = get('personal')
-    const subvenciones = get('subvenciones')
-    const otrosIngExplot = get('otrosIngExplot')
+    const get = (cat) => mes ? (datos[cat]?.meses[mes] || 0) : (datos[cat]?.total || 0)
+    const ventas = get('ventas'), compras = get('compras'), varExist = get('varExist')
+    const servicios = get('servicios'), personal = get('personal')
+    const subvenciones = get('subvenciones'), otrosIngExplot = get('otrosIngExplot')
     const otrosIngresos = get('otrosIngresos')
-    const restoGastos = get('restoGastos')
-    const amortizaciones = get('amortizaciones')
+    const restoGastos = get('restoGastos'), amortizaciones = get('amortizaciones')
     const gastosFinancieros = get('gastosFinancieros')
-    const ingFinancieros = get('ingFinancieros')
-    const ingExcepc = get('ingExcepc')
-
+    const ingFinancieros = get('ingFinancieros'), ingExcepc = get('ingExcepc')
     const margenBruto = ventas - compras + varExist
-    const ebitda = margenBruto - servicios - personal + subvenciones + otrosIngExplot + otrosIngresos
+    const ebitda = margenBruto - servicios - personal + subvenciones + otrosIngExplot + (otrosIngresos || 0)
     const resultado = ebitda - restoGastos - amortizaciones - gastosFinancieros + ingFinancieros + ingExcepc
-
     return { margenBruto, ebitda, resultado }
   }
 
-  // Obtener valor para una fila
   const getValor = (datos, fila, mes = null) => {
-    if (fila.calc) {
-      const subtotales = calcularSubtotales(datos, mes)
-      return subtotales[fila.id] || 0
-    }
-    if (mes) return datos[fila.id]?.meses[mes] || 0
-    return datos[fila.id]?.total || 0
+    if (fila.calc) return calcularSubtotales(datos, mes)[fila.id] || 0
+    return mes ? (datos[fila.id]?.meses[mes] || 0) : (datos[fila.id]?.total || 0)
   }
 
-  // Calcular variación porcentual
   const calcVar = (real, pres) => {
     if (!pres || pres === 0) return null
     return ((real - pres) / Math.abs(pres)) * 100
   }
 
-  // Filtrar filas sin datos
   const filasVisibles = ESTRUCTURA_PYG.filter(f => {
     if (!f.optional) return true
-    const preVal = getValor(datosAgrupados.pres, f)
-    const realVal = getValor(datosAgrupados.real, f)
-    return preVal !== 0 || realVal !== 0
+    return getValor(datosAgrupados.pres, f) !== 0 || getValor(datosAgrupados.real, f) !== 0
   })
 
-  // Calcular acumulados hasta mes seleccionado
   const getAcumulado = (datos, fila) => {
     let acum = 0
-    for (let m = 1; m <= mesSeleccionado; m++) {
-      acum += getValor(datos, fila, m)
-    }
+    for (let m = 1; m <= mesSeleccionado; m++) acum += getValor(datos, fila, m)
     return acum
+  }
+
+  // Helper: get pres value for a specific cuenta (3-digit) and mes
+  const getPresCuenta3 = (cuenta3, mes) => presPorCuenta3[cuenta3]?.meses[mes] || 0
+  const getPresCuenta3Acum = (cuenta3) => {
+    let acum = 0
+    for (let m = 1; m <= mesSeleccionado; m++) acum += getPresCuenta3(cuenta3, m)
+    return acum
+  }
+
+  // Helper: get pres value for a specific subcuenta (9-digit) and mes
+  const getPresSubcuenta = (subcuenta, mes) => presPorCuenta[subcuenta]?.meses[mes] || 0
+  const getPresSubcuentaAcum = (subcuenta) => {
+    let acum = 0
+    for (let m = 1; m <= mesSeleccionado; m++) acum += getPresSubcuenta(subcuenta, m)
+    return acum
+  }
+
+  // Helper: get real value for cuenta3
+  const getRealCuenta3 = (cuenta3, mes) => pyg3Digitos[cuenta3]?.meses[mes] || 0
+  const getRealCuenta3Acum = (cuenta3) => {
+    let acum = 0
+    for (let m = 1; m <= mesSeleccionado; m++) acum += getRealCuenta3(cuenta3, m)
+    return acum
+  }
+
+  // Helper: get real value for subcuenta
+  const getRealSubcuenta = (subcuenta, mes) => realSubcuentas[subcuenta]?.meses[mes] || 0
+  const getRealSubcuentaAcum = (subcuenta) => {
+    let acum = 0
+    for (let m = 1; m <= mesSeleccionado; m++) acum += getRealSubcuenta(subcuenta, m)
+    return acum
+  }
+
+  // Get all 3-digit accounts for a category
+  const getCuentas3ForCategory = (catId) => {
+    // varExist combines varExistPT and varExistMP
+    const cats = catId === 'varExist' ? ['varExistPT', 'varExistMP'] : [catId]
+    const cuentas = new Set()
+    Object.entries(CUENTA_A_CATEGORIA).forEach(([c3, cat]) => {
+      if (cats.includes(cat)) cuentas.add(c3)
+    })
+    // Only return cuentas that have data (pres or real)
+    return [...cuentas].filter(c3 => {
+      const hasPres = presPorCuenta3[c3] && Object.values(presPorCuenta3[c3].meses).some(v => v !== 0)
+      const hasReal = pyg3Digitos[c3] && Object.values(pyg3Digitos[c3].meses).some((v, i) => typeof i === 'number' ? v !== 0 : false)
+      // Simpler check: any month 1-12 non-zero
+      const hasRealData = pyg3Digitos[c3] && Array.from({length: 12}, (_, i) => i + 1).some(m => pyg3Digitos[c3].meses[m] !== 0)
+      return hasPres || hasRealData
+    }).sort()
+  }
+
+  // Get all subcuentas (9-digit) for a 3-digit account
+  const getSubcuentasFor3 = (cuenta3) => {
+    const subcuentas = new Set()
+    // From presupuestos
+    if (presSubcuentas[cuenta3]) {
+      Object.keys(presSubcuentas[cuenta3]).forEach(s => subcuentas.add(s))
+    }
+    // From real data
+    Object.entries(realSubcuentas).forEach(([s, data]) => {
+      if (data.cuenta3 === cuenta3) subcuentas.add(s)
+    })
+    return [...subcuentas].filter(s => {
+      const hasPres = presPorCuenta[s] && Object.values(presPorCuenta[s].meses).some(v => v !== 0)
+      const hasReal = realSubcuentas[s] && Array.from({length: 12}, (_, i) => i + 1).some(m => realSubcuentas[s].meses[m] !== 0)
+      return hasPres || hasReal
+    }).sort()
   }
 
   // Exportar a Excel
@@ -219,7 +326,6 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
       const realMes = getValor(datosAgrupados.real, fila, mesSeleccionado)
       const presAcum = getAcumulado(datosAgrupados.pres, fila)
       const realAcum = getAcumulado(datosAgrupados.real, fila)
-
       return {
         Concepto: fila.label,
         'Pres. Mes': formatExcelNumber(presMes),
@@ -230,7 +336,6 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
         'Var. Acum %': calcVar(realAcum, presAcum)?.toFixed(1) + '%' || '-'
       }
     })
-
     const ws = XLSX.utils.json_to_sheet(exportData)
     ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 12 }]
     const wb = XLSX.utils.book_new()
@@ -238,14 +343,161 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
     XLSX.writeFile(wb, `PyG_Ppto_vs_Real_${año}_${MONTHS_SHORT[mesSeleccionado - 1]}.xlsx`)
   }
 
-  // Formatear variación con color
   const formatVar = (valor, esGasto = false) => {
     if (valor === null || valor === undefined) return <span className="text-gray-400">-</span>
-    // Para gastos: negativo es bueno (gastamos menos)
-    // Para ingresos/márgenes: positivo es bueno
     const esBueno = esGasto ? valor < 0 : valor >= 0
     const color = esBueno ? 'text-green-600' : 'text-red-600'
     return <span className={color}>{valor >= 0 ? '+' : ''}{valor.toFixed(1)}%</span>
+  }
+
+  // Render a data row with 7 columns
+  const renderDataRow = (key, label, presMes, realMes, presAcum, realAcum, esGasto, className, onClick, chevron) => {
+    const varMes = calcVar(realMes, presMes)
+    const varAcum = calcVar(realAcum, presAcum)
+    return (
+      <tr key={key} className={className} onClick={onClick} style={onClick ? { cursor: 'pointer' } : undefined}>
+        <td className="p-3 flex items-center gap-1">
+          {chevron}
+          {label}
+        </td>
+        <td className="p-3 text-right text-gray-600">{formatCurrency(presMes)}</td>
+        <td className="p-3 text-right font-medium">{formatCurrency(realMes)}</td>
+        <td className="p-3 text-right">{formatVar(varMes, esGasto)}</td>
+        <td className="p-3 text-right bg-slate-50 text-gray-600">{formatCurrency(presAcum)}</td>
+        <td className="p-3 text-right bg-slate-50 font-medium">{formatCurrency(realAcum)}</td>
+        <td className="p-3 text-right bg-slate-50">{formatVar(varAcum, esGasto)}</td>
+      </tr>
+    )
+  }
+
+  // Build all rows including expanded sub-rows
+  const renderRows = () => {
+    const rows = []
+
+    filasVisibles.forEach(fila => {
+      const isHeader = fila.type === 'header'
+      const isSubtotal = fila.type === 'subtotal'
+      const isTotal = fila.type === 'total'
+      const esGasto = fila.negative
+      const isExpandable = !fila.calc && fila.id !== 'varExist'
+      const catKey = `cat-${fila.id}`
+      const isExpanded = expanded.has(catKey)
+
+      const presMes = getValor(datosAgrupados.pres, fila, mesSeleccionado)
+      const realMes = getValor(datosAgrupados.real, fila, mesSeleccionado)
+      const varMes = calcVar(realMes, presMes)
+      const presAcum = getAcumulado(datosAgrupados.pres, fila)
+      const realAcum = getAcumulado(datosAgrupados.real, fila)
+      const varAcum = calcVar(realAcum, presAcum)
+
+      // Main category row
+      rows.push(
+        <tr
+          key={fila.id}
+          className={`
+            ${isHeader ? 'bg-green-50 font-semibold' : ''}
+            ${isSubtotal ? 'subtotal-row font-semibold border-t-2 border-blue-200' : ''}
+            ${isTotal ? 'total-row text-base' : ''}
+            ${!isHeader && !isSubtotal && !isTotal ? 'hover:bg-gray-50' : ''}
+            ${isExpandable ? 'cursor-pointer select-none' : ''}
+          `}
+          onClick={isExpandable ? () => toggleExpand(catKey) : undefined}
+        >
+          <td className={`p-3 ${fila.indent ? 'pl-6' : ''}`}>
+            <span className="flex items-center gap-1">
+              {isExpandable && (
+                <span className="text-xs text-gray-400 w-4 inline-block">{isExpanded ? '▼' : '▶'}</span>
+              )}
+              {fila.icon && <span className="mr-1">{fila.icon}</span>}
+              {fila.label}
+            </span>
+          </td>
+          <td className="p-3 text-right text-gray-600">{formatCurrency(presMes)}</td>
+          <td className={`p-3 text-right font-medium ${isSubtotal || isTotal ? getValueClass(realMes) : ''}`}>
+            {formatCurrency(realMes)}
+          </td>
+          <td className="p-3 text-right">{formatVar(varMes, esGasto)}</td>
+          <td className="p-3 text-right bg-slate-50 text-gray-600">{formatCurrency(presAcum)}</td>
+          <td className={`p-3 text-right bg-slate-50 font-medium ${isSubtotal || isTotal ? getValueClass(realAcum) : ''}`}>
+            {formatCurrency(realAcum)}
+          </td>
+          <td className="p-3 text-right bg-slate-50">{formatVar(varAcum, esGasto)}</td>
+        </tr>
+      )
+
+      // Expanded: show 3-digit sub-accounts
+      if (isExpandable && isExpanded) {
+        const cuentas3 = getCuentas3ForCategory(fila.id)
+
+        cuentas3.forEach(c3 => {
+          const c3Key = `c3-${c3}`
+          const isC3Expanded = expanded.has(c3Key)
+          const nombre3 = ACCOUNT_GROUPS_3[c3]?.name || `Cuenta ${c3}`
+
+          const pM = getPresCuenta3(c3, mesSeleccionado)
+          const rM = getRealCuenta3(c3, mesSeleccionado)
+          const pA = getPresCuenta3Acum(c3)
+          const rA = getRealCuenta3Acum(c3)
+          const vM = calcVar(rM, pM)
+          const vA = calcVar(rA, pA)
+
+          const subcuentas = getSubcuentasFor3(c3)
+          const hasSubdetail = subcuentas.length > 1
+
+          rows.push(
+            <tr
+              key={c3Key}
+              className={`bg-gray-50 text-sm hover:bg-gray-100 ${hasSubdetail ? 'cursor-pointer select-none' : ''}`}
+              onClick={hasSubdetail ? () => toggleExpand(c3Key) : undefined}
+            >
+              <td className="p-2 pl-10">
+                <span className="flex items-center gap-1">
+                  {hasSubdetail && (
+                    <span className="text-xs text-gray-400 w-4 inline-block">{isC3Expanded ? '▼' : '▶'}</span>
+                  )}
+                  <span className="text-gray-500 font-mono text-xs mr-1">{c3}</span>
+                  {nombre3}
+                </span>
+              </td>
+              <td className="p-2 text-right text-gray-500">{formatCurrency(pM)}</td>
+              <td className="p-2 text-right font-medium">{formatCurrency(rM)}</td>
+              <td className="p-2 text-right">{formatVar(vM, esGasto)}</td>
+              <td className="p-2 text-right bg-slate-50 text-gray-500">{formatCurrency(pA)}</td>
+              <td className="p-2 text-right bg-slate-50 font-medium">{formatCurrency(rA)}</td>
+              <td className="p-2 text-right bg-slate-50">{formatVar(vA, esGasto)}</td>
+            </tr>
+          )
+
+          // Expanded 3-digit: show 9-digit subcuentas
+          if (hasSubdetail && isC3Expanded) {
+            subcuentas.forEach(sub => {
+              const spM = getPresSubcuenta(sub, mesSeleccionado)
+              const srM = getRealSubcuenta(sub, mesSeleccionado)
+              const spA = getPresSubcuentaAcum(sub)
+              const srA = getRealSubcuentaAcum(sub)
+              const svM = calcVar(srM, spM)
+              const svA = calcVar(srA, spA)
+
+              rows.push(
+                <tr key={`sub-${sub}`} className="bg-gray-100/50 text-xs hover:bg-gray-100">
+                  <td className="p-1.5 pl-16">
+                    <span className="text-gray-400 font-mono mr-1">{sub}</span>
+                  </td>
+                  <td className="p-1.5 text-right text-gray-400">{formatCurrency(spM)}</td>
+                  <td className="p-1.5 text-right">{formatCurrency(srM)}</td>
+                  <td className="p-1.5 text-right">{formatVar(svM, esGasto)}</td>
+                  <td className="p-1.5 text-right bg-slate-50 text-gray-400">{formatCurrency(spA)}</td>
+                  <td className="p-1.5 text-right bg-slate-50">{formatCurrency(srA)}</td>
+                  <td className="p-1.5 text-right bg-slate-50">{formatVar(svA, esGasto)}</td>
+                </tr>
+              )
+            })
+          }
+        })
+      }
+    })
+
+    return rows
   }
 
   return (
@@ -283,50 +535,7 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
             </tr>
           </thead>
           <tbody>
-            {filasVisibles.map(fila => {
-              const isHeader = fila.type === 'header'
-              const isSubtotal = fila.type === 'subtotal'
-              const isTotal = fila.type === 'total'
-
-              const presMes = getValor(datosAgrupados.pres, fila, mesSeleccionado)
-              const realMes = getValor(datosAgrupados.real, fila, mesSeleccionado)
-              const varMes = calcVar(realMes, presMes)
-
-              const presAcum = getAcumulado(datosAgrupados.pres, fila)
-              const realAcum = getAcumulado(datosAgrupados.real, fila)
-              const varAcum = calcVar(realAcum, presAcum)
-
-              const esGasto = fila.negative
-
-              return (
-                <tr
-                  key={fila.id}
-                  className={`
-                    ${isHeader ? 'bg-green-50 font-semibold' : ''}
-                    ${isSubtotal ? 'subtotal-row font-semibold border-t-2 border-blue-200' : ''}
-                    ${isTotal ? 'total-row text-base' : ''}
-                    ${!isHeader && !isSubtotal && !isTotal ? 'hover:bg-gray-50' : ''}
-                  `}
-                >
-                  <td className={`p-3 ${fila.indent ? 'pl-6' : ''}`}>
-                    {fila.icon && <span className="mr-2">{fila.icon}</span>}
-                    {fila.label}
-                  </td>
-
-                  <td className="p-3 text-right text-gray-600">{formatCurrency(presMes)}</td>
-                  <td className={`p-3 text-right font-medium ${isSubtotal || isTotal ? getValueClass(realMes) : ''}`}>
-                    {formatCurrency(realMes)}
-                  </td>
-                  <td className="p-3 text-right">{formatVar(varMes, esGasto)}</td>
-
-                  <td className="p-3 text-right bg-slate-50 text-gray-600">{formatCurrency(presAcum)}</td>
-                  <td className={`p-3 text-right bg-slate-50 font-medium ${isSubtotal || isTotal ? getValueClass(realAcum) : ''}`}>
-                    {formatCurrency(realAcum)}
-                  </td>
-                  <td className="p-3 text-right bg-slate-50">{formatVar(varAcum, esGasto)}</td>
-                </tr>
-              )
-            })}
+            {renderRows()}
           </tbody>
         </table>
       </div>

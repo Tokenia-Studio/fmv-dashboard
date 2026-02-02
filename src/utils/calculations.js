@@ -486,3 +486,49 @@ export function calcularPresupuestoVsReal(pyg3Digitos, presupuestos, mesActual) 
 
   return resultado
 }
+
+/**
+ * Calcula PyG agrupado a nivel de subcuenta completa (9 dígitos) para drill-down
+ */
+export function calcularPyGSubcuentas(movimientos, año) {
+  const resultado = {}
+
+  movimientos.forEach(mov => {
+    if (!mov.mes.startsWith(String(año))) return
+
+    const cuenta3 = mov.cuenta.substring(0, 3)
+    if (!ACCOUNT_GROUPS_3[cuenta3]) return
+
+    const subcuenta = mov.cuenta
+    if (!resultado[subcuenta]) {
+      resultado[subcuenta] = {
+        cuenta: subcuenta,
+        cuenta3,
+        nombre: mov.descripcion || `Cuenta ${subcuenta}`,
+        tipo: ACCOUNT_GROUPS_3[cuenta3].type,
+        meses: {}
+      }
+      for (let m = 1; m <= 12; m++) {
+        resultado[subcuenta].meses[m] = 0
+      }
+    }
+
+    const mes = parseInt(mov.mes.split('-')[1])
+    const neto = mov.debe - mov.haber
+    const valor = ACCOUNT_GROUPS_3[cuenta3].type === 'ingreso' ? -neto : neto
+
+    resultado[subcuenta].meses[mes] += valor
+  })
+
+  // Calcular acumulados
+  Object.keys(resultado).forEach(cuenta => {
+    let acumulado = 0
+    for (let m = 1; m <= 12; m++) {
+      acumulado += resultado[cuenta].meses[m]
+      resultado[cuenta].meses[`acum_${m}`] = acumulado
+    }
+    resultado[cuenta].totalAnual = acumulado
+  })
+
+  return resultado
+}
