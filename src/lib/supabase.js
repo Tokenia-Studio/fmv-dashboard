@@ -271,6 +271,78 @@ export const db = {
       const años = [...new Set(data.map(d => d.año))]
       return { data: años, error: null }
     }
+  },
+
+  // --- USER ROLES ---
+  userRoles: {
+    getByUserId: async (userId) => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single()
+      return { data: data?.role || 'direccion', error }
+    }
+  },
+
+  // --- ALBARANES Y FACTURAS ---
+  albaranesFacturas: {
+    upsert: async (rows, año, mes) => {
+      // Delete existing for this year/month first
+      await supabase.from('albaranes_facturas').delete().eq('año', año).eq('mes', mes)
+      if (rows.length === 0) return { data: null, error: null }
+      const BATCH = 500
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { error } = await supabase.from('albaranes_facturas').insert(rows.slice(i, i + BATCH))
+        if (error) return { data: null, error }
+      }
+      return { data: true, error: null }
+    },
+    getByYear: async (año) => {
+      const { data, error } = await supabase
+        .from('albaranes_facturas')
+        .select('*')
+        .eq('año', año)
+      return { data, error }
+    }
+  },
+
+  // --- PEDIDOS DE COMPRA ---
+  pedidosCompra: {
+    upsert: async (rows, año, mes) => {
+      await supabase.from('pedidos_compra').delete().eq('año', año).eq('mes', mes)
+      if (rows.length === 0) return { data: null, error: null }
+      const BATCH = 500
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const { error } = await supabase.from('pedidos_compra').insert(rows.slice(i, i + BATCH))
+        if (error) return { data: null, error }
+      }
+      return { data: true, error: null }
+    },
+    getByYear: async (año) => {
+      const { data, error } = await supabase
+        .from('pedidos_compra')
+        .select('*')
+        .eq('año', año)
+      return { data, error }
+    }
+  },
+
+  // --- MAPEO GRUPO CONTABLE -> CUENTA ---
+  mapeoGrupoCuenta: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('mapeo_grupo_cuenta')
+        .select('*')
+        .order('grupo_contable', { ascending: true })
+      return { data, error }
+    },
+    upsert: async (rows) => {
+      const { data, error } = await supabase
+        .from('mapeo_grupo_cuenta')
+        .upsert(rows, { onConflict: 'grupo_contable' })
+      return { data, error }
+    }
   }
 }
 

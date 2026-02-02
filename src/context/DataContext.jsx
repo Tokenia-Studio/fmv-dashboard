@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { EXCEL_COLUMN_PATTERNS, findColumn } from '../utils/constants'
-import { db, storage } from '../lib/supabase'
+import { supabase, db, storage } from '../lib/supabase'
 import {
   calcularPyG,
   calcularTotalesPyG,
@@ -18,7 +18,7 @@ import {
   calcularPyG3Digitos,
   calcularPresupuestoVsReal
 } from '../utils/calculations'
-import { ACCOUNT_GROUPS_3 } from '../utils/constants'
+import { ACCOUNT_GROUPS_3, MAPEO_GRUPO_CUENTA_DEFAULT } from '../utils/constants'
 
 const DataContext = createContext(null)
 
@@ -43,6 +43,14 @@ const initialState = {
   presupuestos: [],
   pyg3Digitos: {},
   presupuestoVsReal: [],
+
+  // Presupuesto Compras
+  albaranesFacturas: [],
+  pedidosCompra: [],
+  mapeoGrupoCuenta: [],
+
+  // Rol de usuario
+  userRole: 'direccion',
 
   // Validacion
   validacion: {
@@ -117,6 +125,18 @@ function dataReducer(state, action) {
 
     case 'SET_ARCHIVOS_CARGADOS':
       return { ...state, archivosCargados: action.payload }
+
+    case 'SET_USER_ROLE':
+      return { ...state, userRole: action.payload }
+
+    case 'LOAD_ALBARANES_FACTURAS':
+      return { ...state, albaranesFacturas: action.payload }
+
+    case 'LOAD_PEDIDOS_COMPRA':
+      return { ...state, pedidosCompra: action.payload }
+
+    case 'LOAD_MAPEO_GRUPO_CUENTA':
+      return { ...state, mapeoGrupoCuenta: action.payload }
 
     case 'CLEAR_DATA':
       return { ...initialState }
@@ -231,20 +251,61 @@ export function DataProvider({ children }) {
       if (presupuestosData) {
         dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestosData })
       }
+
+      // Cargar rol de usuario
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: role } = await db.userRoles.getByUserId(user.id)
+          dispatch({ type: 'SET_USER_ROLE', payload: role || 'direccion' })
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar rol de usuario:', e)
+      }
+
+      // Cargar albaranes, pedidos, mapeo
+      try {
+        const { data: albData } = await db.albaranesFacturas.getByYear(añoActual)
+        if (albData) dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albData })
+
+        const { data: pedData } = await db.pedidosCompra.getByYear(añoActual)
+        if (pedData) dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: pedData })
+
+        const { data: mapeoData } = await db.mapeoGrupoCuenta.getAll()
+        if (mapeoData && mapeoData.length > 0) {
+          dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: mapeoData })
+        } else {
+          // Inicializar con datos por defecto
+          const defaultRows = Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).map(([grupo, cuenta]) => ({
+            grupo_contable: grupo,
+            cuenta,
+            descripcion: ''
+          }))
+          dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: defaultRows })
+        }
+      } catch (e) {
+        console.warn('Error cargando datos compras:', e)
+      }
     } catch (error) {
       console.error('Error cargando datos desde Supabase:', error)
       dispatch({ type: 'SET_ERROR', payload: error.message })
     }
   }
 
-  // Cargar presupuestos cuando cambia el año
+  // Cargar presupuestos, albaranes y pedidos cuando cambia el año
   useEffect(() => {
     if (state.añoActual && state.supabaseSync) {
       db.presupuestos.getByYear(state.añoActual).then(({ data }) => {
-        if (data) {
-          dispatch({ type: 'LOAD_PRESUPUESTOS', payload: data })
-        }
+        if (data) dispatch({ type: 'LOAD_PRESUPUESTOS', payload: data })
       }).catch(err => console.error('Error cargando presupuestos:', err))
+
+      db.albaranesFacturas.getByYear(state.añoActual).then(({ data }) => {
+        if (data) dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: data })
+      }).catch(err => console.error('Error cargando albaranes:', err))
+
+      db.pedidosCompra.getByYear(state.añoActual).then(({ data }) => {
+        if (data) dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: data })
+      }).catch(err => console.error('Error cargando pedidos:', err))
     }
   }, [state.añoActual, state.supabaseSync])
 
@@ -730,6 +791,206 @@ export function DataProvider({ children }) {
     }
   }
 
+  // Cargar albaranes y facturas desde Excel
+  const cargarAlbaranes = async (file, año, mes) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando albaranes...' })
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
+
+      if (json.length === 0) throw new Error('El archivo esta vacio')
+
+      // Construir mapeo grupo -> cuenta
+      const mapeo = {}
+      state.mapeoGrupoCuenta.forEach(m => {
+        if (m.cuenta) mapeo[m.grupo_contable] = m.cuenta
+      })
+
+      const columns = Object.keys(json[0] || {})
+
+      // Find columns flexibly
+      const findCol = (patterns) => {
+        const colsLower = columns.map(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+        for (const p of patterns) {
+          const pNorm = p.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          const idx = colsLower.findIndex(c => c.includes(pNorm))
+          if (idx !== -1) return columns[idx]
+        }
+        return null
+      }
+
+      const COL_tipo = findCol(['tipo documento', 'tipo doc'])
+      const COL_doc = findCol(['n documento', 'nº documento', 'no documento'])
+      const COL_desc = findCol(['descripcion', 'descripción'])
+      const COL_grupo = findCol(['grupo contable prod', 'grupo contable', 'gr. contable prod'])
+      const COL_codProv = findCol(['proveedor', 'cod proveedor', 'código proveedor'])
+      const COL_esperado = findCol(['importe coste (esperado)', 'importe coste esperado', 'coste esperado'])
+      const COL_fecha = findCol(['fecha registro', 'fecha'])
+
+      const rows = []
+      json.forEach(row => {
+        // Solo líneas con Importe coste (Esperado) > 0
+        const esperado = parseFloat(row[COL_esperado]) || 0
+        if (esperado <= 0) return
+
+        const grupoContable = String(row[COL_grupo] || '').trim()
+
+        // Ignorar ACTV. FIJO
+        if (grupoContable === 'ACTV. FIJO' || grupoContable === 'ACTIVO FIJO') return
+
+        const cuentaMapeada = mapeo[grupoContable] || ''
+
+        rows.push({
+          año,
+          mes,
+          fecha: row[COL_fecha] ? new Date(row[COL_fecha]).toISOString().substring(0, 10) : null,
+          tipo_documento: row[COL_tipo] || '',
+          no_documento: String(row[COL_doc] || ''),
+          descripcion: row[COL_desc] || '',
+          importe: esperado,
+          grupo_contable_prod: grupoContable,
+          cuenta_mapeada: cuentaMapeada,
+          cod_proveedor: String(row[COL_codProv] || ''),
+          es_pendiente: true
+        })
+      })
+
+      dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando albaranes...' })
+      const { error } = await db.albaranesFacturas.upsert(rows, año, mes)
+      if (error) throw new Error(`Error guardando albaranes: ${error.message}`)
+
+      // Reload
+      const { data: albData } = await db.albaranesFacturas.getByYear(año)
+      dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albData || [] })
+      dispatch({ type: 'SET_LOADING', payload: false })
+      return { success: true, count: rows.length }
+    } catch (error) {
+      console.error('Error cargando albaranes:', error)
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
+  // Cargar pedidos de compra desde Excel
+  const cargarPedidos = async (file, año, mes) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando pedidos...' })
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
+
+      if (json.length === 0) throw new Error('El archivo esta vacio')
+
+      const columns = Object.keys(json[0] || {})
+      const findCol = (patterns) => {
+        const colsLower = columns.map(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+        for (const p of patterns) {
+          const pNorm = p.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          const idx = colsLower.findIndex(c => c.includes(pNorm))
+          if (idx !== -1) return columns[idx]
+        }
+        return null
+      }
+
+      const COL_doc = findCol(['n documento', 'nº documento', 'no documento'])
+      const COL_codProv = findCol(['proveedor', 'cod proveedor'])
+      const COL_tipo = findCol(['tipo'])
+      const COL_no = findCol(['nº', 'n°', 'no']) // Account or product number
+      const COL_desc = findCol(['descripcion', 'descripción'])
+      const COL_cant = findCol(['cantidad'])
+      const COL_cantPte = findCol(['cantidad pendiente', 'cant. pendiente'])
+      const COL_importe = findCol(['importe linea', 'importe línea', 'importe'])
+      const COL_fechaRec = findCol(['fecha recepcion', 'fecha recepción', 'fecha recepcion esperada'])
+
+      const rows = []
+      json.forEach(row => {
+        const tipo = String(row[COL_tipo] || '').trim()
+        const no = String(row[COL_no] || '').trim()
+
+        // Ignorar líneas de activo fijo (No empieza por "AF")
+        if (no.startsWith('AF')) return
+
+        let cuenta = ''
+        if (tipo === 'Cuenta' || tipo === 'cuenta') {
+          cuenta = no // Direct 9-digit account
+        } else {
+          // Tipo "Producto" or other -> assign to 600000000 as estimation
+          cuenta = '600000000'
+        }
+
+        // Check cuenta starts with 60 or 62, otherwise skip
+        const c2 = cuenta.substring(0, 2)
+        if (c2 !== '60' && c2 !== '62') return
+
+        const importe = parseFloat(row[COL_importe]) || 0
+        if (importe === 0) return
+
+        // Parse fecha recepcion for month filtering
+        let fechaRec = null
+        const fechaRaw = row[COL_fechaRec]
+        if (fechaRaw instanceof Date) {
+          fechaRec = fechaRaw
+        } else if (typeof fechaRaw === 'number' && fechaRaw > 40000) {
+          fechaRec = new Date((fechaRaw - 25569) * 86400 * 1000)
+        } else if (typeof fechaRaw === 'string' && fechaRaw.trim()) {
+          fechaRec = new Date(fechaRaw)
+        }
+
+        // Only include pedidos for specified month
+        if (fechaRec && !isNaN(fechaRec.getTime())) {
+          const mesRec = fechaRec.getMonth() + 1
+          const añoRec = fechaRec.getFullYear()
+          if (mesRec !== mes || añoRec !== año) return
+        }
+
+        rows.push({
+          año,
+          mes,
+          no_documento: String(row[COL_doc] || ''),
+          cod_proveedor: String(row[COL_codProv] || ''),
+          tipo,
+          cuenta,
+          descripcion: row[COL_desc] || '',
+          cantidad: parseFloat(row[COL_cant]) || 0,
+          cantidad_pendiente: parseFloat(row[COL_cantPte]) || 0,
+          importe,
+          fecha_recepcion: fechaRec ? fechaRec.toISOString().substring(0, 10) : null
+        })
+      })
+
+      dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando pedidos...' })
+      const { error } = await db.pedidosCompra.upsert(rows, año, mes)
+      if (error) throw new Error(`Error guardando pedidos: ${error.message}`)
+
+      const { data: pedData } = await db.pedidosCompra.getByYear(año)
+      dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: pedData || [] })
+      dispatch({ type: 'SET_LOADING', payload: false })
+      return { success: true, count: rows.length }
+    } catch (error) {
+      console.error('Error cargando pedidos:', error)
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
+  // Guardar mapeo grupo contable -> cuenta
+  const guardarMapeo = async (filas) => {
+    const rows = filas.map(f => ({
+      grupo_contable: f.grupo_contable,
+      cuenta: f.cuenta || '',
+      descripcion: f.descripcion || '',
+      updated_at: new Date().toISOString()
+    }))
+    const { error } = await db.mapeoGrupoCuenta.upsert(rows)
+    if (error) throw new Error(error.message)
+    dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: filas })
+  }
+
   // Limpiar datos (local y Supabase)
   const limpiarDatos = async () => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando datos...' })
@@ -755,6 +1016,9 @@ export function DataProvider({ children }) {
     cargarPresupuesto,
     cargarPresupuestosDesdeSupabase,
     cargarDatosDesdeSupabase,
+    cargarAlbaranes,
+    cargarPedidos,
+    guardarMapeo,
     exportarExcel,
     exportarMovimientos,
     limpiarDatos,

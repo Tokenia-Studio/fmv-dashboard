@@ -10,17 +10,23 @@ export default function UploadTab() {
   const {
     cargarDiario,
     cargarProveedores,
+    cargarAlbaranes,
+    cargarPedidos,
     limpiarDatos,
     movimientos,
     proveedores,
     validacion,
     años,
+    añoActual,
     archivosCargados,
-    loading
+    loading,
+    userRole
   } = useData()
 
   const [dragActive, setDragActive] = useState(false)
   const [mensaje, setMensaje] = useState(null)
+  const [añoCompras, setAñoCompras] = useState(new Date().getFullYear())
+  const [mesCompras, setMesCompras] = useState(new Date().getMonth() + 1)
 
   // Handlers de drag & drop
   const handleDrag = useCallback((e) => {
@@ -171,6 +177,104 @@ export default function UploadTab() {
                 <li>Nº (código)</li>
                 <li>Nombre</li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Carga de ficheros Compras */}
+      <div className="card overflow-hidden">
+        <div className="card-header">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <span>&#128722;</span>
+            <span>Cargar Ficheros Compras</span>
+          </h3>
+        </div>
+
+        <div className="p-4">
+          {/* Selector año/mes */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Ano:</span>
+              <select
+                value={añoCompras}
+                onChange={(e) => setAñoCompras(parseInt(e.target.value))}
+                className="px-3 py-1.5 rounded-lg border text-sm"
+              >
+                {[2024, 2025, 2026, 2027].map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Mes:</span>
+              <select
+                value={mesCompras}
+                onChange={(e) => setMesCompras(parseInt(e.target.value))}
+                className="px-3 py-1.5 rounded-lg border text-sm"
+              >
+                {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((m, i) => (
+                  <option key={i} value={i + 1}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Albaranes y Facturas */}
+            <div
+              className="p-6 border-2 border-dashed rounded-xl text-center cursor-pointer
+                        border-gray-300 hover:border-orange-400 hover:bg-gray-50 transition-all"
+              onClick={() => document.getElementById('albaranes-input').click()}
+            >
+              <input
+                id="albaranes-input"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={async (e) => {
+                  if (!e.target.files[0]) return
+                  setMensaje({ tipo: 'loading', texto: 'Procesando albaranes...' })
+                  const result = await cargarAlbaranes(e.target.files[0], añoCompras, mesCompras)
+                  if (result.success) {
+                    setMensaje({ tipo: 'success', texto: `Cargados ${result.count} albaranes pendientes` })
+                  } else {
+                    setMensaje({ tipo: 'error', texto: result.error })
+                  }
+                  setTimeout(() => setMensaje(null), 5000)
+                }}
+                className="hidden"
+              />
+              <div className="text-3xl mb-2">&#128230;</div>
+              <p className="font-medium text-gray-700 text-sm">Albaranes y Facturas</p>
+              <p className="text-xs text-gray-400 mt-1">Excel (.xlsx/.xls)</p>
+            </div>
+
+            {/* Pedidos de Compra */}
+            <div
+              className="p-6 border-2 border-dashed rounded-xl text-center cursor-pointer
+                        border-gray-300 hover:border-teal-400 hover:bg-gray-50 transition-all"
+              onClick={() => document.getElementById('pedidos-input').click()}
+            >
+              <input
+                id="pedidos-input"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={async (e) => {
+                  if (!e.target.files[0]) return
+                  setMensaje({ tipo: 'loading', texto: 'Procesando pedidos...' })
+                  const result = await cargarPedidos(e.target.files[0], añoCompras, mesCompras)
+                  if (result.success) {
+                    setMensaje({ tipo: 'success', texto: `Cargados ${result.count} pedidos de compra` })
+                  } else {
+                    setMensaje({ tipo: 'error', texto: result.error })
+                  }
+                  setTimeout(() => setMensaje(null), 5000)
+                }}
+                className="hidden"
+              />
+              <div className="text-3xl mb-2">&#128203;</div>
+              <p className="font-medium text-gray-700 text-sm">Pedidos de Compra</p>
+              <p className="text-xs text-gray-400 mt-1">Excel (.xlsx/.xls)</p>
             </div>
           </div>
         </div>

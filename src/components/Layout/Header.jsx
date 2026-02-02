@@ -4,10 +4,10 @@
 
 import React from 'react'
 import { useData } from '../../context/DataContext'
-import { TABS, BRAND } from '../../utils/constants'
+import { TABS, TABS_POR_ROL, BRAND } from '../../utils/constants'
 
 export default function Header({ user, onLogout }) {
-  const { tabActiva, setTab, años, añoActual, setAño, validacion } = useData()
+  const { tabActiva, setTab, años, añoActual, setAño, validacion, userRole } = useData()
 
   const getEstadoCuadre = () => {
     if (!validacion) return { icon: '⏳', color: 'gray', text: 'Sin datos' }
@@ -97,7 +97,10 @@ export default function Header({ user, onLogout }) {
 
         {/* Tabs de navegación */}
         <nav className="flex gap-1 mt-4 -mb-px overflow-x-auto">
-          {TABS.map(tab => (
+          {TABS.filter(tab => {
+            const allowedTabs = TABS_POR_ROL[userRole] || TABS_POR_ROL.direccion
+            return allowedTabs.includes(tab.id)
+          }).map(tab => (
             <button
               key={tab.id}
               onClick={() => setTab(tab.id)}

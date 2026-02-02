@@ -488,6 +488,111 @@ export function calcularPresupuestoVsReal(pyg3Digitos, presupuestos, mesActual) 
 }
 
 /**
+ * Calcula Presupuesto Compras: solo grupos 60 y 62
+ * Combina: presupuesto + real contable + albaranes pendientes + pedidos pendientes
+ */
+export function calcularPresupuestoCompras(pyg3Digitos, presupuestos, albaranesPtes, pedidosPtes, mes) {
+  // Agrupar presupuestos por cuenta
+  const presPorCuenta = {}
+  presupuestos.forEach(p => {
+    const c3 = p.cuenta.substring(0, 3)
+    if (!c3.startsWith('6')) return // solo gastos
+    const grupo2 = c3.substring(0, 2)
+    if (grupo2 !== '60' && grupo2 !== '62') return
+    if (!presPorCuenta[c3]) presPorCuenta[c3] = {}
+    if (!presPorCuenta[c3][p.mes]) presPorCuenta[c3][p.mes] = 0
+    presPorCuenta[c3][p.mes] += p.importe
+  })
+
+  // Agrupar albaranes pendientes por cuenta 3 dígitos y mes
+  const albPorCuenta = {}
+  ;(albaranesPtes || []).forEach(a => {
+    if (!a.es_pendiente) return
+    const c = (a.cuenta_mapeada || '').substring(0, 3)
+    if (!c) return
+    const m = a.mes
+    if (!albPorCuenta[c]) albPorCuenta[c] = {}
+    if (!albPorCuenta[c][m]) albPorCuenta[c][m] = 0
+    albPorCuenta[c][m] += Math.abs(a.importe || 0)
+  })
+
+  // Agrupar pedidos por cuenta 3 dígitos y mes
+  const pedPorCuenta = {}
+  ;(pedidosPtes || []).forEach(p => {
+    const c = (p.cuenta || '').substring(0, 3)
+    if (!c) return
+    const m = p.mes
+    if (!pedPorCuenta[c]) pedPorCuenta[c] = {}
+    if (!pedPorCuenta[c][m]) pedPorCuenta[c][m] = 0
+    pedPorCuenta[c][m] += Math.abs(p.importe || 0)
+  })
+
+  // Obtener todas las cuentas 3 dígitos relevantes (60x y 62x)
+  const todasCuentas = new Set()
+  Object.keys(ACCOUNT_GROUPS_3).forEach(c => {
+    const g = c.substring(0, 2)
+    if (g === '60' || g === '62') todasCuentas.add(c)
+  })
+  Object.keys(presPorCuenta).forEach(c => todasCuentas.add(c))
+  Object.keys(albPorCuenta).forEach(c => todasCuentas.add(c))
+  Object.keys(pedPorCuenta).forEach(c => todasCuentas.add(c))
+
+  const resultado = {}
+  todasCuentas.forEach(c3 => {
+    const grupo2 = c3.substring(0, 2)
+    if (grupo2 !== '60' && grupo2 !== '62') return
+
+    const datos = { presMes: 0, presAcum: 0, realMes: 0, realAcum: 0, albMes: 0, albAcum: 0, pedMes: 0, pedAcum: 0 }
+
+    // Presupuesto
+    for (let m = 1; m <= mes; m++) {
+      const v = presPorCuenta[c3]?.[m] || 0
+      datos.presAcum += v
+      if (m === mes) datos.presMes = v
+    }
+
+    // Real contable
+    if (pyg3Digitos[c3]) {
+      datos.realMes = pyg3Digitos[c3].meses[mes] || 0
+      for (let m = 1; m <= mes; m++) datos.realAcum += pyg3Digitos[c3].meses[m] || 0
+    }
+
+    // Albaranes pendientes
+    for (let m = 1; m <= mes; m++) {
+      const v = albPorCuenta[c3]?.[m] || 0
+      datos.albAcum += v
+      if (m === mes) datos.albMes = v
+    }
+
+    // Pedidos pendientes
+    for (let m = 1; m <= mes; m++) {
+      const v = pedPorCuenta[c3]?.[m] || 0
+      datos.pedAcum += v
+      if (m === mes) datos.pedMes = v
+    }
+
+    datos.totalEstMes = datos.realMes + datos.albMes + datos.pedMes
+    datos.totalEstAcum = datos.realAcum + datos.albAcum + datos.pedAcum
+    datos.desvMes = datos.presMes !== 0 ? ((datos.totalEstMes - datos.presMes) / Math.abs(datos.presMes)) * 100 : null
+    datos.desvAcum = datos.presAcum !== 0 ? ((datos.totalEstAcum - datos.presAcum) / Math.abs(datos.presAcum)) * 100 : null
+
+    // Only include if there's any data
+    const tieneData = datos.presMes !== 0 || datos.realMes !== 0 || datos.albMes !== 0 || datos.pedMes !== 0 ||
+                      datos.presAcum !== 0 || datos.realAcum !== 0 || datos.albAcum !== 0 || datos.pedAcum !== 0
+    if (tieneData) {
+      resultado[c3] = {
+        cuenta3: c3,
+        grupo2,
+        nombre: ACCOUNT_GROUPS_3[c3]?.name || `Cuenta ${c3}`,
+        ...datos
+      }
+    }
+  })
+
+  return resultado
+}
+
+/**
  * Calcula PyG agrupado a nivel de subcuenta completa (9 dígitos) para drill-down
  */
 export function calcularPyGSubcuentas(movimientos, año) {

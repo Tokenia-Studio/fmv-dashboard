@@ -13,6 +13,7 @@ import FinanciacionTab from './components/Financiacion/FinanciacionTab'
 import ProveedoresTab from './components/Proveedores/ProveedoresTab'
 import CashFlowTab from './components/CashFlow/CashFlowTab'
 import PresupuestoTab from './components/Presupuesto/PresupuestoTab'
+import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoComprasTab'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
 
@@ -132,6 +133,8 @@ function App() {
         return <CashFlowTab />
       case 'presupuesto':
         return <PresupuestoTab />
+      case 'presupuestoCompras':
+        return <PresupuestoComprasTab />
       case 'cargar':
         return <UploadTab />
       default:

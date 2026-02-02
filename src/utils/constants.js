@@ -97,8 +97,40 @@ export const TABS = [
   { id: 'proveedores', label: 'Proveedores', icon: '👥' },
   { id: 'cashflow', label: 'Cash Flow', icon: '💰' },
   { id: 'presupuesto', label: 'Presupuesto', icon: '📊' },
+  { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
   { id: 'cargar', label: 'Cargar', icon: '📤' }
 ]
+
+// Tabs visibles por rol
+export const TABS_POR_ROL = {
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cargar'],
+  compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
+}
+
+// Estructura simplificada para Presupuesto Compras (solo grupos 60 y 62)
+export const ESTRUCTURA_COMPRAS = [
+  { id: 'compras60', label: 'COMPRAS (60)', grupo: '60', icon: '📦', type: 'header' },
+  { id: 'servicios62', label: 'SERVICIOS EXT. (62)', grupo: '62', icon: '🔧', type: 'header' },
+  { id: 'totalCompras', label: 'TOTAL', icon: '📊', type: 'total', calc: true }
+]
+
+// Mapeo por defecto grupo contable producto -> cuenta contable
+export const MAPEO_GRUPO_CUENTA_DEFAULT = {
+  'EMBALAJE': '602000000',
+  'ENV. Y EMB': '602000000',
+  'FABRICA.': '601000000',
+  'ME': '600000000',
+  'MP': '601000000',
+  'NO DEDUCIB': '629000000',
+  'O.SERVIC.': '629000000',
+  'PS': '600000000',
+  'PT': '600000000',
+  'SUB. Y RES': '602000001',
+  'SUBCONTRA': '607000001',
+  'TRANS_LD': '624000001',
+  'TRANSPORTE': '624000000',
+  'UN': '600000001'
+}
 
 // Colores para gráficos
 export const CHART_COLORS = {
