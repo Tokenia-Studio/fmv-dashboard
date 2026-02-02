@@ -98,12 +98,13 @@ export const TABS = [
   { id: 'cashflow', label: 'Cash Flow', icon: '💰' },
   { id: 'presupuesto', label: 'Presupuesto', icon: '📊' },
   { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
-  { id: 'cargar', label: 'Cargar', icon: '📤' }
+  { id: 'cargar', label: 'Cargar', icon: '📤' },
+  { id: 'usuarios', label: 'Usuarios', icon: '👤' }
 ]
 
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cargar'],
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cargar', 'usuarios'],
   compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
 }
 

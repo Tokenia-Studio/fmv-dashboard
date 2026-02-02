@@ -14,6 +14,7 @@ import ProveedoresTab from './components/Proveedores/ProveedoresTab'
 import CashFlowTab from './components/CashFlow/CashFlowTab'
 import PresupuestoTab from './components/Presupuesto/PresupuestoTab'
 import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoComprasTab'
+import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
 
@@ -137,6 +138,8 @@ function App() {
         return <PresupuestoComprasTab />
       case 'cargar':
         return <UploadTab />
+      case 'usuarios':
+        return <GestionUsuarios />
       default:
         return <PyGTab />
     }
