@@ -61,6 +61,7 @@ function App() {
   const { tabActiva, movimientos, loading, loadingMessage } = useData()
   const [user, setUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [forcePasswordReset, setForcePasswordReset] = useState(false)
 
   // Verificar sesion al cargar
   useEffect(() => {
@@ -81,6 +82,11 @@ function App() {
     // Escuchar cambios de autenticacion
     const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event)
+      if (event === 'PASSWORD_RECOVERY') {
+        // No hacer login automático, forzar cambio de contraseña
+        setForcePasswordReset(true)
+        return
+      }
       setUser(session?.user || null)
     })
 
@@ -109,9 +115,9 @@ function App() {
     )
   }
 
-  // Si no esta autenticado, mostrar login
-  if (!user) {
-    return <LoginScreen onLogin={(u) => setUser(u)} />
+  // Si no esta autenticado o forzar cambio de contraseña, mostrar login
+  if (!user || forcePasswordReset) {
+    return <LoginScreen onLogin={(u) => { setForcePasswordReset(false); setUser(u) }} forceMode={forcePasswordReset ? 'setPassword' : null} />
   }
 
   // Renderizar pestana activa

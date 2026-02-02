@@ -97,17 +97,14 @@ export default function GestionUsuarios() {
   }
 
   const eliminarUsuario = async (userId, email) => {
-    if (!confirm(`Eliminar el acceso de ${email}? (Solo se elimina el rol, no la cuenta de auth)`)) return
+    if (!confirm(`¿Eliminar completamente al usuario ${email}? Se eliminará la cuenta y su rol.`)) return
 
     try {
-      const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId)
+      const { error } = await supabase.rpc('delete_user', { target_user_id: userId })
 
       if (error) throw error
       setUsuarios(prev => prev.filter(u => u.user_id !== userId))
-      setMensaje({ tipo: 'success', texto: `Rol de ${email} eliminado` })
+      setMensaje({ tipo: 'success', texto: `Usuario ${email} eliminado completamente` })
     } catch (e) {
       setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
     }

@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react'
 import { auth, supabase } from '../../lib/supabase'
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, forceMode }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -15,8 +15,8 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   // Modos: 'login', 'register', 'setPassword', 'forgotPassword'
-  const [mode, setMode] = useState('login')
-  const [checkingToken, setCheckingToken] = useState(true)
+  const [mode, setMode] = useState(forceMode || 'login')
+  const [checkingToken, setCheckingToken] = useState(!forceMode)
 
   // Detectar tokens de invitación o recovery en la URL
   useEffect(() => {

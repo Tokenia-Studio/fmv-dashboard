@@ -17,6 +17,22 @@ CREATE POLICY "Users can insert roles" ON user_roles FOR INSERT WITH CHECK (true
 CREATE POLICY "Users can update roles" ON user_roles FOR UPDATE USING (true);
 CREATE POLICY "Users can delete roles" ON user_roles FOR DELETE USING (true);
 
--- 4. Funcion para invitar usuario (usa Supabase auth.users)
+-- 4. Funcion para eliminar usuario completo (auth + rol)
+-- Solo ejecutable por usuarios autenticados
+CREATE OR REPLACE FUNCTION delete_user(target_user_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Eliminar rol
+  DELETE FROM public.user_roles WHERE user_id = target_user_id;
+  -- Eliminar usuario de auth
+  DELETE FROM auth.users WHERE id = target_user_id;
+END;
+$$;
+
+-- 5. Funcion para invitar usuario (usa Supabase auth.users)
 -- NOTA: La invitacion se hace desde el frontend con signUp
 -- El rol se asigna en user_roles despues del registro
