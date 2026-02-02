@@ -330,10 +330,10 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
         Concepto: fila.label,
         'Pres. Mes': formatExcelNumber(presMes),
         'Real Mes': formatExcelNumber(realMes),
-        'Var. Mes %': calcVar(realMes, presMes)?.toFixed(1) + '%' || '-',
+        'Var. Mes %': calcVar(realMes, presMes) != null ? calcVar(realMes, presMes).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-',
         'Pres. Acum': formatExcelNumber(presAcum),
         'Real Acum': formatExcelNumber(realAcum),
-        'Var. Acum %': calcVar(realAcum, presAcum)?.toFixed(1) + '%' || '-'
+        'Var. Acum %': calcVar(realAcum, presAcum) != null ? calcVar(realAcum, presAcum).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-'
       }
     })
     const ws = XLSX.utils.json_to_sheet(exportData)
@@ -347,7 +347,7 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
     if (valor === null || valor === undefined) return <span className="text-gray-400">-</span>
     const esBueno = esGasto ? valor < 0 : valor >= 0
     const color = esBueno ? 'text-green-600' : 'text-red-600'
-    return <span className={color}>{valor >= 0 ? '+' : ''}{valor.toFixed(1)}%</span>
+    return <span className={color}>{valor >= 0 ? '+' : ''}{valor.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
   }
 
   // Render a data row with 7 columns

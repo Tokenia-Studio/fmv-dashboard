@@ -30,7 +30,7 @@ export const auth = {
     return { data, error }
   },
 
-  // Cerrar sesion
+  // Cerrar sesión
   signOut: async () => {
     const { error } = await supabase.auth.signOut()
     return { error }
@@ -42,13 +42,13 @@ export const auth = {
     return { user, error }
   },
 
-  // Obtener sesion actual
+  // Obtener sesión actual
   getSession: async () => {
     const { data: { session }, error } = await supabase.auth.getSession()
     return { session, error }
   },
 
-  // Escuchar cambios de autenticacion
+  // Escuchar cambios de autenticación
   onAuthStateChange: (callback) => {
     return supabase.auth.onAuthStateChange(callback)
   },

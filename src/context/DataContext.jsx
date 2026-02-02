@@ -33,7 +33,7 @@ const initialState = {
   añoActual: new Date().getFullYear(),
   archivosCargados: {},
 
-  // Datos calculados (se regeneran al cambiar ano)
+  // Datos calculados (se regeneran al cambiar año)
   pyg: [],
   totalesPyG: {},
   serviciosExt: { porMes: [], subcuentas: [] },
@@ -310,7 +310,7 @@ export function DataProvider({ children }) {
     }
   }, [state.añoActual, state.supabaseSync])
 
-  // Recalcular datos cuando cambia el ano o los movimientos
+  // Recalcular datos cuando cambia el año o los movimientos
   useEffect(() => {
     if (state.movimientos.length === 0) return
 
@@ -350,7 +350,7 @@ export function DataProvider({ children }) {
       const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
 
       if (json.length === 0) {
-        throw new Error('El archivo esta vacio')
+        throw new Error('El archivo está vacío')
       }
 
       // Encontrar columnas
@@ -365,10 +365,10 @@ export function DataProvider({ children }) {
         documento: findColumn(columns, EXCEL_COLUMN_PATTERNS.documento)
       }
 
-      if (!COL.fecha) throw new Error('No se encontro columna de Fecha')
-      if (!COL.cuenta) throw new Error('No se encontro columna de Cuenta')
-      if (!COL.debe) throw new Error('No se encontro columna de Debe')
-      if (!COL.haber) throw new Error('No se encontro columna de Haber')
+      if (!COL.fecha) throw new Error('No se encontró columna de Fecha')
+      if (!COL.cuenta) throw new Error('No se encontró columna de Cuenta')
+      if (!COL.debe) throw new Error('No se encontró columna de Debe')
+      if (!COL.haber) throw new Error('No se encontró columna de Haber')
 
       dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando movimientos...' })
 
@@ -440,7 +440,7 @@ export function DataProvider({ children }) {
       })
 
       if (movimientos.length === 0) {
-        throw new Error('No se encontraron movimientos validos')
+        throw new Error('No se encontraron movimientos válidos')
       }
 
       const añosNuevos = Array.from(añosSet).sort((a, b) => b - a)
@@ -822,7 +822,7 @@ export function DataProvider({ children }) {
       const buffer = await file.arrayBuffer()
       const json = parseExcelAutoHeader(buffer, ['tipo documento', 'descripci', 'importe coste', 'grupo contable'])
 
-      if (json.length === 0) throw new Error('El archivo esta vacio')
+      if (json.length === 0) throw new Error('El archivo está vacío')
 
       // Construir mapeo grupo -> cuenta
       const mapeo = {}
@@ -903,7 +903,7 @@ export function DataProvider({ children }) {
       const buffer = await file.arrayBuffer()
       const json = parseExcelAutoHeader(buffer, ['documento', 'proveedor', 'descripci', 'importe', 'cantidad'])
 
-      if (json.length === 0) throw new Error('El archivo esta vacio')
+      if (json.length === 0) throw new Error('El archivo está vacío')
 
       const columns = Object.keys(json[0] || {})
       const findCol = (patterns) => {

@@ -75,9 +75,9 @@ export default function ComparativaInteranual() {
               </div>
               {variacion !== null && (
                 <div className={`flex justify-between gap-4 pt-1 border-t border-gray-100 ${variacion >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  <span>Variacion:</span>
+                  <span>Variación:</span>
                   <span className="font-medium">
-                    {variacion >= 0 ? '+' : ''}{variacion.toFixed(1)}%
+                    {variacion >= 0 ? '+' : ''}{variacion.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                   </span>
                 </div>
               )}
@@ -191,7 +191,7 @@ export default function ComparativaInteranual() {
                 if (var_ === null) return <p className="font-semibold text-gray-500">-</p>
                 return (
                   <p className={`font-semibold ${var_ >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {var_ >= 0 ? '+' : ''}{var_.toFixed(1)}%
+                    {var_ >= 0 ? '+' : ''}{var_.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                   </p>
                 )
               })()}

@@ -19,7 +19,7 @@ export default function PresupuestoComprasTab() {
       <div className="card p-8 text-center">
         <p className="text-4xl mb-4">&#128230;</p>
         <h3 className="text-lg font-semibold text-gray-700 mb-2">Sin datos contables</h3>
-        <p className="text-gray-500">Carga primero el diario contable en la pestana Cargar</p>
+        <p className="text-gray-500">Carga primero el diario contable en la pestaña Cargar</p>
       </div>
     )
   }

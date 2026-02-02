@@ -41,7 +41,7 @@ export default function ServiciosTab() {
             key={sub.codigo}
             titulo={sub.nombre}
             valor={sub.total}
-            subtitulo={`${((sub.total / totalServicios) * 100).toFixed(1)}% del total`}
+            subtitulo={`${((sub.total / totalServicios) * 100).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% del total`}
             icono={['🏠', '🔩', '🚚'][idx]}
             colorValor="text-gray-700"
           />
@@ -99,10 +99,10 @@ export default function ServiciosTab() {
                   <td className="p-3 font-medium">{sub.nombre}</td>
                   <td className="p-3 text-right font-medium">{formatCurrency(sub.total)}</td>
                   <td className="p-3 text-right text-gray-600">
-                    {((sub.total / totalServicios) * 100).toFixed(1)}%
+                    {((sub.total / totalServicios) * 100).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                   </td>
                   <td className="p-3 text-right text-gray-600">
-                    {totalesPyG.ventas ? ((sub.total / totalesPyG.ventas) * 100).toFixed(2) : '-'}%
+                    {totalesPyG.ventas ? ((sub.total / totalesPyG.ventas) * 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}%
                   </td>
                 </tr>
               ))}
@@ -111,7 +111,7 @@ export default function ServiciosTab() {
                 <td className="p-3 text-right">{formatCurrency(totalServicios)}</td>
                 <td className="p-3 text-right">100%</td>
                 <td className="p-3 text-right">
-                  {totalesPyG.ventas ? ((totalServicios / totalesPyG.ventas) * 100).toFixed(2) : '-'}%
+                  {totalesPyG.ventas ? ((totalServicios / totalesPyG.ventas) * 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}%
                 </td>
               </tr>
             </tbody>

@@ -63,7 +63,7 @@ function App() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [forcePasswordReset, setForcePasswordReset] = useState(false)
 
-  // Verificar sesion al cargar
+  // Verificar sesión al cargar
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -79,7 +79,7 @@ function App() {
 
     checkSession()
 
-    // Escuchar cambios de autenticacion
+    // Escuchar cambios de autenticación
     const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event)
       if (event === 'PASSWORD_RECOVERY') {
@@ -120,9 +120,9 @@ function App() {
     return <LoginScreen onLogin={(u) => { setForcePasswordReset(false); setUser(u) }} forceMode={forcePasswordReset ? 'setPassword' : null} />
   }
 
-  // Renderizar pestana activa
+  // Renderizar pestaña activa
   const renderTab = () => {
-    // Si no hay datos, mostrar siempre la pestana de carga
+    // Si no hay datos, mostrar siempre la pestaña de carga
     if (movimientos.length === 0 && tabActiva !== 'cargar') {
       return <UploadTab />
     }

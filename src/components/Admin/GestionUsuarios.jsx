@@ -88,7 +88,7 @@ export default function GestionUsuarios() {
       cargarUsuarios()
     } catch (e) {
       const msg = e.message === 'User already registered'
-        ? 'Este email ya esta registrado'
+        ? 'Este email ya está registrado'
         : e.message
       setMensaje({ tipo: 'error', texto: msg })
     }
@@ -136,7 +136,7 @@ export default function GestionUsuarios() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Contrasena temporal</label>
+              <label className="block text-xs text-gray-500 mb-1">Contraseña temporal</label>
               <input
                 type="text"
                 value={nuevoPassword}
@@ -154,7 +154,7 @@ export default function GestionUsuarios() {
                 onChange={(e) => setNuevoRol(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm"
               >
-                <option value="direccion">Direccion</option>
+                <option value="direccion">Dirección</option>
                 <option value="compras">Compras</option>
               </select>
             </div>
@@ -216,7 +216,7 @@ export default function GestionUsuarios() {
                             ? 'bg-blue-50 text-blue-700 border-blue-200'
                             : 'bg-orange-50 text-orange-700 border-orange-200'}`}
                       >
-                        <option value="direccion">Direccion</option>
+                        <option value="direccion">Dirección</option>
                         <option value="compras">Compras</option>
                       </select>
                     </td>

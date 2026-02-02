@@ -92,7 +92,7 @@ export default function TopProveedores({ datos, totalPagos, año }) {
               'Compras': formatExcelNumber(p.compras || 0),
               'Servicios': formatExcelNumber(p.servicios || 0),
               'Total Gasto': formatExcelNumber(p.total),
-              '% Total': ((p.total / totalPagos) * 100).toFixed(2) + '%',
+              '% Total': ((p.total / totalPagos) * 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%',
               'Nº Facturas': p.numFacturas
             }))
             const ws = XLSX.utils.json_to_sheet(exportData)

@@ -72,7 +72,7 @@ export default function ConfigMapeo({ onClose }) {
             <tr>
               <th className="p-2 text-left">Grupo Contable</th>
               <th className="p-2 text-left">Cuenta Asignada</th>
-              <th className="p-2 text-left">Descripcion</th>
+              <th className="p-2 text-left">Descripción</th>
             </tr>
           </thead>
           <tbody>
@@ -94,7 +94,7 @@ export default function ConfigMapeo({ onClose }) {
                     value={fila.descripcion || ''}
                     onChange={(e) => handleChange(idx, 'descripcion', e.target.value)}
                     className="w-full px-2 py-1 border rounded text-sm"
-                    placeholder="Descripcion"
+                    placeholder="Descripción"
                   />
                 </td>
               </tr>

@@ -20,7 +20,7 @@ export function formatCurrency(value, decimals = 0) {
  */
 export function formatPercent(value, decimals = 1) {
   if (value == null || isNaN(value) || !isFinite(value)) return '-'
-  return `${value >= 0 ? '' : ''}${value.toFixed(decimals)}%`
+  return `${value.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}%`
 }
 
 /**
@@ -43,10 +43,10 @@ export function formatCompact(value) {
   const sign = value < 0 ? '-' : ''
 
   if (abs >= 1000000) {
-    return `${sign}${(abs / 1000000).toFixed(1)}M €`
+    return `${sign}${(abs / 1000000).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M €`
   }
   if (abs >= 1000) {
-    return `${sign}${(abs / 1000).toFixed(0)}K €`
+    return `${sign}${Math.round(abs / 1000).toLocaleString('es-ES')}K €`
   }
   return formatCurrency(value, 0)
 }
@@ -108,7 +108,7 @@ export function formatVariacion(actual, anterior) {
   if (variacion === null) return '-'
   const arrow = variacion >= 0 ? '↑' : '↓'
   const color = variacion >= 0 ? 'text-green-600' : 'text-red-600'
-  return { text: `${arrow} ${Math.abs(variacion).toFixed(1)}%`, color, value: variacion }
+  return { text: `${arrow} ${Math.abs(variacion).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`, color, value: variacion }
 }
 
 /**

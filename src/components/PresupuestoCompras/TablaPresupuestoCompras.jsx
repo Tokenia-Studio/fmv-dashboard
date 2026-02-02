@@ -59,7 +59,7 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
   const formatVar = (valor) => {
     if (valor === null || valor === undefined) return <span className="text-gray-400">-</span>
     const color = valor <= 0 ? 'text-green-600' : 'text-red-600'
-    return <span className={color}>{valor >= 0 ? '+' : ''}{valor.toFixed(1)}%</span>
+    return <span className={color}>{valor >= 0 ? '+' : ''}{valor.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
   }
 
   // Build subcuentas (9 dígitos) for drill-down under a 3-digit account
@@ -197,10 +197,10 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       'Albaranes Ptes': formatExcelNumber(d.albMes),
       'Pedidos Ptes': formatExcelNumber(d.pedMes),
       'Total Estimado': formatExcelNumber(d.totalEstMes),
-      'Desv %': d.desvMes?.toFixed(1) + '%' || '-',
+      'Desv %': d.desvMes != null ? d.desvMes.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-',
       'Ppto Acum': formatExcelNumber(d.presAcum),
       'Total Est. Acum': formatExcelNumber(d.totalEstAcum),
-      'Desv Acum %': d.desvAcum?.toFixed(1) + '%' || '-'
+      'Desv Acum %': d.desvAcum != null ? d.desvAcum.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-'
     }))
     const ws = XLSX.utils.json_to_sheet(exportData)
     ws['!cols'] = Array(11).fill({ wch: 15 })
