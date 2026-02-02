@@ -275,12 +275,13 @@ export function DataProvider({ children }) {
         if (mapeoData && mapeoData.length > 0) {
           dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: mapeoData })
         } else {
-          // Inicializar con datos por defecto
+          // Inicializar con datos por defecto y persistir en Supabase
           const defaultRows = Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).map(([grupo, cuenta]) => ({
             grupo_contable: grupo,
             cuenta,
             descripcion: ''
           }))
+          await db.mapeoGrupoCuenta.upsert(defaultRows)
           dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: defaultRows })
         }
       } catch (e) {
@@ -791,15 +792,35 @@ export function DataProvider({ children }) {
     }
   }
 
+  // Helper: parsear Excel detectando fila de cabeceras automáticamente
+  const parseExcelAutoHeader = (buffer, headerPatterns) => {
+    const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true })
+
+    // Buscar la fila que contiene las cabeceras reales
+    let headerRow = 0
+    for (let i = 0; i < Math.min(10, aoa.length); i++) {
+      const row = (aoa[i] || []).map(c => String(c || '').toLowerCase())
+      const matches = headerPatterns.filter(p => row.some(c => c.includes(p.toLowerCase())))
+      if (matches.length >= 2) {
+        headerRow = i
+        break
+      }
+    }
+
+    // Re-parsear desde la fila correcta
+    const json = XLSX.utils.sheet_to_json(sheet, { raw: true, range: headerRow })
+    return json
+  }
+
   // Cargar albaranes y facturas desde Excel
   const cargarAlbaranes = async (file, año, mes) => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando albaranes...' })
 
     try {
       const buffer = await file.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
-      const sheet = workbook.Sheets[workbook.SheetNames[0]]
-      const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
+      const json = parseExcelAutoHeader(buffer, ['tipo documento', 'descripci', 'importe coste', 'grupo contable'])
 
       if (json.length === 0) throw new Error('El archivo esta vacio')
 
@@ -880,9 +901,7 @@ export function DataProvider({ children }) {
 
     try {
       const buffer = await file.arrayBuffer()
-      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
-      const sheet = workbook.Sheets[workbook.SheetNames[0]]
-      const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
+      const json = parseExcelAutoHeader(buffer, ['documento', 'proveedor', 'descripci', 'importe', 'cantidad'])
 
       if (json.length === 0) throw new Error('El archivo esta vacio')
 
