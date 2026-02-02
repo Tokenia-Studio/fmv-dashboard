@@ -14,8 +14,11 @@ import {
   calcularSaldosBalance,
   calcularFinanciacion,
   calcularPagosProveedores,
-  calcularCashFlow
+  calcularCashFlow,
+  calcularPyG3Digitos,
+  calcularPresupuestoVsReal
 } from '../utils/calculations'
+import { ACCOUNT_GROUPS_3 } from '../utils/constants'
 
 const DataContext = createContext(null)
 
@@ -37,6 +40,9 @@ const initialState = {
   financiacion: { meses: [], kpis: {}, ratios: {} },
   pagosProveedores: { top15: [], totalPagos: 0, datosMensuales: [] },
   cashFlow: { meses: [], kpis: {} },
+  presupuestos: [],
+  pyg3Digitos: {},
+  presupuestoVsReal: [],
 
   // Validacion
   validacion: {
@@ -101,8 +107,13 @@ function dataReducer(state, action) {
         serviciosExt: action.payload.serviciosExt,
         financiacion: action.payload.financiacion,
         pagosProveedores: action.payload.pagosProveedores,
-        cashFlow: action.payload.cashFlow
+        cashFlow: action.payload.cashFlow,
+        pyg3Digitos: action.payload.pyg3Digitos || state.pyg3Digitos,
+        presupuestoVsReal: action.payload.presupuestoVsReal || state.presupuestoVsReal
       }
+
+    case 'LOAD_PRESUPUESTOS':
+      return { ...state, presupuestos: action.payload }
 
     case 'SET_ARCHIVOS_CARGADOS':
       return { ...state, archivosCargados: action.payload }
@@ -213,11 +224,29 @@ export function DataProvider({ children }) {
       })
 
       console.log(`Cargados ${todosMovimientos.length} movimientos desde Supabase`)
+
+      // Cargar presupuestos del año actual
+      const añoActual = años[0] || new Date().getFullYear()
+      const { data: presupuestosData } = await db.presupuestos.getByYear(añoActual)
+      if (presupuestosData) {
+        dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestosData })
+      }
     } catch (error) {
       console.error('Error cargando datos desde Supabase:', error)
       dispatch({ type: 'SET_ERROR', payload: error.message })
     }
   }
+
+  // Cargar presupuestos cuando cambia el año
+  useEffect(() => {
+    if (state.añoActual && state.supabaseSync) {
+      db.presupuestos.getByYear(state.añoActual).then(({ data }) => {
+        if (data) {
+          dispatch({ type: 'LOAD_PRESUPUESTOS', payload: data })
+        }
+      }).catch(err => console.error('Error cargando presupuestos:', err))
+    }
+  }, [state.añoActual, state.supabaseSync])
 
   // Recalcular datos cuando cambia el ano o los movimientos
   useEffect(() => {
@@ -233,15 +262,20 @@ export function DataProvider({ children }) {
       const pagosProveedores = calcularPagosProveedores(state.movimientos, state.proveedores, state.añoActual)
       const cashFlow = calcularCashFlow(state.movimientos, saldos, state.añoActual)
 
+      // Calcular PyG a 3 dígitos y comparativa presupuesto vs real
+      const pyg3Digitos = calcularPyG3Digitos(state.movimientos, state.añoActual)
+      const mesActual = new Date().getMonth() + 1
+      const presupuestoVsReal = calcularPresupuestoVsReal(pyg3Digitos, state.presupuestos, mesActual)
+
       dispatch({
         type: 'SET_DATOS_CALCULADOS',
-        payload: { pyg, totalesPyG, serviciosExt, financiacion, pagosProveedores, cashFlow }
+        payload: { pyg, totalesPyG, serviciosExt, financiacion, pagosProveedores, cashFlow, pyg3Digitos, presupuestoVsReal }
       })
     } catch (error) {
       console.error('Error en calculos:', error)
       dispatch({ type: 'SET_ERROR', payload: error.message })
     }
-  }, [state.movimientos, state.añoActual, state.proveedores])
+  }, [state.movimientos, state.añoActual, state.proveedores, state.presupuestos])
 
   // Funcion para parsear Excel del diario y guardar en Supabase
   const cargarDiario = async (file) => {
@@ -482,10 +516,10 @@ export function DataProvider({ children }) {
     }
   }
 
-  // Funcion para formatear numero en formato espanol
+  // Funcion para formatear numero en formato espanol (sin decimales para Excel)
   const formatoEspañol = (num) => {
     if (typeof num !== 'number' || isNaN(num)) return num
-    return num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return Math.round(num).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
   }
 
   // Funcion para exportar a Excel con formato
@@ -522,6 +556,180 @@ export function DataProvider({ children }) {
     exportarExcel(movsFiltrados, nombreArchivo)
   }
 
+  // Funcion para cargar presupuesto desde Excel
+  const cargarPresupuesto = async (file, año) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Cargando presupuesto...' })
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+
+      // Intentar detectar formato GL PPT (con header: 1 para arrays)
+      const jsonRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+
+      const presupuestos = []
+      const presupuestosPorCuentaMes = {} // Para agrupar por cuenta 3 dígitos
+
+      // Detectar formato GL PPT (fechas Excel en cabecera fila 3)
+      let esFormatoGLPPT = false
+      let indiceMeses = []
+
+      if (jsonRaw.length > 4) {
+        const cabecera = jsonRaw[3] || []
+        // Buscar si hay números de fecha Excel (>40000) en las columnas
+        const posiblesFechas = cabecera.slice(2).filter(v => typeof v === 'number' && v > 40000 && v < 50000)
+        if (posiblesFechas.length >= 12) {
+          esFormatoGLPPT = true
+          // Convertir fechas Excel a mes (1-12)
+          indiceMeses = cabecera.slice(2).map(d => {
+            if (typeof d === 'number' && d > 40000) {
+              const fecha = new Date((d - 25569) * 86400 * 1000)
+              return fecha.getMonth() + 1 // 1-12
+            }
+            return null
+          })
+          console.log('Detectado formato GL PPT, meses:', indiceMeses)
+        }
+      }
+
+      if (esFormatoGLPPT) {
+        // Procesar formato GL PPT: solo cuentas de 9 dígitos (máximo desglose), agrupar a 3 dígitos
+        jsonRaw.forEach((row, i) => {
+          if (i < 4) return // Saltar cabeceras
+
+          const cuentaLarga = String(row[0] || '').trim()
+
+          // Solo cuentas de 9 dígitos (máximo desglose) - ignorar subtotales
+          if (cuentaLarga.length !== 9) return
+
+          const cuenta3 = cuentaLarga.substring(0, 3)
+
+          // Solo procesar cuentas 6XX y 7XX
+          if (!cuenta3.match(/^[67]\d{2}$/) || !ACCOUNT_GROUPS_3[cuenta3]) return
+
+          const esIngreso = cuenta3.startsWith('7')
+          const valores = row.slice(2)
+          indiceMeses.forEach((mes, idx) => {
+            if (mes === null || mes < 1 || mes > 12) return
+            let importe = parseFloat(valores[idx]) || 0
+            if (importe === 0) return
+
+            // Invertir signo de ingresos para normalizar (el archivo tiene ingresos negativos)
+            if (esIngreso) importe = -importe
+
+            const key = `${cuenta3}-${mes}`
+            if (!presupuestosPorCuentaMes[key]) {
+              presupuestosPorCuentaMes[key] = { año, mes, cuenta: cuenta3, importe: 0 }
+            }
+            presupuestosPorCuentaMes[key].importe += importe
+          })
+        })
+
+        // Convertir a array
+        Object.values(presupuestosPorCuentaMes).forEach(p => {
+          if (p.importe !== 0) {
+            presupuestos.push(p)
+          }
+        })
+      } else {
+        // Formato estándar: intentar con json normal
+        const json = XLSX.utils.sheet_to_json(sheet)
+
+        if (json.length === 0) {
+          throw new Error('El archivo está vacío')
+        }
+
+        const columns = Object.keys(json[0] || {})
+        const mesesCortos = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+
+        // Formato horizontal (una fila por cuenta con columnas por mes)
+        if (columns.some(c => mesesCortos.includes(c) || c.match(/^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)$/i))) {
+          json.forEach(row => {
+            const cuentaRaw = String(row['Cuenta'] || row['cuenta'] || row['CUENTA'] || row['Nº cuenta'] || '').trim()
+            const cuenta = cuentaRaw.substring(0, 3)
+            if (!cuenta || !ACCOUNT_GROUPS_3[cuenta]) return
+
+            mesesCortos.forEach((mesCorto, idx) => {
+              const mesNum = idx + 1
+              const valorCol = columns.find(c =>
+                c === mesCorto ||
+                c.toLowerCase().startsWith(mesCorto.toLowerCase()) ||
+                c.match(new RegExp(`^${mesCorto}`, 'i'))
+              )
+              if (!valorCol) return
+
+              const importe = parseFloat(row[valorCol]) || 0
+              if (importe !== 0) {
+                const key = `${cuenta}-${mesNum}`
+                if (!presupuestosPorCuentaMes[key]) {
+                  presupuestosPorCuentaMes[key] = { año, mes: mesNum, cuenta, importe: 0 }
+                }
+                presupuestosPorCuentaMes[key].importe += importe
+              }
+            })
+          })
+
+          Object.values(presupuestosPorCuentaMes).forEach(p => {
+            if (p.importe !== 0) presupuestos.push(p)
+          })
+        } else {
+          // Formato vertical (Cuenta, Mes, Importe)
+          json.forEach(row => {
+            const cuentaRaw = String(row['Cuenta'] || row['cuenta'] || row['CUENTA'] || '').trim()
+            const cuenta = cuentaRaw.substring(0, 3)
+            const mes = parseInt(row['Mes'] || row['mes'] || row['MES']) || 0
+            const importe = parseFloat(row['Importe'] || row['importe'] || row['IMPORTE']) || 0
+
+            if (cuenta && ACCOUNT_GROUPS_3[cuenta] && mes >= 1 && mes <= 12) {
+              presupuestos.push({ año, mes, cuenta, importe })
+            }
+          })
+        }
+      }
+
+      if (presupuestos.length === 0) {
+        throw new Error('No se encontraron datos de presupuesto válidos. Verifica que el archivo tenga cuentas 6XX o 7XX.')
+      }
+
+      // Guardar en Supabase
+      dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando en Supabase...' })
+
+      // Eliminar presupuesto existente del año
+      await db.presupuestos.deleteByYear(año)
+
+      // Insertar nuevos presupuestos
+      const { error } = await db.presupuestos.upsert(presupuestos)
+      if (error) {
+        throw new Error(`Error guardando presupuesto: ${error.message}`)
+      }
+
+      // Actualizar estado
+      dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestos })
+      dispatch({ type: 'SET_LOADING', payload: false })
+
+      return { success: true, count: presupuestos.length }
+    } catch (error) {
+      console.error('Error cargando presupuesto:', error)
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
+  // Funcion para cargar presupuestos desde Supabase
+  const cargarPresupuestosDesdeSupabase = async (año) => {
+    try {
+      const { data, error } = await db.presupuestos.getByYear(año)
+      if (error) {
+        console.error('Error cargando presupuestos:', error)
+        return
+      }
+      dispatch({ type: 'LOAD_PRESUPUESTOS', payload: data || [] })
+    } catch (error) {
+      console.error('Error cargando presupuestos:', error)
+    }
+  }
+
   // Limpiar datos (local y Supabase)
   const limpiarDatos = async () => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando datos...' })
@@ -544,6 +752,8 @@ export function DataProvider({ children }) {
     dispatch,
     cargarDiario,
     cargarProveedores,
+    cargarPresupuesto,
+    cargarPresupuestosDesdeSupabase,
     cargarDatosDesdeSupabase,
     exportarExcel,
     exportarMovimientos,

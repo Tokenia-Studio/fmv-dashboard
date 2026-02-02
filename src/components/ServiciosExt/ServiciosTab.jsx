@@ -7,6 +7,7 @@ import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
 import BarrasApiladas from './BarrasApiladas'
 import LineasSubcuentas from './LineasSubcuentas'
+import ComparativaInteranual from './ComparativaInteranual'
 import { formatCurrency } from '../../utils/formatters'
 
 export default function ServiciosTab() {
@@ -59,6 +60,9 @@ export default function ServiciosTab() {
         subcuentas={serviciosExt.subcuentas}
         año={añoActual}
       />
+
+      {/* Comparativa Interanual */}
+      <ComparativaInteranual />
 
       {/* Tabla detalle */}
       <div className="card overflow-hidden">

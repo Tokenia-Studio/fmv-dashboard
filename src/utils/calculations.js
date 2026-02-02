@@ -2,7 +2,7 @@
 // CÁLCULOS - FMV Dashboard v2.0
 // ============================================
 
-import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS } from './constants'
+import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3 } from './constants'
 
 /**
  * Agrupa movimientos por mes y categoría para PyG
@@ -374,4 +374,115 @@ export function calcularCashFlow(movimientos, saldos, año) {
       variacionYTD: variacionTotal
     }
   }
+}
+
+/**
+ * Calcula PyG agrupado a nivel de 3 dígitos (para presupuesto)
+ */
+export function calcularPyG3Digitos(movimientos, año) {
+  const resultado = {}
+
+  // Inicializar estructura: cada cuenta 3 dígitos con 12 meses
+  Object.keys(ACCOUNT_GROUPS_3).forEach(cuenta => {
+    resultado[cuenta] = {
+      cuenta,
+      nombre: ACCOUNT_GROUPS_3[cuenta].name,
+      tipo: ACCOUNT_GROUPS_3[cuenta].type,
+      meses: {}
+    }
+    for (let m = 1; m <= 12; m++) {
+      resultado[cuenta].meses[m] = 0
+    }
+  })
+
+  // Procesar movimientos
+  movimientos.forEach(mov => {
+    if (!mov.mes.startsWith(String(año))) return
+
+    const cuenta3 = mov.cuenta.substring(0, 3)
+    if (!ACCOUNT_GROUPS_3[cuenta3]) return
+
+    const mes = parseInt(mov.mes.split('-')[1])
+    const neto = mov.debe - mov.haber
+
+    // Ingresos: haber - debe (valor positivo = ingreso)
+    // Gastos: debe - haber (valor positivo = gasto)
+    const valor = ACCOUNT_GROUPS_3[cuenta3].type === 'ingreso' ? -neto : neto
+
+    resultado[cuenta3].meses[mes] += valor
+  })
+
+  // Calcular totales acumulados
+  Object.keys(resultado).forEach(cuenta => {
+    let acumulado = 0
+    for (let m = 1; m <= 12; m++) {
+      acumulado += resultado[cuenta].meses[m]
+      resultado[cuenta].meses[`acum_${m}`] = acumulado
+    }
+    resultado[cuenta].totalAnual = acumulado
+  })
+
+  return resultado
+}
+
+/**
+ * Compara presupuesto vs real
+ */
+export function calcularPresupuestoVsReal(pyg3Digitos, presupuestos, mesActual) {
+  const resultado = []
+
+  // Agrupar presupuestos por cuenta
+  const presupuestosPorCuenta = {}
+  presupuestos.forEach(p => {
+    if (!presupuestosPorCuenta[p.cuenta]) {
+      presupuestosPorCuenta[p.cuenta] = { meses: {}, acumulados: {} }
+    }
+    presupuestosPorCuenta[p.cuenta].meses[p.mes] = p.importe
+  })
+
+  // Calcular acumulados de presupuesto
+  Object.keys(presupuestosPorCuenta).forEach(cuenta => {
+    let acum = 0
+    for (let m = 1; m <= 12; m++) {
+      acum += presupuestosPorCuenta[cuenta].meses[m] || 0
+      presupuestosPorCuenta[cuenta].acumulados[m] = acum
+    }
+  })
+
+  // Combinar datos reales con presupuesto
+  Object.keys(pyg3Digitos).forEach(cuenta => {
+    const real = pyg3Digitos[cuenta]
+    const pres = presupuestosPorCuenta[cuenta] || { meses: {}, acumulados: {} }
+
+    const presMes = pres.meses[mesActual] || 0
+    const realMes = real.meses[mesActual] || 0
+    const varMes = presMes !== 0 ? ((realMes - presMes) / Math.abs(presMes)) * 100 : null
+
+    const presAcum = pres.acumulados[mesActual] || 0
+    const realAcum = real.meses[`acum_${mesActual}`] || 0
+    const varAcum = presAcum !== 0 ? ((realAcum - presAcum) / Math.abs(presAcum)) * 100 : null
+
+    const cumplimiento = presAcum !== 0 ? (realAcum / presAcum) * 100 : null
+
+    resultado.push({
+      cuenta,
+      nombre: real.nombre,
+      tipo: real.tipo,
+      presMes,
+      realMes,
+      varMes,
+      presAcum,
+      realAcum,
+      varAcum,
+      cumplimiento
+    })
+  })
+
+  // Ordenar: primero ingresos (7xx), luego gastos (6xx)
+  resultado.sort((a, b) => {
+    if (a.tipo !== b.tipo) return a.tipo === 'ingreso' ? -1 : 1
+    return a.cuenta.localeCompare(b.cuenta)
+  })
+
+  return resultado
 }

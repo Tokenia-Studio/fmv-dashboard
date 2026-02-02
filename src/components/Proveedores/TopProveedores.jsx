@@ -5,23 +5,75 @@
 import React from 'react'
 import * as XLSX from 'xlsx'
 import { useData } from '../../context/DataContext'
-import { formatCurrency, formatPercent } from '../../utils/formatters'
+import { formatCurrency, formatPercent, formatExcelNumber } from '../../utils/formatters'
+import { MONTHS_SHORT } from '../../utils/constants'
 import ExportButton from '../UI/ExportButton'
 
 export default function TopProveedores({ datos, totalPagos, año }) {
-  const { exportarMovimientos } = useData()
+  const { movimientos, proveedores } = useData()
 
-  // Exportar extracto de gasto de un proveedor
+  // Exportar extracto completo de un proveedor (3 hojas)
   const exportarProveedor = (prov) => {
-    exportarMovimientos(
-      (m) => {
-        const grupo2 = m.cuenta.substring(0, 2)
-        return m.codProcedencia === prov.codigo &&
-               m.mes.startsWith(String(año)) &&
-               (grupo2 === '60' || grupo2 === '62')
-      },
-      `Gasto_${prov.nombre.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)}_${año}`
-    )
+    const wb = XLSX.utils.book_new()
+    const nombreLimpio = prov.nombre.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
+
+    // Filtrar movimientos del proveedor
+    const movsProveedor = movimientos.filter(m => {
+      const grupo2 = m.cuenta.substring(0, 2)
+      return m.codProcedencia === prov.codigo &&
+             m.mes.startsWith(String(año)) &&
+             (grupo2 === '60' || grupo2 === '62')
+    })
+
+    // HOJA 1: Movimientos (extracto detallado)
+    const datosMovimientos = movsProveedor.map(m => ({
+      Fecha: m.fecha.toLocaleDateString('es-ES'),
+      Cuenta: m.cuenta,
+      Descripcion: m.descripcion,
+      Debe: formatExcelNumber(m.debe),
+      Haber: formatExcelNumber(m.haber),
+      Neto: formatExcelNumber(m.neto),
+      Documento: m.documento
+    }))
+    const wsMovimientos = XLSX.utils.json_to_sheet(datosMovimientos)
+    wsMovimientos['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 40 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
+    XLSX.utils.book_append_sheet(wb, wsMovimientos, 'Movimientos')
+
+    // HOJA 2: Evolución Mensual (datos para gráfico)
+    const evolucionMensual = MONTHS_SHORT.map((mes, idx) => {
+      const mesKey = `${año}-${String(idx + 1).padStart(2, '0')}`
+      const gastoMes = movsProveedor
+        .filter(m => m.mes === mesKey)
+        .reduce((sum, m) => sum + (m.debe - m.haber), 0)
+      return {
+        Mes: mes,
+        Gasto: formatExcelNumber(gastoMes)
+      }
+    })
+    const wsEvolucion = XLSX.utils.json_to_sheet(evolucionMensual)
+    wsEvolucion['!cols'] = [{ wch: 12 }, { wch: 15 }]
+    XLSX.utils.book_append_sheet(wb, wsEvolucion, 'Evolucion Mensual')
+
+    // HOJA 3: Resumen
+    const totalGasto = movsProveedor.reduce((sum, m) => sum + (m.debe - m.haber), 0)
+    const compras = movsProveedor.filter(m => m.cuenta.startsWith('60')).reduce((sum, m) => sum + (m.debe - m.haber), 0)
+    const servicios = movsProveedor.filter(m => m.cuenta.startsWith('62')).reduce((sum, m) => sum + (m.debe - m.haber), 0)
+
+    const datosResumen = [
+      { Concepto: 'Proveedor', Valor: prov.nombre },
+      { Concepto: 'Codigo', Valor: prov.codigo },
+      { Concepto: 'Año', Valor: año },
+      { Concepto: '', Valor: '' },
+      { Concepto: 'Total Gasto', Valor: formatExcelNumber(totalGasto) },
+      { Concepto: 'Compras (60x)', Valor: formatExcelNumber(compras) },
+      { Concepto: 'Servicios Ext. (62x)', Valor: formatExcelNumber(servicios) },
+      { Concepto: 'Nº Facturas', Valor: movsProveedor.length }
+    ]
+    const wsResumen = XLSX.utils.json_to_sheet(datosResumen)
+    wsResumen['!cols'] = [{ wch: 20 }, { wch: 20 }]
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
+
+    XLSX.writeFile(wb, `Extracto_${nombreLimpio}_${año}.xlsx`)
   }
 
   return (
@@ -33,14 +85,13 @@ export default function TopProveedores({ datos, totalPagos, año }) {
         </h3>
         <ExportButton
           onClick={() => {
-            const formatNum = (n) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
             const exportData = datos.map((p, idx) => ({
               Ranking: idx + 1,
               Codigo: p.codigo,
               Proveedor: p.nombre,
-              'Compras': formatNum(p.compras || 0),
-              'Servicios': formatNum(p.servicios || 0),
-              'Total Gasto': formatNum(p.total),
+              'Compras': formatExcelNumber(p.compras || 0),
+              'Servicios': formatExcelNumber(p.servicios || 0),
+              'Total Gasto': formatExcelNumber(p.total),
               '% Total': ((p.total / totalPagos) * 100).toFixed(2) + '%',
               'Nº Facturas': p.numFacturas
             }))

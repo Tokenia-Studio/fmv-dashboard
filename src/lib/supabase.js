@@ -228,6 +228,49 @@ export const db = {
         .order('año', { ascending: false })
       return { data, error }
     }
+  },
+
+  // --- PRESUPUESTOS ---
+  presupuestos: {
+    // Insertar o actualizar presupuestos
+    upsert: async (presupuestos) => {
+      const { data, error } = await supabase
+        .from('presupuestos')
+        .upsert(presupuestos, { onConflict: 'año,mes,cuenta' })
+      return { data, error }
+    },
+
+    // Obtener presupuestos por año
+    getByYear: async (año) => {
+      const { data, error } = await supabase
+        .from('presupuestos')
+        .select('*')
+        .eq('año', año)
+        .order('cuenta', { ascending: true })
+        .order('mes', { ascending: true })
+      return { data, error }
+    },
+
+    // Eliminar presupuestos de un año
+    deleteByYear: async (año) => {
+      const { error } = await supabase
+        .from('presupuestos')
+        .delete()
+        .eq('año', año)
+      return { error }
+    },
+
+    // Obtener años con presupuesto
+    getYears: async () => {
+      const { data, error } = await supabase
+        .from('presupuestos')
+        .select('año')
+        .order('año', { ascending: false })
+
+      if (error) return { data: [], error }
+      const años = [...new Set(data.map(d => d.año))]
+      return { data: años, error: null }
+    }
   }
 }
 

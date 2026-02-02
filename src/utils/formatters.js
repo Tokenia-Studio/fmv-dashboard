@@ -110,3 +110,14 @@ export function formatVariacion(actual, anterior) {
   const color = variacion >= 0 ? 'text-green-600' : 'text-red-600'
   return { text: `${arrow} ${Math.abs(variacion).toFixed(1)}%`, color, value: variacion }
 }
+
+/**
+ * Formatea número para exportación Excel (sin decimales, formato español)
+ */
+export function formatExcelNumber(value) {
+  if (value == null || isNaN(value)) return ''
+  return Math.round(value).toLocaleString('es-ES', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  })
+}
