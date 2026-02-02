@@ -281,7 +281,8 @@ export function DataProvider({ children }) {
             cuenta,
             descripcion: ''
           }))
-          await db.mapeoGrupoCuenta.upsert(defaultRows)
+          const { error: mapeoErr } = await db.mapeoGrupoCuenta.upsert(defaultRows)
+          if (mapeoErr) console.error('Error persistiendo mapeo por defecto:', mapeoErr)
           dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: defaultRows })
         }
       } catch (e) {

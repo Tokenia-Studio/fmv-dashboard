@@ -11,7 +11,8 @@ export function formatCurrency(value, decimals = 0) {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
+    maximumFractionDigits: decimals,
+    useGrouping: 'always'
   }).format(value)
 }
 
@@ -30,7 +31,8 @@ export function formatNumber(value, decimals = 0) {
   if (value == null || isNaN(value)) return '0'
   return new Intl.NumberFormat('es-ES', {
     minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
+    maximumFractionDigits: decimals,
+    useGrouping: 'always'
   }).format(value)
 }
 
@@ -118,6 +120,7 @@ export function formatExcelNumber(value) {
   if (value == null || isNaN(value)) return ''
   return Math.round(value).toLocaleString('es-ES', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
+    useGrouping: 'always'
   })
 }
