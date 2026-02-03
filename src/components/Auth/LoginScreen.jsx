@@ -305,9 +305,17 @@ export default function LoginScreen({ onLogin, forceMode }) {
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading || (mode === 'forgotPassword' ? !email : (!email || !password))}
+            disabled={loading || (
+              mode === 'forgotPassword' ? !email :
+              mode === 'setPassword' ? (!password || !confirmPassword || password.length < 6) :
+              (!email || !password)
+            )}
             className={`w-full py-3 rounded-lg font-semibold text-white transition-all
-                       ${loading || (mode === 'forgotPassword' ? !email : (!email || !password))
+                       ${loading || (
+                         mode === 'forgotPassword' ? !email :
+                         mode === 'setPassword' ? (!password || !confirmPassword || password.length < 6) :
+                         (!email || !password)
+                       )
                          ? 'bg-gray-300 cursor-not-allowed'
                          : 'bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-lg hover:shadow-xl'}`}
           >
