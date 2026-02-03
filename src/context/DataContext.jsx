@@ -615,12 +615,12 @@ export function DataProvider({ children }) {
   // Funcion para exportar movimientos filtrados
   const exportarMovimientos = (filtro, nombreArchivo) => {
     const movsFiltrados = state.movimientos.filter(filtro).map(m => ({
-      Fecha: m.fecha.toLocaleDateString('es-ES'),
+      Fecha: m.fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       Cuenta: m.cuenta,
       Descripcion: m.descripcion,
-      Debe: formatoEspañol(m.debe),
-      Haber: formatoEspañol(m.haber),
-      Neto: formatoEspañol(m.neto),
+      Debe: m.debe,
+      Haber: m.haber,
+      Neto: m.neto,
       Documento: m.documento,
       Proveedor: state.proveedores[m.codProcedencia] || m.codProcedencia
     }))
