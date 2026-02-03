@@ -18,7 +18,7 @@ import {
   calcularPyG3Digitos,
   calcularPresupuestoVsReal
 } from '../utils/calculations'
-import { ACCOUNT_GROUPS_3, MAPEO_GRUPO_CUENTA_DEFAULT } from '../utils/constants'
+import { ACCOUNT_GROUPS_3, MAPEO_GRUPO_CUENTA_DEFAULT, TABS_POR_ROL } from '../utils/constants'
 
 const DataContext = createContext(null)
 
@@ -126,8 +126,16 @@ function dataReducer(state, action) {
     case 'SET_ARCHIVOS_CARGADOS':
       return { ...state, archivosCargados: action.payload }
 
-    case 'SET_USER_ROLE':
-      return { ...state, userRole: action.payload }
+    case 'SET_USER_ROLE': {
+      const nuevoRol = action.payload
+      const tabsPermitidas = TABS_POR_ROL[nuevoRol] || TABS_POR_ROL.direccion
+      const tabActualValida = tabsPermitidas.includes(state.tabActiva)
+      return {
+        ...state,
+        userRole: nuevoRol,
+        tabActiva: tabActualValida ? state.tabActiva : tabsPermitidas[0]
+      }
+    }
 
     case 'LOAD_ALBARANES_FACTURAS':
       return { ...state, albaranesFacturas: action.payload }
