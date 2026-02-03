@@ -70,7 +70,8 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       const c3 = mov.cuenta.substring(0, 3)
       if (c3 !== cuenta3) return
       const sub = mov.cuenta
-      if (!result[sub]) result[sub] = { meses: {} }
+      if (!result[sub]) result[sub] = { meses: {}, descripcion: mov.descripcion || '' }
+      if (!result[sub].descripcion && mov.descripcion) result[sub].descripcion = mov.descripcion
       const m = parseInt(mov.mes.split('-')[1])
       const neto = mov.debe - mov.haber
       if (!result[sub].meses[m]) result[sub].meses[m] = 0
@@ -81,7 +82,7 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       let realMes = d.meses[mesSeleccionado] || 0
       let realAcum = 0
       for (let m = 1; m <= mesSeleccionado; m++) realAcum += d.meses[m] || 0
-      return { cuenta, realMes, realAcum }
+      return { cuenta, realMes, realAcum, descripcion: d.descripcion || '' }
     }).filter(s => s.realMes !== 0 || s.realAcum !== 0).sort((a, b) => a.cuenta.localeCompare(b.cuenta))
   }
 
@@ -161,6 +162,7 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
               <tr key={`sub-${sub.cuenta}`} className="bg-gray-100/50 text-xs hover:bg-gray-100">
                 <td className="p-1.5 pl-16">
                   <span className="text-gray-400 font-mono mr-1">{sub.cuenta}</span>
+                  {sub.descripcion && <span className="text-gray-500 truncate" title={sub.descripcion}>{sub.descripcion}</span>}
                 </td>
                 <td className="p-1.5 text-right text-gray-400">-</td>
                 <td className="p-1.5 text-right">{formatCurrency(sub.realMes)}</td>

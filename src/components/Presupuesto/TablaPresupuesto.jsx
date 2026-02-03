@@ -147,8 +147,12 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
 
       const subcuenta = mov.cuenta
       if (!result[subcuenta]) {
-        result[subcuenta] = { cuenta3, meses: {} }
+        result[subcuenta] = { cuenta3, meses: {}, descripcion: mov.descripcion || '' }
         for (let m = 1; m <= 12; m++) result[subcuenta].meses[m] = 0
+      }
+      // Capturar la primera descripción no vacía como nombre de la cuenta
+      if (!result[subcuenta].descripcion && mov.descripcion) {
+        result[subcuenta].descripcion = mov.descripcion
       }
       const mes = parseInt(mov.mes.split('-')[1])
       const neto = mov.debe - mov.haber
@@ -478,10 +482,12 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
               const svM = calcVar(srM, spM)
               const svA = calcVar(srA, spA)
 
+              const subDesc = realSubcuentas[sub]?.descripcion || ''
               rows.push(
                 <tr key={`sub-${sub}`} className="bg-gray-100/50 text-xs hover:bg-gray-100">
                   <td className="p-1.5 pl-16">
                     <span className="text-gray-400 font-mono mr-1">{sub}</span>
+                    {subDesc && <span className="text-gray-500 truncate" title={subDesc}>{subDesc}</span>}
                   </td>
                   <td className="p-1.5 text-right text-gray-400">{formatCurrency(spM)}</td>
                   <td className="p-1.5 text-right">{formatCurrency(srM)}</td>
