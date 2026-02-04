@@ -48,6 +48,7 @@ const initialState = {
   albaranesFacturas: [],
   pedidosCompra: [],
   mapeoGrupoCuenta: [],
+  planCuentas: {},  // { cuenta: nombre }
 
   // Rol de usuario
   userRole: 'direccion',
@@ -145,6 +146,9 @@ function dataReducer(state, action) {
 
     case 'LOAD_MAPEO_GRUPO_CUENTA':
       return { ...state, mapeoGrupoCuenta: action.payload }
+
+    case 'LOAD_PLAN_CUENTAS':
+      return { ...state, planCuentas: action.payload }
 
     case 'CLEAR_DATA':
       return { ...initialState }
@@ -271,7 +275,7 @@ export function DataProvider({ children }) {
         console.warn('No se pudo cargar rol de usuario:', e)
       }
 
-      // Cargar albaranes, pedidos, mapeo
+      // Cargar albaranes, pedidos, mapeo, plan de cuentas
       try {
         const { data: albData } = await db.albaranesFacturas.getByYear(añoActual)
         if (albData) dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albData })
@@ -292,6 +296,14 @@ export function DataProvider({ children }) {
           const { error: mapeoErr } = await db.mapeoGrupoCuenta.upsert(defaultRows)
           if (mapeoErr) console.error('Error persistiendo mapeo por defecto:', mapeoErr)
           dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: defaultRows })
+        }
+
+        // Cargar plan de cuentas
+        const { data: planData } = await db.planCuentas.getAll()
+        if (planData && planData.length > 0) {
+          const planMap = {}
+          planData.forEach(p => { planMap[p.cuenta] = p.nombre })
+          dispatch({ type: 'LOAD_PLAN_CUENTAS', payload: planMap })
         }
       } catch (e) {
         console.warn('Error cargando datos compras:', e)
@@ -1019,6 +1031,70 @@ export function DataProvider({ children }) {
     dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: filas })
   }
 
+  // Cargar plan de cuentas desde Excel
+  const cargarPlanCuentas = async (file) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando plan de cuentas...' })
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const json = XLSX.utils.sheet_to_json(sheet)
+
+      if (json.length === 0) throw new Error('El archivo está vacío')
+
+      const columns = Object.keys(json[0] || {})
+
+      // Buscar columnas flexiblemente
+      const findCol = (patterns) => {
+        const colsLower = columns.map(c => c.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+        for (const p of patterns) {
+          const pNorm = p.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          const idx = colsLower.findIndex(c => c.includes(pNorm))
+          if (idx !== -1) return columns[idx]
+        }
+        return null
+      }
+
+      const COL_cuenta = findCol(['cuenta', 'subcuenta', 'codigo', 'código', 'nº cuenta', 'n cuenta'])
+      const COL_nombre = findCol(['nombre', 'descripcion', 'descripción', 'denominacion', 'denominación'])
+
+      if (!COL_cuenta) throw new Error('No se encontró columna de Cuenta')
+      if (!COL_nombre) throw new Error('No se encontró columna de Nombre')
+
+      const rows = []
+      const planMap = {}
+
+      json.forEach(row => {
+        const cuenta = String(row[COL_cuenta] || '').trim()
+        const nombre = String(row[COL_nombre] || '').trim()
+
+        if (cuenta && nombre) {
+          rows.push({ cuenta, nombre })
+          planMap[cuenta] = nombre
+        }
+      })
+
+      if (rows.length === 0) throw new Error('No se encontraron cuentas válidas')
+
+      dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando plan de cuentas...' })
+
+      // Eliminar plan existente y guardar nuevo
+      await db.planCuentas.deleteAll()
+      const { error } = await db.planCuentas.upsert(rows)
+      if (error) throw new Error(`Error guardando plan de cuentas: ${error.message}`)
+
+      dispatch({ type: 'LOAD_PLAN_CUENTAS', payload: planMap })
+      dispatch({ type: 'SET_LOADING', payload: false })
+
+      return { success: true, count: rows.length }
+    } catch (error) {
+      console.error('Error cargando plan de cuentas:', error)
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
   // Borrar albaranes de un año/mes
   const borrarAlbaranes = async (año, mes) => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando albaranes...' })
@@ -1079,6 +1155,7 @@ export function DataProvider({ children }) {
     borrarAlbaranes,
     borrarPedidos,
     guardarMapeo,
+    cargarPlanCuentas,
     exportarExcel,
     exportarMovimientos,
     limpiarDatos,

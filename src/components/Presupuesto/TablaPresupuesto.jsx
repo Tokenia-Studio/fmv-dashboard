@@ -87,8 +87,73 @@ const ESTRUCTURA_PYG = [
 ]
 
 export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año }) {
-  const { movimientos, presupuestos, pyg3Digitos } = useData()
+  const { movimientos, presupuestos, pyg3Digitos, proveedores, planCuentas } = useData()
   const [expanded, setExpanded] = useState(new Set())
+
+  // Exportar movimientos a Excel
+  const exportarMovimientosFiltrados = (filtro, nombreArchivo) => {
+    const movsFiltrados = movimientos.filter(filtro).map(m => ({
+      Fecha: m.fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      Cuenta: m.cuenta,
+      Descripcion: m.descripcion,
+      Debe: m.debe,
+      Haber: m.haber,
+      Neto: m.debe - m.haber,
+      Documento: m.documento,
+      Proveedor: proveedores[m.codProcedencia] || m.codProcedencia
+    }))
+    if (movsFiltrados.length === 0) {
+      alert('No hay movimientos para exportar')
+      return
+    }
+    const ws = XLSX.utils.json_to_sheet(movsFiltrados)
+    ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 30 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Movimientos')
+    XLSX.writeFile(wb, `${nombreArchivo}.xlsx`)
+  }
+
+  // Filtro por categoría y mes
+  const exportarCategoria = (catId, esMes) => {
+    const cats = catId === 'varExist' ? ['varExistPT', 'varExistMP'] : [catId]
+    const cuentas3 = []
+    Object.entries(CUENTA_A_CATEGORIA).forEach(([c3, cat]) => {
+      if (cats.includes(cat)) cuentas3.push(c3)
+    })
+    const filtro = (mov) => {
+      if (!mov.mes.startsWith(String(año))) return false
+      const c3 = mov.cuenta.substring(0, 3)
+      if (!cuentas3.includes(c3)) return false
+      const mesMov = parseInt(mov.mes.split('-')[1])
+      return esMes ? mesMov === mesSeleccionado : mesMov <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarMovimientosFiltrados(filtro, `Real_${catId}_${año}_${periodo}`)
+  }
+
+  // Filtro por cuenta 3 dígitos y mes
+  const exportarCuenta3 = (cuenta3, esMes) => {
+    const filtro = (mov) => {
+      if (!mov.mes.startsWith(String(año))) return false
+      if (!mov.cuenta.startsWith(cuenta3)) return false
+      const mesMov = parseInt(mov.mes.split('-')[1])
+      return esMes ? mesMov === mesSeleccionado : mesMov <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarMovimientosFiltrados(filtro, `Real_${cuenta3}_${año}_${periodo}`)
+  }
+
+  // Filtro por subcuenta 9 dígitos y mes
+  const exportarSubcuenta = (subcuenta, esMes) => {
+    const filtro = (mov) => {
+      if (!mov.mes.startsWith(String(año))) return false
+      if (mov.cuenta !== subcuenta) return false
+      const mesMov = parseInt(mov.mes.split('-')[1])
+      return esMes ? mesMov === mesSeleccionado : mesMov <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarMovimientosFiltrados(filtro, `Real_${subcuenta}_${año}_${periodo}`)
+  }
 
   const toggleExpand = (key) => {
     setExpanded(prev => {
@@ -417,12 +482,20 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
             </span>
           </td>
           <td className="p-3 text-right text-gray-600">{formatCurrency(presMes)}</td>
-          <td className={`p-3 text-right font-medium ${isSubtotal || isTotal ? getValueClass(realMes) : ''}`}>
+          <td
+            className={`p-3 text-right font-medium ${isSubtotal || isTotal ? getValueClass(realMes) : ''} ${!fila.calc ? 'cursor-pointer hover:bg-blue-50 hover:underline' : ''}`}
+            onClick={!fila.calc ? (e) => { e.stopPropagation(); exportarCategoria(fila.id, true) } : undefined}
+            title={!fila.calc ? 'Clic para exportar detalle' : undefined}
+          >
             {formatCurrency(realMes)}
           </td>
           <td className="p-3 text-right">{formatVar(varMes, esGasto)}</td>
           <td className="p-3 text-right bg-slate-50 text-gray-600">{formatCurrency(presAcum)}</td>
-          <td className={`p-3 text-right bg-slate-50 font-medium ${isSubtotal || isTotal ? getValueClass(realAcum) : ''}`}>
+          <td
+            className={`p-3 text-right bg-slate-50 font-medium ${isSubtotal || isTotal ? getValueClass(realAcum) : ''} ${!fila.calc ? 'cursor-pointer hover:bg-blue-100 hover:underline' : ''}`}
+            onClick={!fila.calc ? (e) => { e.stopPropagation(); exportarCategoria(fila.id, false) } : undefined}
+            title={!fila.calc ? 'Clic para exportar detalle acumulado' : undefined}
+          >
             {formatCurrency(realAcum)}
           </td>
           <td className="p-3 text-right bg-slate-50">{formatVar(varAcum, esGasto)}</td>
@@ -464,10 +537,22 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
                 </span>
               </td>
               <td className="p-2 text-right text-gray-500">{formatCurrency(pM)}</td>
-              <td className="p-2 text-right font-medium">{formatCurrency(rM)}</td>
+              <td
+                className="p-2 text-right font-medium cursor-pointer hover:bg-blue-50 hover:underline"
+                onClick={(e) => { e.stopPropagation(); exportarCuenta3(c3, true) }}
+                title="Clic para exportar detalle"
+              >
+                {formatCurrency(rM)}
+              </td>
               <td className="p-2 text-right">{formatVar(vM, esGasto)}</td>
               <td className="p-2 text-right bg-slate-50 text-gray-500">{formatCurrency(pA)}</td>
-              <td className="p-2 text-right bg-slate-50 font-medium">{formatCurrency(rA)}</td>
+              <td
+                className="p-2 text-right bg-slate-50 font-medium cursor-pointer hover:bg-blue-100 hover:underline"
+                onClick={(e) => { e.stopPropagation(); exportarCuenta3(c3, false) }}
+                title="Clic para exportar detalle acumulado"
+              >
+                {formatCurrency(rA)}
+              </td>
               <td className="p-2 text-right bg-slate-50">{formatVar(vA, esGasto)}</td>
             </tr>
           )
@@ -482,18 +567,31 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
               const svM = calcVar(srM, spM)
               const svA = calcVar(srA, spA)
 
-              const subDesc = realSubcuentas[sub]?.descripcion || ''
+              // Usar nombre del plan de cuentas si existe, sino la descripción del movimiento
+              const subNombre = planCuentas[sub] || realSubcuentas[sub]?.descripcion || ''
               rows.push(
                 <tr key={`sub-${sub}`} className="bg-gray-100/50 text-xs hover:bg-gray-100">
                   <td className="p-1.5 pl-16">
                     <span className="text-gray-400 font-mono mr-1">{sub}</span>
-                    {subDesc && <span className="text-gray-500 truncate" title={subDesc}>{subDesc}</span>}
+                    {subNombre && <span className="text-gray-500 truncate" title={subNombre}>{subNombre}</span>}
                   </td>
                   <td className="p-1.5 text-right text-gray-400">{formatCurrency(spM)}</td>
-                  <td className="p-1.5 text-right">{formatCurrency(srM)}</td>
+                  <td
+                    className="p-1.5 text-right cursor-pointer hover:bg-blue-50 hover:underline"
+                    onClick={() => exportarSubcuenta(sub, true)}
+                    title="Clic para exportar detalle"
+                  >
+                    {formatCurrency(srM)}
+                  </td>
                   <td className="p-1.5 text-right">{formatVar(svM, esGasto)}</td>
                   <td className="p-1.5 text-right bg-slate-50 text-gray-400">{formatCurrency(spA)}</td>
-                  <td className="p-1.5 text-right bg-slate-50">{formatCurrency(srA)}</td>
+                  <td
+                    className="p-1.5 text-right bg-slate-50 cursor-pointer hover:bg-blue-100 hover:underline"
+                    onClick={() => exportarSubcuenta(sub, false)}
+                    title="Clic para exportar detalle acumulado"
+                  >
+                    {formatCurrency(srA)}
+                  </td>
                   <td className="p-1.5 text-right bg-slate-50">{formatVar(svA, esGasto)}</td>
                 </tr>
               )

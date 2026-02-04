@@ -343,6 +343,30 @@ export const db = {
         .upsert(rows, { onConflict: 'grupo_contable' })
       return { data, error }
     }
+  },
+
+  // --- PLAN DE CUENTAS ---
+  planCuentas: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('plan_cuentas')
+        .select('*')
+        .order('cuenta', { ascending: true })
+      return { data, error }
+    },
+    upsert: async (rows) => {
+      const { data, error } = await supabase
+        .from('plan_cuentas')
+        .upsert(rows, { onConflict: 'cuenta' })
+      return { data, error }
+    },
+    deleteAll: async () => {
+      const { error } = await supabase
+        .from('plan_cuentas')
+        .delete()
+        .neq('cuenta', '')
+      return { error }
+    }
   }
 }
 
