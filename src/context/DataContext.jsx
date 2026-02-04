@@ -1062,7 +1062,6 @@ export function DataProvider({ children }) {
       if (!COL_cuenta) throw new Error('No se encontró columna de Cuenta')
       if (!COL_nombre) throw new Error('No se encontró columna de Nombre')
 
-      const rows = []
       const planMap = {}
 
       json.forEach(row => {
@@ -1070,10 +1069,12 @@ export function DataProvider({ children }) {
         const nombre = String(row[COL_nombre] || '').trim()
 
         if (cuenta && nombre) {
-          rows.push({ cuenta, nombre })
-          planMap[cuenta] = nombre
+          planMap[cuenta] = nombre // Si hay duplicados, se queda con el último
         }
       })
+
+      // Convertir a array eliminando duplicados
+      const rows = Object.entries(planMap).map(([cuenta, nombre]) => ({ cuenta, nombre }))
 
       if (rows.length === 0) throw new Error('No se encontraron cuentas válidas')
 
