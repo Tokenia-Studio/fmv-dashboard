@@ -6,11 +6,13 @@ import React, { useState, useRef } from 'react'
 import { useData } from '../../context/DataContext'
 import TablaPresupuestoCompras from './TablaPresupuestoCompras'
 import ConfigMapeo from './ConfigMapeo'
+import MapeoProveedorCuenta from './MapeoProveedorCuenta'
 
 export default function PresupuestoComprasTab() {
   const { movimientos, presupuestos, añoActual, planCuentas, cargarPlanCuentas } = useData()
   const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth() + 1)
   const [mostrarConfig, setMostrarConfig] = useState(false)
+  const [mostrarMapeoProveedor, setMostrarMapeoProveedor] = useState(false)
   const [cargandoPlan, setCargandoPlan] = useState(false)
   const [mensajePlan, setMensajePlan] = useState(null)
   const fileInputRef = useRef(null)
@@ -53,6 +55,10 @@ export default function PresupuestoComprasTab() {
         <ConfigMapeo onClose={() => setMostrarConfig(false)} />
       )}
 
+      {mostrarMapeoProveedor && (
+        <MapeoProveedorCuenta onClose={() => setMostrarMapeoProveedor(false)} />
+      )}
+
       <div className="flex justify-between items-center">
         {/* Plan de cuentas */}
         <div className="flex items-center gap-3">
@@ -83,14 +89,25 @@ export default function PresupuestoComprasTab() {
           )}
         </div>
 
-        {/* Configurar mapeo */}
-        <button
-          onClick={() => setMostrarConfig(!mostrarConfig)}
-          className="px-3 py-1.5 text-sm bg-slate-200 hover:bg-slate-300 rounded-lg flex items-center gap-1.5"
-        >
-          <span>&#9881;</span>
-          Configurar mapeo
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Mapeo cuenta pedidos */}
+          <button
+            onClick={() => setMostrarMapeoProveedor(!mostrarMapeoProveedor)}
+            className="px-3 py-1.5 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg flex items-center gap-1.5"
+          >
+            <span>&#128279;</span>
+            Mapeo Cuenta Pedidos
+          </button>
+
+          {/* Configurar mapeo */}
+          <button
+            onClick={() => setMostrarConfig(!mostrarConfig)}
+            className="px-3 py-1.5 text-sm bg-slate-200 hover:bg-slate-300 rounded-lg flex items-center gap-1.5"
+          >
+            <span>&#9881;</span>
+            Configurar mapeo
+          </button>
+        </div>
       </div>
 
       <TablaPresupuestoCompras

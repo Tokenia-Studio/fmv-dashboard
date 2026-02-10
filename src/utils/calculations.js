@@ -593,6 +593,62 @@ export function calcularPresupuestoCompras(pyg3Digitos, presupuestos, albaranesP
 }
 
 /**
+ * Calcula mapeo inteligente proveedor → cuenta de gasto
+ * Analiza el histórico de movimientos para sugerir la cuenta habitual de cada proveedor
+ */
+export function calcularMapeoProveedorCuenta(movimientos, proveedores, año) {
+  const porProveedor = {}
+
+  movimientos.forEach(mov => {
+    if (!mov.mes.startsWith(String(año))) return
+    const grupo2 = mov.cuenta.substring(0, 2)
+    if (grupo2 !== '60' && grupo2 !== '62') return
+    if (!mov.codProcedencia || mov.codProcedencia === '') return
+    if (mov.debe <= 0) return
+
+    const cod = mov.codProcedencia
+    if (!porProveedor[cod]) porProveedor[cod] = {}
+    if (!porProveedor[cod][mov.cuenta]) porProveedor[cod][mov.cuenta] = { total: 0, num: 0 }
+    porProveedor[cod][mov.cuenta].total += mov.debe
+    porProveedor[cod][mov.cuenta].num += 1
+  })
+
+  const resultado = []
+
+  Object.entries(porProveedor).forEach(([codigo, cuentas]) => {
+    const totalProveedor = Object.values(cuentas).reduce((s, c) => s + c.total, 0)
+    const numMovimientos = Object.values(cuentas).reduce((s, c) => s + c.num, 0)
+
+    // Seleccionar cuenta con mayor importe
+    let mejorCuenta = ''
+    let mejorImporte = 0
+    Object.entries(cuentas).forEach(([cuenta, data]) => {
+      if (data.total > mejorImporte) {
+        mejorCuenta = cuenta
+        mejorImporte = data.total
+      }
+    })
+
+    const cuenta3 = mejorCuenta.substring(0, 3)
+    const confianza = totalProveedor > 0 ? (mejorImporte / totalProveedor) * 100 : 0
+
+    resultado.push({
+      codigo,
+      nombre: proveedores[codigo] || `Proveedor ${codigo}`,
+      cuentaSugerida: mejorCuenta,
+      cuenta3,
+      nombreCuenta3: ACCOUNT_GROUPS_3[cuenta3]?.name || `Cuenta ${cuenta3}`,
+      totalDebe: totalProveedor,
+      confianza: Math.round(confianza * 10) / 10,
+      numMovimientos
+    })
+  })
+
+  resultado.sort((a, b) => b.totalDebe - a.totalDebe)
+  return resultado
+}
+
+/**
  * Calcula PyG agrupado a nivel de subcuenta completa (9 dígitos) para drill-down
  */
 export function calcularPyGSubcuentas(movimientos, año) {

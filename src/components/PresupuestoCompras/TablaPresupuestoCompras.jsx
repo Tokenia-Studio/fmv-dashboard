@@ -12,7 +12,7 @@ import { calcularPresupuestoCompras } from '../../utils/calculations'
 import ExportButton from '../UI/ExportButton'
 
 export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, año }) {
-  const { presupuestos, pyg3Digitos, albaranesFacturas, pedidosCompra, movimientos, planCuentas, proveedores } = useData()
+  const { presupuestos, pyg3Digitos, albaranesFacturas, pedidosCompra, movimientos, planCuentas, proveedores, proveedoresCuentas } = useData()
   const [expanded, setExpanded] = useState(new Set())
 
   // Exportar movimientos a Excel
@@ -84,10 +84,21 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
     })
   }
 
+  // Remap pedidos accounts dynamically using proveedoresCuentas
+  const pedidosRemapeados = useMemo(() => {
+    if (!pedidosCompra || pedidosCompra.length === 0) return pedidosCompra
+    return pedidosCompra.map(p => {
+      if (p.cuenta === '600000000' && p.cod_proveedor && proveedoresCuentas[p.cod_proveedor]) {
+        return { ...p, cuenta: proveedoresCuentas[p.cod_proveedor] }
+      }
+      return p
+    })
+  }, [pedidosCompra, proveedoresCuentas])
+
   // Calculate presupuesto compras data
   const datosCompras = useMemo(() => {
-    return calcularPresupuestoCompras(pyg3Digitos, presupuestos, albaranesFacturas, pedidosCompra, mesSeleccionado)
-  }, [pyg3Digitos, presupuestos, albaranesFacturas, pedidosCompra, mesSeleccionado])
+    return calcularPresupuestoCompras(pyg3Digitos, presupuestos, albaranesFacturas, pedidosRemapeados, mesSeleccionado)
+  }, [pyg3Digitos, presupuestos, albaranesFacturas, pedidosRemapeados, mesSeleccionado])
 
   // Group by grupo2 (60, 62)
   const grupos = useMemo(() => {
@@ -142,14 +153,39 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       const c3 = mov.cuenta.substring(0, 3)
       if (c3 !== cuenta3) return
       const sub = mov.cuenta
-      if (!result[sub]) result[sub] = { meses: {}, pptoMeses: {} }
+      if (!result[sub]) result[sub] = { meses: {}, pptoMeses: {}, pedMeses: {}, albMeses: {} }
       const m = parseInt(mov.mes.split('-')[1])
       const neto = mov.debe - mov.haber
       if (!result[sub].meses[m]) result[sub].meses[m] = 0
       result[sub].meses[m] += neto
     })
 
-    // 3. Calcular totales y usar nombre del plan de cuentas
+    // 3. Añadir pedidos remapeados a nivel de subcuenta 9 dígitos
+    ;(pedidosRemapeados || []).forEach(p => {
+      const c = (p.cuenta || '')
+      if (c.substring(0, 3) !== cuenta3) return
+      const sub = c.length === 9 ? c : cuenta3 + '000000'
+      if (!result[sub]) result[sub] = { meses: {}, pptoMeses: {}, pedMeses: {}, albMeses: {} }
+      if (!result[sub].pedMeses) result[sub].pedMeses = {}
+      const m = p.mes
+      if (!result[sub].pedMeses[m]) result[sub].pedMeses[m] = 0
+      result[sub].pedMeses[m] += Math.abs(p.importe || 0)
+    })
+
+    // 4. Añadir albaranes pendientes a nivel de subcuenta 9 dígitos
+    ;(albaranesFacturas || []).forEach(a => {
+      if (!a.es_pendiente) return
+      const c = (a.cuenta_mapeada || '')
+      if (c.substring(0, 3) !== cuenta3) return
+      const sub = c.length === 9 ? c : cuenta3 + '000000'
+      if (!result[sub]) result[sub] = { meses: {}, pptoMeses: {}, pedMeses: {}, albMeses: {} }
+      if (!result[sub].albMeses) result[sub].albMeses = {}
+      const m = a.mes
+      if (!result[sub].albMeses[m]) result[sub].albMeses[m] = 0
+      result[sub].albMeses[m] += Math.abs(a.importe || 0)
+    })
+
+    // 5. Calcular totales y usar nombre del plan de cuentas
     return Object.entries(result).map(([cuenta, d]) => {
       let realMes = d.meses[mesSeleccionado] || 0
       let realAcum = 0
@@ -159,11 +195,19 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       let pptoAcum = 0
       for (let m = 1; m <= mesSeleccionado; m++) pptoAcum += d.pptoMeses[m] || 0
 
+      let pedMes = (d.pedMeses || {})[mesSeleccionado] || 0
+      let pedAcum = 0
+      for (let m = 1; m <= mesSeleccionado; m++) pedAcum += (d.pedMeses || {})[m] || 0
+
+      let albMes = (d.albMeses || {})[mesSeleccionado] || 0
+      let albAcum = 0
+      for (let m = 1; m <= mesSeleccionado; m++) albAcum += (d.albMeses || {})[m] || 0
+
       // Nombre del plan de cuentas (si existe)
       const nombre = planCuentas[cuenta] || ''
 
-      return { cuenta, realMes, realAcum, pptoMes, pptoAcum, nombre }
-    }).filter(s => s.realMes !== 0 || s.realAcum !== 0 || s.pptoMes !== 0 || s.pptoAcum !== 0)
+      return { cuenta, realMes, realAcum, pptoMes, pptoAcum, pedMes, pedAcum, albMes, albAcum, nombre }
+    }).filter(s => s.realMes !== 0 || s.realAcum !== 0 || s.pptoMes !== 0 || s.pptoAcum !== 0 || s.pedMes !== 0 || s.pedAcum !== 0 || s.albMes !== 0 || s.albAcum !== 0)
       .sort((a, b) => a.cuenta.localeCompare(b.cuenta))
   }
 
@@ -263,8 +307,10 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
         // 9-digit subcuentas
         if (isC3Exp && subcuentas.length > 0) {
           subcuentas.forEach(sub => {
-            const desvSubMes = sub.pptoMes !== 0 ? ((sub.realMes - sub.pptoMes) / Math.abs(sub.pptoMes)) * 100 : null
-            const desvSubAcum = sub.pptoAcum !== 0 ? ((sub.realAcum - sub.pptoAcum) / Math.abs(sub.pptoAcum)) * 100 : null
+            const totalEstMes = sub.realMes + (sub.albMes || 0) + (sub.pedMes || 0)
+            const totalEstAcum = sub.realAcum + (sub.albAcum || 0) + (sub.pedAcum || 0)
+            const desvSubMes = sub.pptoMes !== 0 ? ((totalEstMes - sub.pptoMes) / Math.abs(sub.pptoMes)) * 100 : null
+            const desvSubAcum = sub.pptoAcum !== 0 ? ((totalEstAcum - sub.pptoAcum) / Math.abs(sub.pptoAcum)) * 100 : null
             rows.push(
               <tr key={`sub-${sub.cuenta}`} className="bg-gray-100/50 text-xs hover:bg-gray-100">
                 <td className="p-1.5 pl-16">
@@ -279,9 +325,9 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
                 >
                   {formatCurrency(sub.realMes)}
                 </td>
-                <td className="p-1.5 text-right text-gray-400">-</td>
-                <td className="p-1.5 text-right text-gray-400">-</td>
-                <td className="p-1.5 text-right">{formatCurrency(sub.realMes)}</td>
+                <td className="p-1.5 text-right">{sub.albMes ? formatCurrency(sub.albMes) : <span className="text-gray-300">-</span>}</td>
+                <td className="p-1.5 text-right">{sub.pedMes ? formatCurrency(sub.pedMes) : <span className="text-gray-300">-</span>}</td>
+                <td className="p-1.5 text-right">{formatCurrency(totalEstMes)}</td>
                 <td className="p-1.5 text-right">{formatVar(desvSubMes)}</td>
                 <td className="p-1.5 text-right bg-slate-50 text-gray-500">{sub.pptoAcum ? formatCurrency(sub.pptoAcum) : <span className="text-gray-300">-</span>}</td>
                 <td
@@ -289,7 +335,7 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
                   onClick={() => exportarSubcuenta(sub.cuenta, false)}
                   title="Clic para exportar detalle acumulado"
                 >
-                  {formatCurrency(sub.realAcum)}
+                  {formatCurrency(totalEstAcum)}
                 </td>
                 <td className="p-1.5 text-right bg-slate-50">{formatVar(desvSubAcum)}</td>
               </tr>

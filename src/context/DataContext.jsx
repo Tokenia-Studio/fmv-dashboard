@@ -16,7 +16,8 @@ import {
   calcularPagosProveedores,
   calcularCashFlow,
   calcularPyG3Digitos,
-  calcularPresupuestoVsReal
+  calcularPresupuestoVsReal,
+  calcularMapeoProveedorCuenta
 } from '../utils/calculations'
 import { ACCOUNT_GROUPS_3, MAPEO_GRUPO_CUENTA_DEFAULT, TABS_POR_ROL } from '../utils/constants'
 
@@ -27,6 +28,7 @@ const initialState = {
   // Datos crudos
   movimientos: [],
   proveedores: {},
+  proveedoresCuentas: {},  // {codigo: cuenta_habitual}
 
   // Anos disponibles y archivos cargados
   años: [],
@@ -107,6 +109,9 @@ function dataReducer(state, action) {
 
     case 'LOAD_PROVEEDORES':
       return { ...state, proveedores: action.payload }
+
+    case 'LOAD_PROVEEDORES_CUENTAS':
+      return { ...state, proveedoresCuentas: action.payload }
 
     case 'SET_DATOS_CALCULADOS':
       return {
@@ -222,15 +227,20 @@ export function DataProvider({ children }) {
         })
       }
 
-      // Cargar proveedores
+      // Cargar proveedores y sus cuentas habituales
       const { data: proveedoresData } = await db.proveedores.getAll()
       const proveedores = {}
+      const proveedoresCuentas = {}
       if (proveedoresData) {
         proveedoresData.forEach(p => {
           proveedores[p.codigo] = p.nombre
+          if (p.cuenta_habitual) {
+            proveedoresCuentas[p.codigo] = p.cuenta_habitual
+          }
         })
       }
       dispatch({ type: 'LOAD_PROVEEDORES', payload: proveedores })
+      dispatch({ type: 'LOAD_PROVEEDORES_CUENTAS', payload: proveedoresCuentas })
 
       // Calcular validacion
       const totalDebe = todosMovimientos.reduce((sum, m) => sum + m.debe, 0)
@@ -956,11 +966,12 @@ export function DataProvider({ children }) {
         if (no.startsWith('AF')) return
 
         let cuenta = ''
+        const codProv = String(row[COL_codProv] || '').trim()
         if (tipo === 'Cuenta' || tipo === 'cuenta') {
           cuenta = no // Direct 9-digit account
         } else {
-          // Tipo "Producto" or other -> assign to 600000000 as estimation
-          cuenta = '600000000'
+          // Tipo "Producto" or other -> usar cuenta habitual del proveedor, o 600000000 como fallback
+          cuenta = state.proveedoresCuentas[codProv] || '600000000'
         }
 
         // Check cuenta starts with 60 or 62, otherwise skip
@@ -992,7 +1003,7 @@ export function DataProvider({ children }) {
           año,
           mes,
           no_documento: String(row[COL_doc] || ''),
-          cod_proveedor: String(row[COL_codProv] || ''),
+          cod_proveedor: codProv,
           tipo,
           cuenta,
           descripcion: row[COL_desc] || '',
@@ -1126,6 +1137,24 @@ export function DataProvider({ children }) {
     }
   }
 
+  // Guardar mapeo proveedor → cuenta habitual
+  const guardarMapeoProveedorCuenta = async (mapeo) => {
+    // mapeo = {codigo: cuenta_habitual, ...}
+    const provData = {}
+    Object.entries(mapeo).forEach(([codigo, cuenta_habitual]) => {
+      provData[codigo] = {
+        nombre: state.proveedores[codigo] || `Proveedor ${codigo}`,
+        cuenta_habitual
+      }
+    })
+    const { error } = await db.proveedores.upsert(provData)
+    if (error) throw new Error(error.message)
+    dispatch({
+      type: 'LOAD_PROVEEDORES_CUENTAS',
+      payload: { ...state.proveedoresCuentas, ...mapeo }
+    })
+  }
+
   // Limpiar datos (local y Supabase)
   const limpiarDatos = async () => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando datos...' })
@@ -1156,6 +1185,7 @@ export function DataProvider({ children }) {
     borrarAlbaranes,
     borrarPedidos,
     guardarMapeo,
+    guardarMapeoProveedorCuenta,
     cargarPlanCuentas,
     exportarExcel,
     exportarMovimientos,
