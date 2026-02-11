@@ -98,15 +98,32 @@ export const TABS = [
   { id: 'cashflow', label: 'Cash Flow', icon: '💰' },
   { id: 'presupuesto', label: 'Presupuesto', icon: '📊' },
   { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
+  { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' },
   { id: 'cargar', label: 'Cargar', icon: '📤' },
   { id: 'usuarios', label: 'Usuarios', icon: '👤' }
 ]
 
+// Secciones de navegación para sidebar (rol direccion)
+export const NAVIGATION_SECTIONS = {
+  finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto'] },
+  produccion: { label: 'Producción', icon: '🏭', tabs: ['seguimientoEstructuras'] },
+  admin: { label: 'Administración', icon: '⚙️', tabs: ['cargar', 'usuarios'] }
+}
+
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cargar', 'usuarios'],
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'seguimientoEstructuras', 'cargar', 'usuarios'],
   compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
 }
+
+// Umbrales semáforo para Seguimiento Estructuras (% desviación)
+export const SEMAFORO_THRESHOLDS = {
+  green: 5,    // <= 5% desviación: OK
+  yellow: 15   // <= 15%: ALERTA, > 15%: FUERA
+}
+
+// Paginación tabla estructuras
+export const ESTRUCTURAS_PAGE_SIZE = 50
 
 // Estructura simplificada para Presupuesto Compras (solo grupos 60 y 62)
 export const ESTRUCTURA_COMPRAS = [

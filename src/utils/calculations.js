@@ -88,8 +88,11 @@ export function calcularTotalesPyG(datosMensuales) {
 
 /**
  * Agrupa servicios exteriores por subcuenta (3 dígitos)
+ * @param {Array} movimientos
+ * @param {number} año
+ * @param {Array} excludeSubcuentas - subcuentas 3 dígitos a excluir (ej: ['629'])
  */
-export function calcularServiciosExt(movimientos, año) {
+export function calcularServiciosExt(movimientos, año, excludeSubcuentas = []) {
   const porMes = {}
   const porSubcuenta = {}
 
@@ -98,6 +101,9 @@ export function calcularServiciosExt(movimientos, año) {
     if (mov.grupo !== '62') return
 
     const subcuenta = mov.subcuenta
+
+    // Excluir subcuentas filtradas (ej: 629 para rol compras)
+    if (excludeSubcuentas.length > 0 && excludeSubcuentas.includes(subcuenta)) return
     const valor = mov.debe - mov.haber
 
     // Por mes (para barras apiladas)

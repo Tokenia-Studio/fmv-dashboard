@@ -19,6 +19,7 @@ export default function KPICard({
     if (formato === 'currency') return formatCurrency(val)
     if (formato === 'percent') return formatPercent(val)
     if (formato === 'number') return val != null ? val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'
+    if (formato === 'raw') return val != null ? val.toLocaleString('es-ES') : '-'
     return val
   }
 

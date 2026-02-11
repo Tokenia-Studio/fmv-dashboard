@@ -7,6 +7,7 @@ import { useData } from './context/DataContext'
 import { auth } from './lib/supabase'
 import Header from './components/Layout/Header'
 import Footer from './components/Layout/Footer'
+import Sidebar from './components/Layout/Sidebar'
 import PyGTab from './components/PyG/PyGTab'
 import ServiciosTab from './components/ServiciosExt/ServiciosTab'
 import FinanciacionTab from './components/Financiacion/FinanciacionTab'
@@ -14,6 +15,7 @@ import ProveedoresTab from './components/Proveedores/ProveedoresTab'
 import CashFlowTab from './components/CashFlow/CashFlowTab'
 import PresupuestoTab from './components/Presupuesto/PresupuestoTab'
 import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoComprasTab'
+import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab'
 import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
@@ -58,10 +60,11 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { tabActiva, movimientos, loading, loadingMessage } = useData()
+  const { tabActiva, movimientos, loading, loadingMessage, userRole } = useData()
   const [user, setUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [forcePasswordReset, setForcePasswordReset] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
 
   // Verificar sesión al cargar
   useEffect(() => {
@@ -83,7 +86,6 @@ function App() {
     const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event)
       if (event === 'PASSWORD_RECOVERY') {
-        // No hacer login automático, forzar cambio de contraseña
         setForcePasswordReset(true)
         return
       }
@@ -95,11 +97,26 @@ function App() {
     }
   }, [])
 
-  // Funcion de logout (exportada via contexto si es necesario)
+  // Auto-expand sidebar on large screens for direccion
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024 && userRole === 'direccion') {
+        setSidebarCollapsed(false)
+      } else if (window.innerWidth < 768) {
+        setSidebarCollapsed(true)
+      }
+    }
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [userRole])
+
   const handleLogout = async () => {
     await auth.signOut()
     setUser(null)
   }
+
+  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed)
 
   // Pantalla de carga inicial
   if (checkingAuth) {
@@ -122,8 +139,8 @@ function App() {
 
   // Renderizar pestaña activa
   const renderTab = () => {
-    // Si no hay datos, mostrar siempre la pestaña de carga
-    if (movimientos.length === 0 && tabActiva !== 'cargar') {
+    // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)
+    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'seguimientoEstructuras' && tabActiva !== 'usuarios') {
       return <UploadTab />
     }
 
@@ -142,6 +159,8 @@ function App() {
         return <PresupuestoTab />
       case 'presupuestoCompras':
         return <PresupuestoComprasTab />
+      case 'seguimientoEstructuras':
+        return <SeguimientoEstructurasTab />
       case 'cargar':
         return <UploadTab />
       case 'usuarios':
@@ -150,6 +169,8 @@ function App() {
         return <PyGTab />
     }
   }
+
+  const useSidebar = userRole === 'direccion'
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -166,14 +187,29 @@ function App() {
       )}
 
       {/* Header con navegacion */}
-      <Header user={user} onLogout={handleLogout} />
+      <Header
+        user={user}
+        onLogout={handleLogout}
+        onToggleSidebar={useSidebar ? toggleSidebar : undefined}
+      />
 
-      {/* Contenido principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-        <ErrorBoundary>
-          {renderTab()}
-        </ErrorBoundary>
-      </main>
+      {/* Body: Sidebar + Main (direccion) or just Main (compras) */}
+      {useSidebar ? (
+        <div className="flex flex-1">
+          <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+            <ErrorBoundary>
+              {renderTab()}
+            </ErrorBoundary>
+          </main>
+        </div>
+      ) : (
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+          <ErrorBoundary>
+            {renderTab()}
+          </ErrorBoundary>
+        </main>
+      )}
 
       {/* Footer */}
       <Footer />

@@ -161,14 +161,19 @@ export const db = {
   // --- PROVEEDORES ---
   proveedores: {
     // Insertar o actualizar proveedores
+    // Acepta {codigo: nombre} o {codigo: {nombre, cuenta_habitual}}
     upsert: async (proveedores) => {
-      const rows = Object.entries(proveedores).map(([codigo, nombre]) => ({
-        codigo,
-        nombre
-      }))
+      const rows = Object.entries(proveedores).map(([codigo, val]) => {
+        if (typeof val === 'string') {
+          return { codigo, nombre: val }
+        }
+        const row = { codigo, nombre: val.nombre }
+        if (val.cuenta_habitual !== undefined) row.cuenta_habitual = val.cuenta_habitual
+        return row
+      })
       const { data, error } = await supabase
         .from('proveedores')
-        .upsert(rows, { onConflict: 'codigo' })
+        .upsert(rows, { onConflict: 'codigo', ignoreDuplicates: false })
       return { data, error }
     },
 
@@ -341,6 +346,79 @@ export const db = {
       const { data, error } = await supabase
         .from('mapeo_grupo_cuenta')
         .upsert(rows, { onConflict: 'grupo_contable' })
+      return { data, error }
+    }
+  },
+
+  // --- SERIES ESTRUCTURAS ---
+  seriesEstructuras: {
+    // Guardar lote de series procesadas
+    upsert: async (series, metadata) => {
+      // Delete existing data first
+      await supabase.from('series_estructuras').delete().neq('id', 0)
+      const row = {
+        data: JSON.stringify(series),
+        total_series: series.length,
+        fecha_carga: new Date().toISOString(),
+        usuario: metadata?.usuario || null
+      }
+      const { data, error } = await supabase
+        .from('series_estructuras')
+        .insert([row])
+      return { data, error }
+    },
+
+    // Obtener datos procesados
+    get: async () => {
+      const { data, error } = await supabase
+        .from('series_estructuras')
+        .select('*')
+        .order('fecha_carga', { ascending: false })
+        .limit(1)
+        .single()
+      if (error && error.code === 'PGRST116') return { data: null, error: null } // no rows
+      if (data) {
+        try { data.data = JSON.parse(data.data) } catch { data.data = [] }
+      }
+      return { data, error }
+    },
+
+    // Eliminar datos
+    clear: async () => {
+      const { error } = await supabase
+        .from('series_estructuras')
+        .delete()
+        .neq('id', 0)
+      return { error }
+    }
+  },
+
+  // --- TIEMPOS ESTANDAR ---
+  tiemposEstandar: {
+    // Guardar tiempos estándar
+    upsert: async (tiempos) => {
+      await supabase.from('tiempos_estandar').delete().neq('id', 0)
+      const { data, error } = await supabase
+        .from('tiempos_estandar')
+        .insert([{
+          data: JSON.stringify(tiempos),
+          updated_at: new Date().toISOString()
+        }])
+      return { data, error }
+    },
+
+    // Obtener tiempos estándar
+    get: async () => {
+      const { data, error } = await supabase
+        .from('tiempos_estandar')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (error && error.code === 'PGRST116') return { data: null, error: null }
+      if (data) {
+        try { data.data = JSON.parse(data.data) } catch { data.data = null }
+      }
       return { data, error }
     }
   },
