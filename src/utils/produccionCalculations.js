@@ -15,28 +15,44 @@ export function calcDesv(real, teo) {
 
 /**
  * Determina semáforo basado en desviación %
+ * Negativa (real < teórico) = siempre verde (por debajo del estándar = bien)
+ * Positiva (real > teórico) = alerta/fuera según umbral
  * @returns 'green' | 'yellow' | 'red' | 'gray'
  */
 export function getSemaforo(desv) {
   if (desv == null) return 'gray'
-  const abs = Math.abs(desv)
-  if (abs <= SEMAFORO_THRESHOLDS.green) return 'green'
-  if (abs <= SEMAFORO_THRESHOLDS.yellow) return 'yellow'
+  if (desv <= SEMAFORO_THRESHOLDS.green) return 'green'
+  if (desv <= SEMAFORO_THRESHOLDS.yellow) return 'yellow'
   return 'red'
 }
 
 /**
- * Determina semáforo general de una serie (peor de lateral/bastidor)
+ * Determina semáforo general de una serie
+ * Usa la desviación MÁS POSITIVA (peor) de lateral/bastidor
  */
 export function getOverallSemaforo(serie) {
   const latDesv = calcDesv(serie.lateral?.real, serie.lateral?.teo)
   const basDesv = calcDesv(serie.bastidor?.real, serie.bastidor?.teo)
 
-  const latSem = getSemaforo(latDesv)
-  const basSem = getSemaforo(basDesv)
+  let maxDesv = null
+  if (latDesv != null && basDesv != null) maxDesv = Math.max(latDesv, basDesv)
+  else if (latDesv != null) maxDesv = latDesv
+  else if (basDesv != null) maxDesv = basDesv
 
-  const order = { red: 3, yellow: 2, green: 1, gray: 0 }
-  return order[latSem] >= order[basSem] ? latSem : basSem
+  return getSemaforo(maxDesv)
+}
+
+/**
+ * Obtiene la desviación máxima (peor) de una serie
+ */
+export function getMaxDesv(serie) {
+  const latDesv = calcDesv(serie.lateral?.real, serie.lateral?.teo)
+  const basDesv = calcDesv(serie.bastidor?.real, serie.bastidor?.teo)
+
+  if (latDesv != null && basDesv != null) return Math.max(latDesv, basDesv)
+  if (latDesv != null) return latDesv
+  if (basDesv != null) return basDesv
+  return null
 }
 
 /**

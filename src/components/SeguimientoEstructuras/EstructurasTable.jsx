@@ -1,14 +1,14 @@
 import React, { useState } from 'react'
 import { ESTRUCTURAS_PAGE_SIZE } from '../../utils/constants'
-import { calcDesv, getOverallSemaforo, sortSeries } from '../../utils/produccionCalculations'
-import SemaforoBadge from './SemaforoBadge'
+import { calcDesv, getOverallSemaforo, getMaxDesv, sortSeries } from '../../utils/produccionCalculations'
+import SemaforoBadge, { ParcialBadge } from './SemaforoBadge'
 
 function SortHeader({ label, col, sortCol, sortAsc, onSort }) {
   const active = sortCol === col
   return (
     <th
       onClick={() => onSort(col)}
-      className="px-3 py-2 text-left cursor-pointer hover:bg-slate-100 transition-colors select-none"
+      className="px-3 py-2 text-left cursor-pointer hover:bg-slate-100 transition-colors select-none whitespace-nowrap"
     >
       <span className="flex items-center gap-1">
         {label}
@@ -18,13 +18,27 @@ function SortHeader({ label, col, sortCol, sortAsc, onSort }) {
   )
 }
 
-function DesvCell({ real, teo }) {
+function HoursCell({ real, teo }) {
+  if (real == null) return <td className="px-3 py-2 text-gray-400 text-xs">-</td>
   const desv = calcDesv(real, teo)
-  if (desv == null) return <td className="px-3 py-2 text-gray-400 text-xs">-</td>
-  const color = Math.abs(desv) <= 5 ? 'text-green-600' : Math.abs(desv) <= 15 ? 'text-yellow-600' : 'text-red-600'
+  const desvStr = desv != null ? `${desv > 0 ? '+' : ''}${desv.toFixed(1)}%` : ''
+  const desvColor = desv == null ? '' : desv <= 5 ? 'text-green-600' : desv <= 15 ? 'text-yellow-600' : 'text-red-600'
+
+  // Mini inline bar
+  const maxRef = teo || real
+  const realPct = maxRef > 0 ? Math.min((real / maxRef) * 100, 150) : 0
+  const barColor = desv == null ? 'bg-gray-300' : desv <= 5 ? 'bg-green-400' : desv <= 15 ? 'bg-yellow-400' : 'bg-red-400'
+
   return (
-    <td className={`px-3 py-2 text-xs font-semibold ${color}`}>
-      {desv > 0 ? '+' : ''}{desv.toFixed(1)}%
+    <td className="px-3 py-2">
+      <div className="text-xs">
+        <span className="font-medium">{real.toFixed(1)}</span>
+        {teo != null && <span className="text-gray-400"> / {teo.toFixed(1)}</span>}
+        {desvStr && <span className={`ml-1 font-semibold ${desvColor}`}>{desvStr}</span>}
+      </div>
+      <div className="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden w-24">
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(realPct, 100)}%` }} />
+      </div>
     </td>
   )
 }
@@ -55,47 +69,58 @@ export default function EstructurasTable({ series, onSelectSerie }) {
           <thead className="table-header">
             <tr>
               <SortHeader label="Serie" col="serie" {...{ sortCol, sortAsc, onSort: handleSort }} />
+              <th className="px-3 py-2 text-left"></th>
               <SortHeader label="Modelo" col="modelo" {...{ sortCol, sortAsc, onSort: handleSort }} />
-              <th className="px-3 py-2 text-left">OFs</th>
+              <th className="px-3 py-2 text-left">OF Lateral</th>
+              <th className="px-3 py-2 text-left">OF Bastidor</th>
               <SortHeader label="Fecha" col="fechaIni" {...{ sortCol, sortAsc, onSort: handleSort }} />
-              <SortHeader label="Lat. Real" col="lateralReal" {...{ sortCol, sortAsc, onSort: handleSort }} />
-              <SortHeader label="Lat. Desv" col="lateralDesv" {...{ sortCol, sortAsc, onSort: handleSort }} />
-              <SortHeader label="Bas. Real" col="bastidorReal" {...{ sortCol, sortAsc, onSort: handleSort }} />
-              <SortHeader label="Bas. Desv" col="bastidorDesv" {...{ sortCol, sortAsc, onSort: handleSort }} />
+              <SortHeader label="Lateral (h)" col="lateralReal" {...{ sortCol, sortAsc, onSort: handleSort }} />
+              <SortHeader label="Bastidor (h)" col="bastidorReal" {...{ sortCol, sortAsc, onSort: handleSort }} />
+              <SortHeader label="Desv. Max" col="bastidorDesv" {...{ sortCol, sortAsc, onSort: handleSort }} />
               <SortHeader label="Estado" col="semaforo" {...{ sortCol, sortAsc, onSort: handleSort }} />
             </tr>
           </thead>
           <tbody>
             {paged.map(s => {
               const sem = getOverallSemaforo(s)
+              const maxDesv = getMaxDesv(s)
+              const maxDesvColor = maxDesv == null ? 'text-gray-400' : maxDesv <= 5 ? 'text-green-600' : maxDesv <= 15 ? 'text-yellow-600' : 'text-red-600'
+
               return (
                 <tr
                   key={`${s.serie}-${s.ofLateral}`}
                   className="table-row cursor-pointer"
                   onClick={() => onSelectSerie(s)}
                 >
-                  <td className="px-3 py-2 font-medium">{s.serie}</td>
+                  <td className="px-3 py-2 font-bold">{s.serie}</td>
+                  <td className="px-1 py-2">
+                    <ParcialBadge serie={s} />
+                  </td>
                   <td className="px-3 py-2 text-xs">{s.modelo}</td>
                   <td className="px-3 py-2 text-xs text-gray-500">
-                    {s.ofLateral && <div>L: {s.ofLateral}</div>}
-                    {s.ofBastidor && <div>B: {s.ofBastidor}</div>}
+                    {s.ofLateral || '-'}
+                    {s.nSeriesLat > 0 && <span className="text-gray-300"> ({s.nSeriesLat})</span>}
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-500">
-                    {s.fechaIni || '-'}
+                    {s.ofBastidor || '-'}
+                    {s.nSeriesBas > 0 && <span className="text-gray-300"> ({s.nSeriesBas})</span>}
                   </td>
-                  <td className="px-3 py-2 text-xs font-medium">
-                    {s.lateral?.real != null ? `${s.lateral.real.toFixed(1)}h` : '-'}
+                  <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                    {s.fechaIni ? s.fechaIni.substring(5) : '-'}
                   </td>
-                  <DesvCell real={s.lateral?.real} teo={s.lateral?.teo} />
-                  <td className="px-3 py-2 text-xs font-medium">
-                    {s.bastidor?.real != null && s.bastidor.real > 0 ? `${s.bastidor.real.toFixed(1)}h` : '-'}
-                  </td>
-                  <DesvCell real={s.bastidor?.real} teo={s.bastidor?.teo} />
+                  <HoursCell real={s.lateral?.real} teo={s.lateral?.teo} />
+                  <HoursCell real={s.bastidor?.real > 0 ? s.bastidor.real : null} teo={s.bastidor?.teo} />
                   <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      <SemaforoBadge semaforo={sem} />
-                      {s.parcial && <span className="text-xs text-orange-500" title="OF parcial">P</span>}
-                    </div>
+                    {maxDesv != null ? (
+                      <span className={`text-xs font-bold ${maxDesvColor}`}>
+                        {maxDesv > 0 ? '+' : ''}{maxDesv.toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <SemaforoBadge semaforo={sem} />
                   </td>
                 </tr>
               )
