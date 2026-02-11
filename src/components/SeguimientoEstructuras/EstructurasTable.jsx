@@ -106,7 +106,10 @@ export default function EstructurasTable({ series, onSelectSerie }) {
                     {s.nSeriesBas > 0 && <span className="text-gray-300"> ({s.nSeriesBas})</span>}
                   </td>
                   <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
-                    {s.fechaIni ? s.fechaIni.substring(5) : '-'}
+                    {s.fechaIni ? (() => {
+                      const [y, m, d] = s.fechaIni.split('-')
+                      return `${d}/${m}/${y}`
+                    })() : '-'}
                   </td>
                   <HoursCell real={s.lateral?.real} teo={s.lateral?.teo} />
                   <HoursCell real={s.bastidor?.real > 0 ? s.bastidor.real : null} teo={s.bastidor?.teo} />

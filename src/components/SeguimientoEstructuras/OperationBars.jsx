@@ -15,6 +15,7 @@ export default function OperationBars({ ops, title }) {
           const desv = calcDesv(op.r, op.t)
           const sem = getSemaforo(desv)
           const desvColor = sem === 'green' ? 'text-green-600' : sem === 'yellow' ? 'text-yellow-600' : sem === 'red' ? 'text-red-600' : 'text-gray-400'
+          const barColor = sem === 'green' ? 'bg-green-500' : sem === 'yellow' ? 'bg-yellow-500' : sem === 'red' ? 'bg-red-500' : 'bg-gray-400'
           const realPct = ((op.r || 0) / maxVal) * 100
           const teoPct = ((op.t || 0) / maxVal) * 100
 
@@ -37,7 +38,7 @@ export default function OperationBars({ ops, title }) {
                 <span className="text-[10px] text-gray-400 w-8">Real</span>
                 <div className="flex-1 h-5 bg-gray-100 rounded overflow-hidden relative">
                   <div
-                    className="h-full bg-green-500 rounded flex items-center"
+                    className={`h-full ${barColor} rounded flex items-center`}
                     style={{ width: `${Math.max(realPct, 0.5)}%` }}
                   >
                     {op.r != null && realPct > 8 && (

@@ -49,7 +49,10 @@ export default function EstructurasDetailModal({ serie, onClose }) {
               </h2>
               <p className="text-sm text-gray-500 mt-1">
                 Modelo: <strong>{serie.modelo}</strong>
-                {serie.fechaIni && <> &nbsp; Periodo: <strong>{serie.fechaIni}</strong>{serie.fechaFin && serie.fechaFin !== serie.fechaIni ? ` a ${serie.fechaFin}` : ''}</>}
+                {serie.fechaIni && (() => {
+                  const fmt = d => { const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }
+                  return <> &nbsp; Periodo: <strong>{fmt(serie.fechaIni)}</strong>{serie.fechaFin && serie.fechaFin !== serie.fechaIni ? ` a ${fmt(serie.fechaFin)}` : ''}</>
+                })()}
               </p>
               <p className="text-xs text-gray-400 mt-1">
                 {serie.ofLateral && <>OF Lateral: <strong>{serie.ofLateral}</strong> ({serie.nSeriesLat} series) &nbsp;</>}
