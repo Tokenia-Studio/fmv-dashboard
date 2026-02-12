@@ -73,7 +73,13 @@ export default function Sidebar({ collapsed, onToggle }) {
                 </button>
 
                 {/* Section items */}
-                {(isExpanded || collapsed) && sectionTabs.map(tabId => {
+                {(isExpanded || collapsed) && section.disabled ? (
+                  !collapsed && (
+                    <div className="pl-8 pr-4 py-2 text-xs text-slate-500 italic">
+                      En desarrollo
+                    </div>
+                  )
+                ) : (isExpanded || collapsed) && sectionTabs.map(tabId => {
                   const tab = tabsMap[tabId]
                   if (!tab) return null
                   const active = tabActiva === tabId

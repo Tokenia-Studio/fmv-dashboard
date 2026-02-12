@@ -160,7 +160,13 @@ function App() {
       case 'presupuestoCompras':
         return <PresupuestoComprasTab />
       case 'seguimientoEstructuras':
-        return <SeguimientoEstructurasTab />
+        return (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <span className="text-5xl mb-4">🏗️</span>
+            <h2 className="text-xl font-semibold text-gray-600 mb-2">Módulo en desarrollo</h2>
+            <p className="text-sm">El seguimiento de estructuras estará disponible próximamente.</p>
+          </div>
+        )
       case 'cargar':
         return <UploadTab />
       case 'usuarios':

@@ -106,7 +106,7 @@ export const TABS = [
 // Secciones de navegación para sidebar (rol direccion)
 export const NAVIGATION_SECTIONS = {
   finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto'] },
-  produccion: { label: 'Producción', icon: '🏭', tabs: ['seguimientoEstructuras'] },
+  produccion: { label: 'Producción', icon: '🏭', tabs: ['seguimientoEstructuras'], disabled: true },
   admin: { label: 'Administración', icon: '⚙️', tabs: ['cargar', 'usuarios'] }
 }
 
