@@ -125,12 +125,17 @@ function findCol(headers, patterns) {
  */
 export function parseFichajesExcel(workbook) {
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
+  const json = XLSX.utils.sheet_to_json(sheet, { raw: true, defval: null })
 
   if (json.length === 0) return {}
 
-  // Detectar columnas por patrones
-  const headers = Object.keys(json[0])
+  // Recopilar TODAS las cabeceras (algunas columnas pueden estar vacías en la 1ª fila)
+  const headersSet = new Set()
+  const scanRows = Math.min(json.length, 100)
+  for (let i = 0; i < scanRows; i++) {
+    Object.keys(json[i]).forEach(k => headersSet.add(k))
+  }
+  const headers = [...headersSet]
   const cOF    = findCol(headers, FICHAJES_COL_PATTERNS.prodOrder)
   const cPhase = findCol(headers, FICHAJES_COL_PATTERNS.phaseDesc)
   const cTime  = findCol(headers, FICHAJES_COL_PATTERNS.execTime)
