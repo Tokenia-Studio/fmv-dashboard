@@ -41,7 +41,7 @@ function DropZone({ label, file, onFile, accept }) {
   )
 }
 
-export default function EstructurasUploader() {
+export default function EstructurasUploader({ onVolver }) {
   const { cargarDatosEstructuras, loading, loadingMessage } = useProduccion()
   const { setTab } = useData()
   const [planningFile, setPlanningFile] = useState(null)
@@ -53,6 +53,13 @@ export default function EstructurasUploader() {
     setResult(null)
     const res = await cargarDatosEstructuras(planningFile, fichajesFile)
     setResult(res)
+    // Si se procesó bien y hay callback, volver a la vista de datos
+    if (res.success && onVolver) onVolver()
+  }
+
+  const handleVolver = () => {
+    if (onVolver) onVolver()
+    else setTab('pyg')
   }
 
   const ready = planningFile && fichajesFile && !loading
@@ -111,7 +118,7 @@ export default function EstructurasUploader() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => setTab('pyg')}
+            onClick={handleVolver}
             className="px-6 py-3 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
           >
             Volver

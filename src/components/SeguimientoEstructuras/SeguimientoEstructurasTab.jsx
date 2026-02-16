@@ -11,6 +11,7 @@ export default function SeguimientoEstructurasTab() {
   const { seriesData, dataLoaded, fechaCarga, limpiarDatosEstructuras } = useProduccion()
   const [filters, setFilters] = useState({ semaforo: 'todos' })
   const [selectedSerie, setSelectedSerie] = useState(null)
+  const [showUploader, setShowUploader] = useState(false)
 
   // List of unique models
   const modelos = useMemo(() => {
@@ -28,9 +29,9 @@ export default function SeguimientoEstructurasTab() {
     return calcularKPIsEstructuras(filtered)
   }, [filtered])
 
-  // If no data loaded, show uploader
-  if (!dataLoaded || seriesData.length === 0) {
-    return <EstructurasUploader />
+  // Show uploader if no data or user requested it
+  if (!dataLoaded || seriesData.length === 0 || showUploader) {
+    return <EstructurasUploader onVolver={dataLoaded && seriesData.length > 0 ? () => setShowUploader(false) : null} />
   }
 
   return (
@@ -46,7 +47,7 @@ export default function SeguimientoEstructurasTab() {
           )}
         </div>
         <button
-          onClick={limpiarDatosEstructuras}
+          onClick={() => setShowUploader(true)}
           className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
         >
           Recargar ficheros
