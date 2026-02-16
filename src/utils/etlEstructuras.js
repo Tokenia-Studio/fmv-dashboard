@@ -100,20 +100,58 @@ export function parsePlanningExcel(workbook) {
   return { seriesData, ofLatToSeries, ofBasToSeries }
 }
 
+// Patrones para detectar columnas del fichero de fichajes (EN + ES)
+const FICHAJES_COL_PATTERNS = {
+  prodOrder: ['prod. order no', 'orden produccion', 'orden prod', 'nº orden prod'],
+  phaseDesc: ['phase description', 'descripcion fase', 'descripción fase'],
+  execTime:  ['execution time', 'tiempo ejecucion', 'tiempo ejecución'],
+  startDate: ['start date', 'fecha inicio']
+}
+
+function findCol(headers, patterns) {
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[º°]/g, '').trim()
+  const hNorm = headers.map(norm)
+  for (const p of patterns) {
+    const pN = norm(p)
+    const idx = hNorm.findIndex(h => h.includes(pN))
+    if (idx !== -1) return headers[idx]
+  }
+  return null
+}
+
 /**
  * Parse Fichajes Excel: Real times grouped by OF and phase
+ * Detección flexible de columnas (soporta ficheros EN y ES)
  */
 export function parseFichajesExcel(workbook) {
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const json = XLSX.utils.sheet_to_json(sheet, { raw: true })
 
-  // Group records by OF number
+  if (json.length === 0) return {}
+
+  // Detectar columnas por patrones
+  const headers = Object.keys(json[0])
+  const cOF    = findCol(headers, FICHAJES_COL_PATTERNS.prodOrder)
+  const cPhase = findCol(headers, FICHAJES_COL_PATTERNS.phaseDesc)
+  const cTime  = findCol(headers, FICHAJES_COL_PATTERNS.execTime)
+  const cDate  = findCol(headers, FICHAJES_COL_PATTERNS.startDate)
+
+  if (!cOF) {
+    throw new Error('No se encontró la columna de Orden de Producción en el fichero de fichajes. Columnas encontradas: ' + headers.join(', '))
+  }
+
+  // Group records by OF number, remapeando a nombres internos
   const byOF = {}
   json.forEach(row => {
-    const of = String(row['Prod. Order No.'] || '').trim()
+    const of = String(row[cOF] || '').trim()
     if (!of) return
     if (!byOF[of]) byOF[of] = []
-    byOF[of].push(row)
+    byOF[of].push({
+      'Prod. Order No.': row[cOF],
+      'Phase Description': cPhase ? row[cPhase] : '',
+      'Execution Time (minutes)': cTime ? row[cTime] : 0,
+      'Start Date': cDate ? row[cDate] : null
+    })
   })
 
   return byOF
