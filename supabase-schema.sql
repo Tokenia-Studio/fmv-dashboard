@@ -39,6 +39,28 @@ CREATE TABLE IF NOT EXISTS proveedores (
 
 CREATE INDEX IF NOT EXISTS idx_proveedores_codigo ON proveedores(codigo);
 
+-- 2b. CUENTA HABITUAL POR PROVEEDOR
+-- ============================================
+-- Añadir columna para almacenar la cuenta contable habitual de cada proveedor
+ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS cuenta_habitual VARCHAR(20);
+
+-- Poblar cuenta_habitual desde movimientos históricos (ejecutar una vez)
+-- Calcula la cuenta más usada (por importe) en grupos 60/62 para cada proveedor
+/*
+UPDATE proveedores p
+SET cuenta_habitual = sub.cuenta
+FROM (
+  SELECT DISTINCT ON (cod_procedencia)
+    cod_procedencia,
+    substring(cuenta from 1 for 3) || '000000' as cuenta
+  FROM movimientos
+  WHERE grupo IN ('60','62') AND cod_procedencia IS NOT NULL AND debe > 0
+  GROUP BY cod_procedencia, substring(cuenta from 1 for 3)
+  ORDER BY cod_procedencia, SUM(debe) DESC
+) sub
+WHERE p.codigo = sub.cod_procedencia;
+*/
+
 -- 3. TABLA DE ARCHIVOS CARGADOS
 -- ============================================
 CREATE TABLE IF NOT EXISTS archivos_cargados (
