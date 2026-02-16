@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { useProduccion } from '../../context/ProduccionContext'
+import { useData } from '../../context/DataContext'
 
 function DropZone({ label, file, onFile, accept }) {
   const inputRef = useRef(null)
@@ -42,6 +43,7 @@ function DropZone({ label, file, onFile, accept }) {
 
 export default function EstructurasUploader() {
   const { cargarDatosEstructuras, loading, loadingMessage } = useProduccion()
+  const { setTab } = useData()
   const [planningFile, setPlanningFile] = useState(null)
   const [fichajesFile, setFichajesFile] = useState(null)
   const [result, setResult] = useState(null)
@@ -107,13 +109,21 @@ export default function EstructurasUploader() {
           </div>
         )}
 
-        <button
-          onClick={handleProcesar}
-          disabled={!ready}
-          className="w-full btn-primary py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Procesando...' : 'Procesar datos'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setTab('pyg')}
+            className="px-6 py-3 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+          >
+            Volver
+          </button>
+          <button
+            onClick={handleProcesar}
+            disabled={!ready}
+            className="flex-1 btn-primary py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Procesando...' : 'Procesar datos'}
+          </button>
+        </div>
       </div>
     </div>
   )

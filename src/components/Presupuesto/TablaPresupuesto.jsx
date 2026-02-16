@@ -233,6 +233,10 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
     ESTRUCTURA_PYG.forEach(f => {
       if (!f.calc) presPorCategoria[f.id] = { total: 0, meses: {} }
     })
+    // Categorías intermedias usadas en fórmulas pero sin fila propia en ESTRUCTURA_PYG
+    ;['varExistPT', 'varExistMP', 'otrosIngresos'].forEach(cat => {
+      if (!presPorCategoria[cat]) presPorCategoria[cat] = { total: 0, meses: {} }
+    })
 
     // Agrupar presupuestos por categoría (using 3-digit aggregated)
     Object.entries(presPorCuenta3).forEach(([cuenta3, data]) => {
@@ -259,6 +263,10 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
     const realPorCategoria = {}
     ESTRUCTURA_PYG.forEach(f => {
       if (!f.calc) realPorCategoria[f.id] = { total: 0, meses: {} }
+    })
+    // Categorías intermedias (mismas que arriba)
+    ;['varExistPT', 'varExistMP', 'otrosIngresos'].forEach(cat => {
+      if (!realPorCategoria[cat]) realPorCategoria[cat] = { total: 0, meses: {} }
     })
 
     Object.entries(pyg3Digitos).forEach(([cuenta, data]) => {
