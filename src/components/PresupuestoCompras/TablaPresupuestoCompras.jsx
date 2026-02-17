@@ -397,9 +397,9 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[82vh]">
         <table className="w-full text-sm">
-          <thead className="table-header">
+          <thead className="table-header sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="p-3 text-left min-w-[200px]">Concepto</th>
               <th className="p-3 text-right">Ppto Mes</th>

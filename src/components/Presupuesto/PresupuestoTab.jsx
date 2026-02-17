@@ -4,14 +4,13 @@
 
 import React, { useState } from 'react'
 import { useData } from '../../context/DataContext'
-import KPICard from '../UI/KPICard'
 import TablaPresupuesto from './TablaPresupuesto'
 import CargaPresupuesto from './CargaPresupuesto'
-import { formatCurrency } from '../../utils/formatters'
 
 export default function PresupuestoTab() {
   const { presupuestos, añoActual, pyg3Digitos } = useData()
   const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth() + 1)
+  const [mostrarCarga, setMostrarCarga] = useState(false)
 
   const tienePresupuesto = presupuestos && presupuestos.length > 0
   const tieneDatos = pyg3Digitos && Object.keys(pyg3Digitos).length > 0
@@ -31,9 +30,26 @@ export default function PresupuestoTab() {
   }
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Carga de presupuesto */}
-      <CargaPresupuesto />
+    <div className="space-y-2 animate-fadeIn">
+      {tienePresupuesto ? (
+        <>
+          {/* Barra compacta con info + botón para recargar */}
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs text-gray-400">
+              Ppto cargado: {presupuestos.length} lineas ({añoActual})
+            </span>
+            <button
+              onClick={() => setMostrarCarga(!mostrarCarga)}
+              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 transition-colors"
+            >
+              {mostrarCarga ? 'Ocultar' : 'Recargar presupuesto'}
+            </button>
+          </div>
+          {mostrarCarga && <CargaPresupuesto />}
+        </>
+      ) : (
+        <CargaPresupuesto />
+      )}
 
       {/* Tabla de presupuesto vs real */}
       {tienePresupuesto ? (
