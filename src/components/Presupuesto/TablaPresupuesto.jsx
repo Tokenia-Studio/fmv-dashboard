@@ -405,10 +405,10 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
       const realAcum = getAcumulado(datosAgrupados.real, fila)
       return {
         Concepto: fila.label,
-        'Pres. Mes': formatExcelNumber(presMes),
+        'Ppto. Mes': formatExcelNumber(presMes),
         'Real Mes': formatExcelNumber(realMes),
         'Var. Mes %': calcVar(realMes, presMes) != null ? calcVar(realMes, presMes).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-',
-        'Pres. Acum': formatExcelNumber(presAcum),
+        'Ppto. Acum': formatExcelNumber(presAcum),
         'Real Acum': formatExcelNumber(realAcum),
         'Var. Acum %': calcVar(realAcum, presAcum) != null ? calcVar(realAcum, presAcum).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-'
       }
@@ -638,10 +638,10 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
           <thead className="table-header sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="p-3 text-left min-w-[200px]">Concepto</th>
-              <th className="p-3 text-right">Pres. Mes</th>
+              <th className="p-3 text-right">Ppto. Mes</th>
               <th className="p-3 text-right">Real Mes</th>
               <th className="p-3 text-right">Var.</th>
-              <th className="p-3 text-right bg-slate-200">Pres. Acum</th>
+              <th className="p-3 text-right bg-slate-200">Ppto. Acum</th>
               <th className="p-3 text-right bg-slate-200">Real Acum</th>
               <th className="p-3 text-right bg-slate-200">Var.</th>
             </tr>
