@@ -2,12 +2,14 @@
 // HEADER - Cabecera del dashboard
 // ============================================
 
-import React from 'react'
+import React, { useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { TABS, TABS_POR_ROL, BRAND } from '../../utils/constants'
+import HelpModal from '../UI/HelpModal'
 
 export default function Header({ user, onLogout, onToggleSidebar }) {
   const { tabActiva, setTab, años, añoActual, setAño, validacion, userRole, cargarDatosDesdeSupabase, loading } = useData()
+  const [showHelp, setShowHelp] = useState(false)
 
   const getEstadoCuadre = () => {
     if (!validacion) return { icon: '⏳', color: 'gray', text: 'Sin datos' }
@@ -102,6 +104,16 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
               </div>
             )}
 
+            {/* Botón de ayuda */}
+            <button
+              onClick={() => setShowHelp(true)}
+              className="w-8 h-8 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-700 font-bold text-sm
+                         flex items-center justify-center transition-colors"
+              title="Ayuda sobre esta pestaña"
+            >
+              ?
+            </button>
+
             {/* Usuario y cerrar sesión */}
             {user && (
               <div className="flex items-center gap-2">
@@ -145,6 +157,10 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
           </nav>
         )}
       </div>
+      {/* Modal de ayuda */}
+      {showHelp && (
+        <HelpModal tabActiva={tabActiva} onClose={() => setShowHelp(false)} />
+      )}
     </header>
   )
 }
