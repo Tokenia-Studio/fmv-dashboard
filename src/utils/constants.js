@@ -97,6 +97,7 @@ export const TABS = [
   { id: 'proveedores', label: 'Proveedores', icon: '👥' },
   { id: 'cashflow', label: 'Cash Flow', icon: '💰' },
   { id: 'presupuesto', label: 'Presupuesto', icon: '📊' },
+  { id: 'cuentasAnuales', label: 'Cuentas Anuales', icon: '📑' },
   { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
   { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' },
   { id: 'cargar', label: 'Cargar', icon: '📤' },
@@ -105,14 +106,14 @@ export const TABS = [
 
 // Secciones de navegación para sidebar (rol direccion)
 export const NAVIGATION_SECTIONS = {
-  finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto'] },
+  finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales'] },
   produccion: { label: 'Producción', icon: '🏭', tabs: ['seguimientoEstructuras'] },
   admin: { label: 'Administración', icon: '⚙️', tabs: ['cargar', 'usuarios'] }
 }
 
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'seguimientoEstructuras', 'cargar', 'usuarios'],
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'seguimientoEstructuras', 'cargar', 'usuarios'],
   compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
 }
 
@@ -179,6 +180,223 @@ export const THRESHOLDS = {
   deudaEbitda: { warning: 3, danger: 5 },
   coberturaIntereses: { warning: 3, danger: 2 }
 }
+
+// ============================================
+// ESTRUCTURA BALANCE PGC (Cuentas Anuales)
+// ============================================
+// Cada línea: id, label, type, cuentas (prefijos), signo (1=activo debe-haber, -1=pasivo haber-debe), indent
+// Las cuentas de amortización acumulada (28x) y deterioro (29x) se incluyen
+// con signo 1 (activo) porque su saldo natural (haber-debe) ya es negativo.
+export const ESTRUCTURA_BALANCE = [
+  // ==================== ACTIVO ====================
+  { id: 'activo_header', label: 'ACTIVO', type: 'section', lado: 'activo' },
+
+  // A) ACTIVO NO CORRIENTE
+  { id: 'anc', label: 'A) Activo no corriente', type: 'group', lado: 'activo', subtotalDe: ['anc_i','anc_ii','anc_iii','anc_iv','anc_v','anc_vi'] },
+  { id: 'anc_i', label: 'I. Inmovilizado intangible', type: 'line', cuentas: ['20','280','290'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'anc_i_1', label: '1. Desarrollo', cuentas: ['200','2800','2900'] },
+    { id: 'anc_i_2', label: '2. Concesiones', cuentas: ['201','2801','2901'] },
+    { id: 'anc_i_3', label: '3. Patentes, licencias, marcas y similares', cuentas: ['202','2802','2902'] },
+    { id: 'anc_i_4', label: '4. Fondo de comercio', cuentas: ['204','2804'] },
+    { id: 'anc_i_5', label: '5. Aplicaciones informaticas', cuentas: ['206','2806','2906'] },
+  ]},
+  { id: 'anc_ii', label: 'II. Inmovilizado material', type: 'line', cuentas: ['21','23','281','291'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'anc_ii_1', label: '1. Terrenos y construcciones', cuentas: ['210','211','2810','2811','2910','2911'] },
+    { id: 'anc_ii_2', label: '2. Instalaciones tecnicas y otro inmov. material', cuentas: ['212','213','214','215','216','217','218','219','2812','2813','2814','2815','2816','2817','2818','2819','2912','2913','2914','2915','2916','2917','2918','2919'] },
+    { id: 'anc_ii_3', label: '3. Inmovilizado en curso y anticipos', cuentas: ['23'] },
+  ]},
+  { id: 'anc_iii', label: 'III. Inversiones inmobiliarias', type: 'line', cuentas: ['22','282','292'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'anc_iii_1', label: '1. Terrenos', cuentas: ['220','2820','2920'] },
+    { id: 'anc_iii_2', label: '2. Construcciones', cuentas: ['221','2821','2921'] },
+  ]},
+  { id: 'anc_iv', label: 'IV. Inversiones en empresas grupo y asoc. LP', type: 'line', cuentas: ['24','2934','2935','2943','2944','2953','2954'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'anc_iv_1', label: '1. Instrumentos de patrimonio', cuentas: ['240','2934','2943','2953'] },
+    { id: 'anc_iv_2', label: '2. Creditos a empresas', cuentas: ['242','2935','2944','2954'] },
+    { id: 'anc_iv_3', label: '3. Valores representativos de deuda', cuentas: ['241'] },
+    { id: 'anc_iv_4', label: '4. Derivados', cuentas: ['243'] },
+    { id: 'anc_iv_5', label: '5. Otros activos financieros', cuentas: ['249'] },
+  ]},
+  { id: 'anc_v', label: 'V. Inversiones financieras a largo plazo', type: 'line', cuentas: ['25','26','27','294','295','297','298'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'anc_v_1', label: '1. Instrumentos de patrimonio', cuentas: ['250','294'] },
+    { id: 'anc_v_2', label: '2. Creditos a terceros', cuentas: ['252','253','254','295'] },
+    { id: 'anc_v_3', label: '3. Valores representativos de deuda', cuentas: ['251','297'] },
+    { id: 'anc_v_4', label: '4. Derivados', cuentas: ['255'] },
+    { id: 'anc_v_5', label: '5. Otros activos financieros', cuentas: ['258','26','27','298'] },
+  ]},
+  { id: 'anc_vi', label: 'VI. Activos por impuesto diferido', type: 'line', cuentas: ['474'], signo: 1, indent: 1, lado: 'activo' },
+
+  // B) ACTIVO CORRIENTE
+  { id: 'ac', label: 'B) Activo corriente', type: 'group', lado: 'activo', subtotalDe: ['ac_i','ac_ii','ac_iii','ac_iv','ac_v','ac_vi'] },
+  { id: 'ac_i', label: 'I. Existencias', type: 'line', cuentas: ['30','31','32','33','34','35','36','39'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'ac_i_1', label: '1. Comerciales', cuentas: ['30','390'] },
+    { id: 'ac_i_2', label: '2. Materias primas y otros aprovisionamientos', cuentas: ['31','32','391','392'] },
+    { id: 'ac_i_3', label: '3. Productos en curso', cuentas: ['33','393'] },
+    { id: 'ac_i_4', label: '4. Productos semiterminados', cuentas: ['34','394'] },
+    { id: 'ac_i_5', label: '5. Productos terminados', cuentas: ['35','395'] },
+    { id: 'ac_i_6', label: '6. Anticipos a proveedores', cuentas: ['36'] },
+  ]},
+  // Nota: 43x sin 438 (anticipos clientes = pasivo), 44x completo
+  { id: 'ac_ii', label: 'II. Deudores comerciales y otras cuentas a cobrar', type: 'line', cuentas: ['430','431','432','433','434','435','436','437','44','460','464','470','471','472','473'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'ac_ii_1', label: '1. Clientes por ventas y prestaciones de servicios', cuentas: ['430','431','432','433','434','435','436','437'] },
+    { id: 'ac_ii_2', label: '2. Empresas del grupo y asociadas', cuentas: ['44'] },
+    { id: 'ac_ii_3', label: '3. Deudores varios', cuentas: ['440','441','449'] },
+    { id: 'ac_ii_4', label: '4. Personal', cuentas: ['460','464'] },
+    { id: 'ac_ii_5', label: '5. Activos por impuesto corriente', cuentas: ['470','473'] },
+    { id: 'ac_ii_6', label: '6. Otros creditos con las Administraciones Publicas', cuentas: ['471','472'] },
+  ]},
+  { id: 'ac_iii', label: 'III. Inversiones en empresas grupo y asoc. CP', type: 'line', cuentas: ['530','531','532','533','534','539'], signo: 1, indent: 1, lado: 'activo' },
+  { id: 'ac_iv', label: 'IV. Inversiones financieras a corto plazo', type: 'line', cuentas: ['540','541','542','543','544','545','546','547','548','549','550','554','558','559'], signo: 1, indent: 1, lado: 'activo' },
+  { id: 'ac_v', label: 'V. Periodificaciones a corto plazo', type: 'line', cuentas: ['480','567'], signo: 1, indent: 1, lado: 'activo' },
+  { id: 'ac_vi', label: 'VI. Efectivo y otros activos líquidos', type: 'line', cuentas: ['57'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'ac_vi_1', label: '1. Tesoreria', cuentas: ['570','571','572','573','574','575'] },
+    { id: 'ac_vi_2', label: '2. Otros activos liquidos equivalentes', cuentas: ['576'] },
+  ]},
+
+  // TOTAL ACTIVO
+  { id: 'total_activo', label: 'TOTAL ACTIVO', type: 'total', lado: 'activo', subtotalDe: ['anc','ac'] },
+
+  // ==================== PATRIMONIO NETO Y PASIVO ====================
+  { id: 'pnp_header', label: 'PATRIMONIO NETO Y PASIVO', type: 'section', lado: 'pasivo' },
+
+  // A) PATRIMONIO NETO
+  { id: 'pn', label: 'A) Patrimonio neto', type: 'group', lado: 'pasivo', subtotalDe: ['fp','pn_sub'] },
+
+  // A-1) Fondos propios
+  { id: 'fp', label: 'A-1) Fondos propios', type: 'subgroup', lado: 'pasivo', subtotalDe: ['fp_i','fp_ii','fp_iii','fp_iv','fp_v','fp_vi','fp_vii'] },
+  { id: 'fp_i', label: 'I. Capital', type: 'line', cuentas: ['100','101','102'], signo: -1, indent: 2, lado: 'pasivo' },
+  { id: 'fp_ii', label: 'II. Prima de emisión', type: 'line', cuentas: ['110'], signo: -1, indent: 2, lado: 'pasivo' },
+  { id: 'fp_iii', label: 'III. Reservas', type: 'line', cuentas: ['112','113','114','115','116','117','119'], signo: -1, indent: 2, lado: 'pasivo', children: [
+    { id: 'fp_iii_1', label: '1. Legal y estatutarias', cuentas: ['112'] },
+    { id: 'fp_iii_2', label: '2. Otras reservas', cuentas: ['113','114','115','116','117','119'] },
+  ]},
+  { id: 'fp_iv', label: 'IV. (Acciones y participaciones propias)', type: 'line', cuentas: ['108','109'], signo: 1, indent: 2, lado: 'pasivo', presentacionNegativa: true },
+  // 129 incluido en resultados anteriores; fp_vii se calcula desde grupos 6-7
+  { id: 'fp_v', label: 'V. Resultados de ejercicios anteriores', type: 'line', cuentas: ['120','121','129'], signo: -1, indent: 2, lado: 'pasivo', children: [
+    { id: 'fp_v_1', label: '1. Remanente', cuentas: ['120'] },
+    { id: 'fp_v_2', label: '2. (Resultados negativos de ejercicios anteriores)', cuentas: ['121'] },
+  ]},
+  { id: 'fp_vi', label: 'VI. Otras aportaciones de socios', type: 'line', cuentas: ['118'], signo: -1, indent: 2, lado: 'pasivo' },
+  // esResultado: se calcula desde PyG (grupos 6+7), no desde cuentas del balance
+  { id: 'fp_vii', label: 'VII. Resultado del ejercicio', type: 'line', cuentas: [], signo: -1, indent: 2, lado: 'pasivo', esResultado: true },
+
+  // A-2) Subvenciones, donaciones y legados recibidos
+  { id: 'pn_sub', label: 'A-2) Subvenciones, donaciones y legados', type: 'line', cuentas: ['130','131','132'], signo: -1, indent: 1, lado: 'pasivo' },
+
+  // B) PASIVO NO CORRIENTE
+  { id: 'pnc', label: 'B) Pasivo no corriente', type: 'group', lado: 'pasivo', subtotalDe: ['pnc_i','pnc_ii','pnc_iii','pnc_iv','pnc_v'] },
+  { id: 'pnc_i', label: 'I. Provisiones a largo plazo', type: 'line', cuentas: ['14'], signo: -1, indent: 1, lado: 'pasivo' },
+  { id: 'pnc_ii', label: 'II. Deudas a largo plazo', type: 'line', cuentas: ['17'], signo: -1, indent: 1, lado: 'pasivo', children: [
+    { id: 'pnc_ii_1', label: '1. Obligaciones y otros valores negociables', cuentas: ['177','178','179'] },
+    { id: 'pnc_ii_2', label: '2. Deudas con entidades de credito', cuentas: ['170','171'] },
+    { id: 'pnc_ii_3', label: '3. Acreedores por arrendamiento financiero', cuentas: ['174'] },
+    { id: 'pnc_ii_4', label: '4. Derivados', cuentas: ['176'] },
+    { id: 'pnc_ii_5', label: '5. Otros pasivos financieros', cuentas: ['172','173','175','180','185','189'] },
+  ]},
+  { id: 'pnc_iii', label: 'III. Deudas con empresas grupo y asoc. LP', type: 'line', cuentas: ['16'], signo: -1, indent: 1, lado: 'pasivo' },
+  { id: 'pnc_iv', label: 'IV. Pasivos por impuesto diferido', type: 'line', cuentas: ['479'], signo: -1, indent: 1, lado: 'pasivo' },
+  { id: 'pnc_v', label: 'V. Periodificaciones a largo plazo', type: 'line', cuentas: ['181'], signo: -1, indent: 1, lado: 'pasivo' },
+
+  // C) PASIVO CORRIENTE
+  // Prefijos sin solapamiento: 52x específicos (sin 529), 51x específicos (sin 551,555,556)
+  { id: 'pc', label: 'C) Pasivo corriente', type: 'group', lado: 'pasivo', subtotalDe: ['pc_i','pc_ii','pc_iii','pc_iv','pc_v'] },
+  { id: 'pc_i', label: 'I. Provisiones a corto plazo', type: 'line', cuentas: ['529','585','586'], signo: -1, indent: 1, lado: 'pasivo' },
+  { id: 'pc_ii', label: 'II. Deudas a corto plazo', type: 'line', cuentas: ['500','501','502','503','504','505','506','507','508','509','520','521','522','523','524','525','526','527','528','551','552','553','555','556','560','561'], signo: -1, indent: 1, lado: 'pasivo', children: [
+    { id: 'pc_ii_1', label: '1. Obligaciones y otros valores negociables', cuentas: ['500','501','505','506'] },
+    { id: 'pc_ii_2', label: '2. Deudas con entidades de credito', cuentas: ['520','527'] },
+    { id: 'pc_ii_3', label: '3. Acreedores por arrendamiento financiero', cuentas: ['524'] },
+    { id: 'pc_ii_4', label: '4. Derivados', cuentas: ['507','508'] },
+    { id: 'pc_ii_5', label: '5. Otros pasivos financieros', cuentas: ['502','503','504','509','521','522','523','525','526','528','551','552','553','555','556','560','561'] },
+  ]},
+  { id: 'pc_iii', label: 'III. Deudas con empresas grupo y asoc. CP', type: 'line', cuentas: ['510','511','512','513','514','515','516','517','518','519'], signo: -1, indent: 1, lado: 'pasivo' },
+  { id: 'pc_iv', label: 'IV. Acreedores comerciales y otras cuentas a pagar', type: 'line', cuentas: ['40','41','438','465','466','475','476','477'], signo: -1, indent: 1, lado: 'pasivo', children: [
+    { id: 'pc_iv_1', label: '1. Proveedores', cuentas: ['400','401','403','404','405','406'] },
+    { id: 'pc_iv_2', label: '2. Proveedores, empresas del grupo y asociadas', cuentas: ['402'] },
+    { id: 'pc_iv_3', label: '3. Acreedores varios', cuentas: ['41'] },
+    { id: 'pc_iv_4', label: '4. Personal (remuneraciones pendientes)', cuentas: ['465','466'] },
+    { id: 'pc_iv_5', label: '5. Pasivos por impuesto corriente', cuentas: ['475'] },
+    { id: 'pc_iv_6', label: '6. Otras deudas con las Administraciones Publicas', cuentas: ['476','477'] },
+    { id: 'pc_iv_7', label: '7. Anticipos de clientes', cuentas: ['438'] },
+  ]},
+  { id: 'pc_v', label: 'V. Periodificaciones a corto plazo', type: 'line', cuentas: ['485','568'], signo: -1, indent: 1, lado: 'pasivo' },
+
+  // TOTAL PN + PASIVO
+  { id: 'total_pnp', label: 'TOTAL PATRIMONIO NETO Y PASIVO', type: 'total', lado: 'pasivo', subtotalDe: ['pn','pnc','pc'] }
+]
+
+// ============================================
+// ESTRUCTURA PyG OFICIAL PGC (Cuentas Anuales)
+// ============================================
+// signo: 1 = ingreso (haber-debe positivo), -1 = gasto (debe-haber positivo, se muestra negativo)
+export const ESTRUCTURA_PYG_CCAA = [
+  { id: 'pyg_1', label: '1. Importe neto de la cifra de negocios', type: 'line', cuentas: ['700','701','702','703','704','705','706','708','709'], signo: 1, children: [
+    { id: 'pyg_1_a', label: 'a) Ventas', cuentas: ['700','701','702','703','704'] },
+    { id: 'pyg_1_b', label: 'b) Prestaciones de servicios', cuentas: ['705'] },
+    { id: 'pyg_1_c', label: 'c) Devoluciones y rappels', cuentas: ['706','708','709'] },
+  ]},
+  { id: 'pyg_2', label: '2. Variación de existencias de PT y en curso', type: 'line', cuentas: ['710','711','712','713','610','611','612'], signo: 1 },
+  { id: 'pyg_3', label: '3. Trabajos realizados por la empresa para su activo', type: 'line', cuentas: ['730','731','732','733'], signo: 1 },
+  { id: 'pyg_4', label: '4. Aprovisionamientos', type: 'line', cuentas: ['600','601','602','606','607','608','609'], signo: -1, children: [
+    { id: 'pyg_4_a', label: 'a) Consumo de mercaderias', cuentas: ['600','6060','6080','6090'] },
+    { id: 'pyg_4_b', label: 'b) Consumo de materias primas y otras materias consumibles', cuentas: ['601','602','6061','6081','6091'] },
+    { id: 'pyg_4_c', label: 'c) Trabajos realizados por otras empresas', cuentas: ['607'] },
+    { id: 'pyg_4_d', label: 'd) Deterioro de mercaderias, materias primas y otros', cuentas: ['6092','6093'] },
+  ]},
+  { id: 'pyg_5', label: '5. Otros ingresos de explotación', type: 'line', cuentas: ['740','747','751','752','753','754','755','759'], signo: 1, children: [
+    { id: 'pyg_5_a', label: 'a) Ingresos accesorios y otros de gestion corriente', cuentas: ['751','752','753','754','755','759'] },
+    { id: 'pyg_5_b', label: 'b) Subvenciones de explotacion incorporadas al resultado', cuentas: ['740','747'] },
+  ]},
+  { id: 'pyg_6', label: '6. Gastos de personal', type: 'line', cuentas: ['640','641','642','643','644','645','649'], signo: -1, children: [
+    { id: 'pyg_6_a', label: 'a) Sueldos, salarios y asimilados', cuentas: ['640','641'] },
+    { id: 'pyg_6_b', label: 'b) Cargas sociales', cuentas: ['642','643','644','649'] },
+    { id: 'pyg_6_c', label: 'c) Provisiones', cuentas: ['645'] },
+  ]},
+  { id: 'pyg_7', label: '7. Otros gastos de explotación', type: 'line', cuentas: ['620','621','622','623','624','625','626','627','628','629','631','634','636','639','650','651','659'], signo: -1, children: [
+    { id: 'pyg_7_a', label: 'a) Servicios exteriores', cuentas: ['620','621','622','623','624','625','626','627','628','629'] },
+    { id: 'pyg_7_b', label: 'b) Tributos', cuentas: ['631','634','636','639'] },
+    { id: 'pyg_7_c', label: 'c) Perdidas, deterioro y variacion de provisiones por operaciones comerciales', cuentas: ['650','651','659'] },
+  ]},
+  { id: 'pyg_8', label: '8. Amortización del inmovilizado', type: 'line', cuentas: ['680','681','682'], signo: -1 },
+  { id: 'pyg_9', label: '9. Imputación de subvenciones de inmov. no financiero', type: 'line', cuentas: ['746'], signo: 1 },
+  { id: 'pyg_10', label: '10. Excesos de provisiones', type: 'line', cuentas: ['795'], signo: 1 },
+  { id: 'pyg_11', label: '11. Deterioro y resultado por enajenaciones de inmov.', type: 'line', cuentas: ['690','691','692','770','771','772'], signo: 1, children: [
+    { id: 'pyg_11_a', label: 'a) Deterioros de valor', cuentas: ['690','691','692'] },
+    { id: 'pyg_11_b', label: 'b) Resultados por enajenaciones y otras', cuentas: ['770','771','772'] },
+  ]},
+
+  // A.1) Resultado de explotación
+  { id: 'a1', label: 'A.1) RESULTADO DE EXPLOTACIÓN', type: 'subtotal', subtotalDe: ['pyg_1','pyg_2','pyg_3','pyg_4','pyg_5','pyg_6','pyg_7','pyg_8','pyg_9','pyg_10','pyg_11'] },
+
+  { id: 'pyg_12', label: '12. Ingresos financieros', type: 'line', cuentas: ['760','761','762','769'], signo: 1, children: [
+    { id: 'pyg_12_a', label: 'a) De participaciones en instrumentos de patrimonio', cuentas: ['760'] },
+    { id: 'pyg_12_b', label: 'b) De valores negociables y otros instrumentos financieros', cuentas: ['761','762','769'] },
+  ]},
+  { id: 'pyg_13', label: '13. Gastos financieros', type: 'line', cuentas: ['660','661','662','664','665','669'], signo: -1, children: [
+    { id: 'pyg_13_a', label: 'a) Por deudas con empresas del grupo y asociadas', cuentas: ['6610','6615','6620','6640'] },
+    { id: 'pyg_13_b', label: 'b) Por deudas con terceros', cuentas: ['660','6611','6616','6621','664','665','669'] },
+  ]},
+  { id: 'pyg_14', label: '14. Variación de valor razonable en instrumentos financieros', type: 'line', cuentas: ['663','763'], signo: 1 },
+  { id: 'pyg_15', label: '15. Diferencias de cambio', type: 'line', cuentas: ['668','768'], signo: 1 },
+  { id: 'pyg_16', label: '16. Deterioro y resultado por enajenaciones de instrum. financieros', type: 'line', cuentas: ['666','667','673','675','696','697','698','766','773','775','796','797','798'], signo: 1, children: [
+    { id: 'pyg_16_a', label: 'a) Deterioros de valor', cuentas: ['696','697','698','796','797','798'] },
+    { id: 'pyg_16_b', label: 'b) Resultados por enajenaciones y otras', cuentas: ['666','667','673','675','766','773','775'] },
+  ]},
+
+  // A.2) Resultado financiero
+  { id: 'a2', label: 'A.2) RESULTADO FINANCIERO', type: 'subtotal', subtotalDe: ['pyg_12','pyg_13','pyg_14','pyg_15','pyg_16'] },
+
+  // A.3) Resultado antes de impuestos
+  { id: 'a3', label: 'A.3) RESULTADO ANTES DE IMPUESTOS', type: 'subtotal', subtotalDe: ['a1','a2'] },
+
+  { id: 'pyg_17', label: '17. Impuesto sobre beneficios', type: 'line', cuentas: ['630','633','638'], signo: -1 },
+
+  // A.4) Resultado del ejercicio procedente de operaciones continuadas
+  { id: 'a4', label: 'A.4) RESULTADO OPERACIONES CONTINUADAS', type: 'subtotal', subtotalDe: ['a3','pyg_17'] },
+
+  { id: 'pyg_18', label: '18. Resultado de operaciones interrumpidas', type: 'line', cuentas: ['678','778'], signo: 1 },
+
+  // A.5) Resultado del ejercicio
+  { id: 'a5', label: 'A.5) RESULTADO DEL EJERCICIO', type: 'total', subtotalDe: ['a4','pyg_18'] }
+]
 
 // Mapeo de cuentas a 3 dígitos para Presupuesto
 export const ACCOUNT_GROUPS_3 = {

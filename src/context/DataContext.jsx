@@ -17,7 +17,8 @@ import {
   calcularCashFlow,
   calcularPyG3Digitos,
   calcularPresupuestoVsReal,
-  calcularMapeoProveedorCuenta
+  calcularMapeoProveedorCuenta,
+  calcularCuentasAnuales
 } from '../utils/calculations'
 import { ACCOUNT_GROUPS_3, MAPEO_GRUPO_CUENTA_DEFAULT, TABS_POR_ROL } from '../utils/constants'
 
@@ -45,6 +46,7 @@ const initialState = {
   presupuestos: [],
   pyg3Digitos: {},
   presupuestoVsReal: [],
+  cuentasAnuales: { balance: {}, pyg: {} },
 
   // Presupuesto Compras
   albaranesFacturas: [],
@@ -123,7 +125,8 @@ function dataReducer(state, action) {
         pagosProveedores: action.payload.pagosProveedores,
         cashFlow: action.payload.cashFlow,
         pyg3Digitos: action.payload.pyg3Digitos || state.pyg3Digitos,
-        presupuestoVsReal: action.payload.presupuestoVsReal || state.presupuestoVsReal
+        presupuestoVsReal: action.payload.presupuestoVsReal || state.presupuestoVsReal,
+        cuentasAnuales: action.payload.cuentasAnuales || state.cuentasAnuales
       }
 
     case 'LOAD_PRESUPUESTOS':
@@ -361,9 +364,12 @@ export function DataProvider({ children }) {
       const mesActual = new Date().getMonth() + 1
       const presupuestoVsReal = calcularPresupuestoVsReal(pyg3Digitos, state.presupuestos, mesActual)
 
+      // Calcular Cuentas Anuales (Balance + PyG oficial)
+      const cuentasAnuales = calcularCuentasAnuales(state.movimientos, state.añoActual)
+
       dispatch({
         type: 'SET_DATOS_CALCULADOS',
-        payload: { pyg, totalesPyG, serviciosExt, financiacion, pagosProveedores, cashFlow, pyg3Digitos, presupuestoVsReal }
+        payload: { pyg, totalesPyG, serviciosExt, financiacion, pagosProveedores, cashFlow, pyg3Digitos, presupuestoVsReal, cuentasAnuales }
       })
     } catch (error) {
       console.error('Error en calculos:', error)

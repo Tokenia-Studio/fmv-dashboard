@@ -2,7 +2,7 @@
 // CÁLCULOS - FMV Dashboard v2.0
 // ============================================
 
-import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3 } from './constants'
+import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3, ESTRUCTURA_BALANCE, ESTRUCTURA_PYG_CCAA } from './constants'
 
 /**
  * Agrupa movimientos por mes y categoría para PyG
@@ -698,4 +698,183 @@ export function calcularPyGSubcuentas(movimientos, año) {
   })
 
   return resultado
+}
+
+/**
+ * Calcula Cuentas Anuales (Balance + PyG oficial PGC)
+ * @param {Array} movimientos - todos los movimientos
+ * @param {number} año - año actual
+ * @returns {{ balance: Object, pyg: Object }}
+ */
+export function calcularCuentasAnuales(movimientos, año) {
+  const añoAnterior = año - 1
+  const años = [año, añoAnterior]
+
+  // 1. Calcular saldo (debe-haber) por cuenta 9 dígitos para cada año
+  const saldosPorAño = {}
+  años.forEach(a => { saldosPorAño[a] = {} })
+
+  movimientos.forEach(mov => {
+    const añoMov = parseInt(mov.mes.split('-')[0])
+    if (!saldosPorAño[añoMov]) return
+
+    const cuenta = mov.cuenta
+    if (!saldosPorAño[añoMov][cuenta]) {
+      saldosPorAño[añoMov][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
+    }
+    saldosPorAño[añoMov][cuenta].debe += mov.debe
+    saldosPorAño[añoMov][cuenta].haber += mov.haber
+    // Capturar mejor descripción
+    if (!saldosPorAño[añoMov][cuenta].nombre && mov.descripcion) {
+      saldosPorAño[añoMov][cuenta].nombre = mov.descripcion
+    }
+  })
+
+  // Helper: comprobar si una cuenta coincide con un prefijo
+  const cuentaCoincide = (cuenta, prefijo) => cuenta.startsWith(prefijo)
+
+  // Helper: comprobar si una cuenta coincide con algún prefijo de la lista
+  const cuentaEnLista = (cuenta, prefijos) => prefijos.some(p => cuentaCoincide(cuenta, p))
+
+  // 2. Calcular valores de cada línea del Balance
+  const calcularLineaBalance = (linea, saldos) => {
+    if (!linea.cuentas) return { total: 0, cuentas: {} }
+
+    let total = 0
+    const cuentasDetalle = {}
+
+    Object.entries(saldos).forEach(([cuenta, data]) => {
+      if (!cuentaEnLista(cuenta, linea.cuentas)) return
+
+      // Saldo bruto = debe - haber
+      const saldoBruto = data.debe - data.haber
+      // Aplicar signo: activo (signo=1) muestra debe-haber, pasivo (signo=-1) muestra haber-debe
+      const valor = saldoBruto * linea.signo
+
+      if (Math.abs(valor) > 0.005) {
+        cuentasDetalle[cuenta] = { saldo: valor, nombre: data.nombre }
+        total += valor
+      }
+    })
+
+    return { total, cuentas: cuentasDetalle }
+  }
+
+  // 3. Calcular valores de cada línea del PyG CCAA
+  // Usa el signo de la LÍNEA (no de la cuenta individual) para interpretar el saldo.
+  // Esto funciona correctamente incluso para líneas mixtas (ej: pyg_2 con 61x y 71x,
+  // pyg_11 con 69x y 77x) porque el signo determina la convención de presentación:
+  //   signo=1 (ingreso): valor = haber-debe → positivo = ingreso/ganancia
+  //   signo=-1 (gasto): valor = debe-haber → positivo = gasto, luego se niega para presentar negativo
+  const calcularLineaPyG = (linea, saldos) => {
+    if (!linea.cuentas || linea.cuentas.length === 0) return { total: 0, cuentas: {} }
+
+    let total = 0
+    const cuentasDetalle = {}
+
+    Object.entries(saldos).forEach(([cuenta, data]) => {
+      if (!cuentaEnLista(cuenta, linea.cuentas)) return
+
+      const saldoBruto = data.debe - data.haber
+      // signo=1: valor = haber-debe (positivo = ingreso/variación favorable)
+      // signo=-1: valor = debe-haber (positivo = gasto)
+      const valor = linea.signo === 1 ? -saldoBruto : saldoBruto
+
+      if (Math.abs(valor) > 0.005) {
+        cuentasDetalle[cuenta] = { saldo: valor, nombre: data.nombre }
+        total += valor
+      }
+    })
+
+    // Gastos: negar para presentación (los gastos se muestran con signo negativo)
+    if (linea.signo === -1) {
+      total = -total
+      Object.keys(cuentasDetalle).forEach(c => {
+        cuentasDetalle[c].saldo = -cuentasDetalle[c].saldo
+      })
+    }
+
+    return { total, cuentas: cuentasDetalle }
+  }
+
+  // 4. Procesar PyG CCAA para cada año (PRIMERO, porque el balance lo necesita)
+  const pyg = {}
+  años.forEach(a => {
+    const saldos = saldosPorAño[a] || {}
+    const lineas = {}
+
+    // Calcular líneas con cuentas
+    ESTRUCTURA_PYG_CCAA.forEach(item => {
+      if (item.cuentas) {
+        lineas[item.id] = calcularLineaPyG(item, saldos)
+      }
+    })
+
+    // Calcular subtotales
+    ESTRUCTURA_PYG_CCAA.forEach(item => {
+      if (item.subtotalDe) {
+        let total = 0
+        item.subtotalDe.forEach(childId => {
+          total += lineas[childId]?.total || 0
+        })
+        lineas[item.id] = { total, cuentas: {} }
+      }
+    })
+
+    pyg[a] = lineas
+  })
+
+  // 5. Procesar Balance para cada año
+  const balance = {}
+  años.forEach(a => {
+    const saldos = saldosPorAño[a] || {}
+    const lineas = {}
+
+    // Calcular líneas con cuentas (type='line')
+    ESTRUCTURA_BALANCE.forEach(item => {
+      if (item.cuentas && item.cuentas.length > 0) {
+        lineas[item.id] = calcularLineaBalance(item, saldos)
+      }
+    })
+
+    // fp_vii (Resultado del ejercicio) = calculado desde PyG (grupos 6+7)
+    // Durante el año, el resultado vive en las cuentas 6xx/7xx, no en la 129
+    const resultadoPyG = pyg[a]?.a5?.total || 0
+    lineas['fp_vii'] = { total: resultadoPyG, cuentas: {} }
+
+    // Calcular subtotales en orden de dependencia (de dentro a fuera):
+    // 1. Subgroups (fp) que dependen de líneas
+    // 2. Groups (pn, pnc, pc, anc, ac) que dependen de subgroups/líneas
+    // 3. Totals (total_activo, total_pnp) que dependen de groups
+    const subtotalItems = ESTRUCTURA_BALANCE.filter(item => item.subtotalDe)
+    const depthOrder = { subgroup: 0, group: 1, total: 2 }
+    subtotalItems.sort((a, b) => (depthOrder[a.type] ?? 1) - (depthOrder[b.type] ?? 1))
+    subtotalItems.forEach(item => {
+      let total = 0
+      item.subtotalDe.forEach(childId => {
+        total += lineas[childId]?.total || 0
+      })
+      lineas[item.id] = { total, cuentas: {} }
+    })
+
+    balance[a] = lineas
+  })
+
+  return { balance, pyg }
+}
+
+/**
+ * Calcula el total de una sub-línea (child) filtrando las cuentas del padre
+ * por los prefijos del child. Solo para drill-down visual, no afecta totales.
+ */
+export function calcularSubLinea(parentCuentas, childPrefixes) {
+  let total = 0
+  const cuentas = {}
+  Object.entries(parentCuentas).forEach(([cuenta, data]) => {
+    if (childPrefixes.some(p => cuenta.startsWith(p))) {
+      total += data.saldo
+      cuentas[cuenta] = data
+    }
+  })
+  return { total, cuentas }
 }
