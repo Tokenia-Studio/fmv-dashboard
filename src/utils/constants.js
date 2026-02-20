@@ -216,9 +216,9 @@ export const ESTRUCTURA_BALANCE = [
     { id: 'anc_iv_4', label: '4. Derivados', cuentas: ['243'] },
     { id: 'anc_iv_5', label: '5. Otros activos financieros', cuentas: ['249'] },
   ]},
-  { id: 'anc_v', label: 'V. Inversiones financieras a largo plazo', type: 'line', cuentas: ['25','26','27','294','295','297','298'], signo: 1, indent: 1, lado: 'activo', children: [
-    { id: 'anc_v_1', label: '1. Instrumentos de patrimonio', cuentas: ['250','294'] },
-    { id: 'anc_v_2', label: '2. Creditos a terceros', cuentas: ['252','253','254','295'] },
+  { id: 'anc_v', label: 'V. Inversiones financieras a largo plazo', type: 'line', cuentas: ['25','26','27','2940','2941','2942','2945','2946','2947','2948','2949','2950','2951','2952','2955','2956','2957','2958','2959','297','298'], signo: 1, indent: 1, lado: 'activo', children: [
+    { id: 'anc_v_1', label: '1. Instrumentos de patrimonio', cuentas: ['250','2940','2941','2942','2945','2946','2947','2948','2949'] },
+    { id: 'anc_v_2', label: '2. Creditos a terceros', cuentas: ['252','253','254','2950','2951','2952','2955','2956','2957','2958','2959'] },
     { id: 'anc_v_3', label: '3. Valores representativos de deuda', cuentas: ['251','297'] },
     { id: 'anc_v_4', label: '4. Derivados', cuentas: ['255'] },
     { id: 'anc_v_5', label: '5. Otros activos financieros', cuentas: ['258','26','27','298'] },
@@ -226,7 +226,8 @@ export const ESTRUCTURA_BALANCE = [
   { id: 'anc_vi', label: 'VI. Activos por impuesto diferido', type: 'line', cuentas: ['474'], signo: 1, indent: 1, lado: 'activo' },
 
   // B) ACTIVO CORRIENTE
-  { id: 'ac', label: 'B) Activo corriente', type: 'group', lado: 'activo', subtotalDe: ['ac_i','ac_ii','ac_iii','ac_iv','ac_v','ac_vi'] },
+  { id: 'ac', label: 'B) Activo corriente', type: 'group', lado: 'activo', subtotalDe: ['ac_0','ac_i','ac_ii','ac_iii','ac_iv','ac_v','ac_vi'] },
+  { id: 'ac_0', label: 'Activos no corrientes mantenidos para la venta', type: 'line', cuentas: ['580','581','582','583','584'], signo: 1, indent: 1, lado: 'activo' },
   { id: 'ac_i', label: 'I. Existencias', type: 'line', cuentas: ['30','31','32','33','34','35','36','39'], signo: 1, indent: 1, lado: 'activo', children: [
     { id: 'ac_i_1', label: '1. Comerciales', cuentas: ['30','390'] },
     { id: 'ac_i_2', label: '2. Materias primas y otros aprovisionamientos', cuentas: ['31','32','391','392'] },
@@ -236,7 +237,7 @@ export const ESTRUCTURA_BALANCE = [
     { id: 'ac_i_6', label: '6. Anticipos a proveedores', cuentas: ['36'] },
   ]},
   // Nota: 43x sin 438 (anticipos clientes = pasivo), 44x completo
-  { id: 'ac_ii', label: 'II. Deudores comerciales y otras cuentas a cobrar', type: 'line', cuentas: ['430','431','432','433','434','435','436','437','44','460','464','470','471','472','473'], signo: 1, indent: 1, lado: 'activo', children: [
+  { id: 'ac_ii', label: 'II. Deudores comerciales y otras cuentas a cobrar', type: 'line', cuentas: ['430','431','432','433','434','435','436','437','44','460','464','470','471','472','473','490','493','494'], signo: 1, indent: 1, lado: 'activo', children: [
     { id: 'ac_ii_1', label: '1. Clientes por ventas y prestaciones de servicios', cuentas: ['430','431','432','433','434','435','436','437'] },
     { id: 'ac_ii_2', label: '2. Empresas del grupo y asociadas', cuentas: ['44'] },
     { id: 'ac_ii_3', label: '3. Deudores varios', cuentas: ['440','441','449'] },
@@ -245,7 +246,7 @@ export const ESTRUCTURA_BALANCE = [
     { id: 'ac_ii_6', label: '6. Otros creditos con las Administraciones Publicas', cuentas: ['471','472'] },
   ]},
   { id: 'ac_iii', label: 'III. Inversiones en empresas grupo y asoc. CP', type: 'line', cuentas: ['530','531','532','533','534','539'], signo: 1, indent: 1, lado: 'activo' },
-  { id: 'ac_iv', label: 'IV. Inversiones financieras a corto plazo', type: 'line', cuentas: ['540','541','542','543','544','545','546','547','548','549','550','554','558','559'], signo: 1, indent: 1, lado: 'activo' },
+  { id: 'ac_iv', label: 'IV. Inversiones financieras a corto plazo', type: 'line', cuentas: ['540','541','542','543','544','545','546','547','548','549','550','554','558','559','593','594','595','596','597','598'], signo: 1, indent: 1, lado: 'activo' },
   { id: 'ac_v', label: 'V. Periodificaciones a corto plazo', type: 'line', cuentas: ['480','567'], signo: 1, indent: 1, lado: 'activo' },
   { id: 'ac_vi', label: 'VI. Efectivo y otros activos líquidos', type: 'line', cuentas: ['57'], signo: 1, indent: 1, lado: 'activo', children: [
     { id: 'ac_vi_1', label: '1. Tesoreria', cuentas: ['570','571','572','573','574','575'] },
@@ -285,12 +286,12 @@ export const ESTRUCTURA_BALANCE = [
   // B) PASIVO NO CORRIENTE
   { id: 'pnc', label: 'B) Pasivo no corriente', type: 'group', lado: 'pasivo', subtotalDe: ['pnc_i','pnc_ii','pnc_iii','pnc_iv','pnc_v'] },
   { id: 'pnc_i', label: 'I. Provisiones a largo plazo', type: 'line', cuentas: ['14'], signo: -1, indent: 1, lado: 'pasivo' },
-  { id: 'pnc_ii', label: 'II. Deudas a largo plazo', type: 'line', cuentas: ['17'], signo: -1, indent: 1, lado: 'pasivo', children: [
+  { id: 'pnc_ii', label: 'II. Deudas a largo plazo', type: 'line', cuentas: ['15','17','18'], signo: -1, indent: 1, lado: 'pasivo', children: [
     { id: 'pnc_ii_1', label: '1. Obligaciones y otros valores negociables', cuentas: ['177','178','179'] },
     { id: 'pnc_ii_2', label: '2. Deudas con entidades de credito', cuentas: ['170','171'] },
     { id: 'pnc_ii_3', label: '3. Acreedores por arrendamiento financiero', cuentas: ['174'] },
     { id: 'pnc_ii_4', label: '4. Derivados', cuentas: ['176'] },
-    { id: 'pnc_ii_5', label: '5. Otros pasivos financieros', cuentas: ['172','173','175','180','185','189'] },
+    { id: 'pnc_ii_5', label: '5. Otros pasivos financieros', cuentas: ['15','172','173','175','180','185','189'] },
   ]},
   { id: 'pnc_iii', label: 'III. Deudas con empresas grupo y asoc. LP', type: 'line', cuentas: ['16'], signo: -1, indent: 1, lado: 'pasivo' },
   { id: 'pnc_iv', label: 'IV. Pasivos por impuesto diferido', type: 'line', cuentas: ['479'], signo: -1, indent: 1, lado: 'pasivo' },

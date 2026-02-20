@@ -716,17 +716,35 @@ export function calcularCuentasAnuales(movimientos, año) {
 
   movimientos.forEach(mov => {
     const añoMov = parseInt(mov.mes.split('-')[0])
-    if (!saldosPorAño[añoMov]) return
-
     const cuenta = mov.cuenta
-    if (!saldosPorAño[añoMov][cuenta]) {
-      saldosPorAño[añoMov][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
-    }
-    saldosPorAño[añoMov][cuenta].debe += mov.debe
-    saldosPorAño[añoMov][cuenta].haber += mov.haber
-    // Capturar mejor descripción
-    if (!saldosPorAño[añoMov][cuenta].nombre && mov.descripcion) {
-      saldosPorAño[añoMov][cuenta].nombre = mov.descripcion
+    const grupo1 = cuenta.charAt(0)
+
+    // Balance (grupos 1-5): acumulativo — el movimiento afecta al saldo de cierre
+    // de CADA año >= añoMov (para no necesitar asiento de apertura)
+    if (grupo1 >= '1' && grupo1 <= '5') {
+      años.forEach(a => {
+        if (añoMov <= a) {
+          if (!saldosPorAño[a][cuenta]) {
+            saldosPorAño[a][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
+          }
+          saldosPorAño[a][cuenta].debe += mov.debe
+          saldosPorAño[a][cuenta].haber += mov.haber
+          if (!saldosPorAño[a][cuenta].nombre && mov.descripcion) {
+            saldosPorAño[a][cuenta].nombre = mov.descripcion
+          }
+        }
+      })
+    } else if (grupo1 === '6' || grupo1 === '7') {
+      // PyG (grupos 6-7): solo en su año
+      if (!saldosPorAño[añoMov]) return
+      if (!saldosPorAño[añoMov][cuenta]) {
+        saldosPorAño[añoMov][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
+      }
+      saldosPorAño[añoMov][cuenta].debe += mov.debe
+      saldosPorAño[añoMov][cuenta].haber += mov.haber
+      if (!saldosPorAño[añoMov][cuenta].nombre && mov.descripcion) {
+        saldosPorAño[añoMov][cuenta].nombre = mov.descripcion
+      }
     }
   })
 
@@ -860,7 +878,33 @@ export function calcularCuentasAnuales(movimientos, año) {
     balance[a] = lineas
   })
 
-  return { balance, pyg }
+  // 6. Diagnóstico: detectar cuentas de balance (1-5) no capturadas por ESTRUCTURA_BALANCE
+  const prefijosBalance = []
+  ESTRUCTURA_BALANCE.forEach(item => {
+    if (item.cuentas && item.cuentas.length > 0) {
+      prefijosBalance.push(...item.cuentas)
+    }
+  })
+
+  const cuentasHuerfanas = {}
+  años.forEach(a => {
+    const huerfanas = {}
+    Object.entries(saldosPorAño[a] || {}).forEach(([cuenta, data]) => {
+      const grupo1 = cuenta.charAt(0)
+      if (grupo1 < '1' || grupo1 > '5') return
+      const saldo = data.debe - data.haber
+      if (Math.abs(saldo) < 0.01) return
+      const capturada = prefijosBalance.some(p => cuenta.startsWith(p))
+      if (!capturada) {
+        huerfanas[cuenta] = { saldo, nombre: data.nombre }
+      }
+    })
+    if (Object.keys(huerfanas).length > 0) {
+      cuentasHuerfanas[a] = huerfanas
+    }
+  })
+
+  return { balance, pyg, cuentasHuerfanas }
 }
 
 /**

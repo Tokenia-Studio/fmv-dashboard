@@ -374,8 +374,29 @@ export default function TablaBalanceCCAA() {
   const diferencia = Math.abs(totalActivoVal - totalPNP)
   const cuadra = diferencia < 1
 
+  // Cuentas huérfanas (no capturadas por ESTRUCTURA_BALANCE)
+  const huerfanasActual = cuentasAnuales?.cuentasHuerfanas?.[añoActual] || {}
+  const huerfanasCount = Object.keys(huerfanasActual).length
+  const huerfanasTotal = Object.values(huerfanasActual).reduce((sum, d) => sum + d.saldo, 0)
+
   return (
     <div className="space-y-4">
+      {/* Warning: cuentas huérfanas */}
+      {huerfanasCount > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 text-sm">
+          <p className="font-semibold text-amber-800">
+            {huerfanasCount} cuenta(s) de balance no capturada(s) — Importe total: {formatCurrency(huerfanasTotal)}
+          </p>
+          <div className="mt-1 text-amber-700 text-xs max-h-24 overflow-auto">
+            {Object.entries(huerfanasActual).sort(([a],[b]) => a.localeCompare(b)).map(([cuenta, data]) => (
+              <span key={cuenta} className="inline-block mr-3">
+                <span className="font-mono">{cuenta}</span> ({formatCurrency(data.saldo)})
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Ratios financieros del Balance */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {ratios.map(r => (
