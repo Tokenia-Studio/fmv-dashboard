@@ -714,6 +714,12 @@ export function calcularCuentasAnuales(movimientos, año) {
   const saldosPorAño = {}
   años.forEach(a => { saldosPorAño[a] = {} })
 
+  // Acumulador de resultado (grupos 6+7) para el Balance — acumulativo como los 1-5
+  // Necesario porque sin asiento de cierre, el resultado de años anteriores
+  // no está en la cuenta 129 y se perdería si solo tomamos el PyG del año
+  const resultadoAcumulado = {}
+  años.forEach(a => { resultadoAcumulado[a] = 0 })
+
   movimientos.forEach(mov => {
     const añoMov = parseInt(mov.mes.split('-')[0])
     const cuenta = mov.cuenta
@@ -735,16 +741,23 @@ export function calcularCuentasAnuales(movimientos, año) {
         }
       })
     } else if (grupo1 === '6' || grupo1 === '7') {
-      // PyG (grupos 6-7): solo en su año
-      if (!saldosPorAño[añoMov]) return
-      if (!saldosPorAño[añoMov][cuenta]) {
-        saldosPorAño[añoMov][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
+      // PyG (grupos 6-7): solo en su año (para la tabla PyG)
+      if (saldosPorAño[añoMov]) {
+        if (!saldosPorAño[añoMov][cuenta]) {
+          saldosPorAño[añoMov][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
+        }
+        saldosPorAño[añoMov][cuenta].debe += mov.debe
+        saldosPorAño[añoMov][cuenta].haber += mov.haber
+        if (!saldosPorAño[añoMov][cuenta].nombre && mov.descripcion) {
+          saldosPorAño[añoMov][cuenta].nombre = mov.descripcion
+        }
       }
-      saldosPorAño[añoMov][cuenta].debe += mov.debe
-      saldosPorAño[añoMov][cuenta].haber += mov.haber
-      if (!saldosPorAño[añoMov][cuenta].nombre && mov.descripcion) {
-        saldosPorAño[añoMov][cuenta].nombre = mov.descripcion
-      }
+      // Acumular resultado para el Balance (haber-debe = beneficio positivo)
+      años.forEach(a => {
+        if (añoMov <= a) {
+          resultadoAcumulado[a] += (mov.haber - mov.debe)
+        }
+      })
     }
   })
 
@@ -855,10 +868,24 @@ export function calcularCuentasAnuales(movimientos, año) {
       }
     })
 
-    // fp_vii (Resultado del ejercicio) = calculado desde PyG (grupos 6+7)
-    // Durante el año, el resultado vive en las cuentas 6xx/7xx, no en la 129
+    // fp_vii (Resultado del ejercicio) = solo PyG del año actual
     const resultadoPyG = pyg[a]?.a5?.total || 0
     lineas['fp_vii'] = { total: resultadoPyG, cuentas: {} }
+
+    // Inyectar resultado acumulado de ejercicios anteriores en fp_v
+    // Sin asientos de cierre, el resultado de años previos (6xx/7xx) no llega a la 129.
+    // resultadoAcumulado tiene TODOS los años <= a; restamos el del año actual.
+    const resultadoPrevios = (resultadoAcumulado[a] || 0) - resultadoPyG
+    if (Math.abs(resultadoPrevios) > 0.005) {
+      const fpvPrev = lineas['fp_v'] || { total: 0, cuentas: {} }
+      lineas['fp_v'] = {
+        total: fpvPrev.total + resultadoPrevios,
+        cuentas: {
+          ...fpvPrev.cuentas,
+          'SIN_CIERRE': { saldo: resultadoPrevios, nombre: 'Rdo. acumulado ej. anteriores (sin cierre contable)' }
+        }
+      }
+    }
 
     // Calcular subtotales en orden de dependencia (de dentro a fuera):
     // 1. Subgroups (fp) que dependen de líneas
