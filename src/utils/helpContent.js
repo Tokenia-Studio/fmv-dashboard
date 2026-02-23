@@ -16,7 +16,7 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Diario Contable (.xlsx)', 'ERP → Contabilidad → Diario', 'Mensual (acumulado anual)']
+            ['Diario Contable (.xlsx)', 'BUSINESS CENTRAL → movimientos 01-01-202N..31-12-202N', 'A demanda']
           ]
         }
       },
@@ -40,7 +40,7 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Diario Contable (.xlsx)', 'ERP → Contabilidad → Diario', 'Mensual (acumulado anual)']
+            ['Diario Contable (.xlsx)', 'BUSINESS CENTRAL → movimientos 01-01-202N..31-12-202N', 'A demanda']
           ]
         }
       },
@@ -64,7 +64,7 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Diario Contable (.xlsx)', 'ERP → Contabilidad → Diario', 'Mensual (acumulado anual)']
+            ['Diario Contable (.xlsx)', 'BUSINESS CENTRAL → movimientos 01-01-202N..31-12-202N', 'A demanda']
           ]
         }
       },
@@ -88,8 +88,8 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Diario Contable (.xlsx)', 'ERP → Contabilidad → Diario', 'Mensual (acumulado anual)'],
-            ['Maestro Proveedores (.xlsx)', 'ERP → Proveedores → Listado', 'Cuando haya cambios']
+            ['Diario Contable (.xlsx)', 'BUSINESS CENTRAL → movimientos 01-01-202N..31-12-202N', 'A demanda'],
+            ['Maestro Proveedores (.xlsx)', 'BUSINESS CENTRAL → pagos → proveedores → exportar nº y Nombre', 'Cuando haya cambios']
           ]
         }
       },
@@ -113,7 +113,7 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Diario Contable (.xlsx)', 'ERP → Contabilidad → Diario', 'Mensual (acumulado anual)']
+            ['Diario Contable (.xlsx)', 'BUSINESS CENTRAL → movimientos 01-01-202N..31-12-202N', 'A demanda']
           ]
         }
       },
@@ -137,8 +137,8 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Diario Contable (.xlsx)', 'ERP → Contabilidad → Diario', 'Mensual (acumulado anual)'],
-            ['Presupuesto GL PPT (.xlsx)', 'ERP → Contabilidad → Presupuestos', 'Anual (1 vez/año)']
+            ['Diario Contable (.xlsx)', 'BUSINESS CENTRAL → movimientos 01-01-202N..31-12-202N', 'A demanda'],
+            ['Presupuesto GL PPT (.xlsx)', 'BUSINESS CENTRAL → Contabilidad → Presupuestos contables → pinchas ppto → ppto → exportar', 'Anual (1 vez/año)']
           ]
         }
       },
@@ -162,8 +162,8 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Albaranes y Facturas (.xlsx)', 'ERP → Compras → Histórico', 'Mensual'],
-            ['Pedidos de Compra (.xlsx)', 'ERP → Compras → Pedidos', 'Mensual']
+            ['Albaranes y Facturas (.xlsx)', 'BUSINESS CENTRAL → Compras → Histórico', 'Mensual'],
+            ['Pedidos de Compra (.xlsx)', 'BUSINESS CENTRAL → Compras → Pedidos', 'Mensual']
           ]
         }
       },
@@ -187,8 +187,8 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
           filas: [
-            ['Planning Producción (.xlsx)', 'ERP → Producción → Planning', 'Según necesidad'],
-            ['Fichajes Producción (.xlsx)', 'ERP → Producción → Fichajes', 'Según necesidad']
+            ['Planning Producción (.xlsx)', 'Excel externo (planning manual)', 'Según necesidad'],
+            ['Fichajes Producción (.xlsx)', 'BUSINESS CENTRAL → tiempo captura datos', 'Según necesidad']
           ]
         }
       },
@@ -212,9 +212,9 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad', 'Pestañas que alimenta'],
           filas: [
-            ['Diario Contable (.xlsx)', 'ERP → Contabilidad → Diario', 'Mensual (acumulado anual)', 'PyG, Servicios, Financiación, Proveedores, Cash Flow, Presupuesto vs Real'],
-            ['Maestro Proveedores (.xlsx)', 'ERP → Proveedores → Listado', 'Cuando haya cambios', 'Proveedores'],
-            ['Presupuesto GL PPT (.xlsx)', 'ERP → Contabilidad → Presupuestos', 'Anual (1 vez/año)', 'Presupuesto vs Real']
+            ['Diario Contable (.xlsx)', 'BUSINESS CENTRAL → movimientos 01-01-202N..31-12-202N', 'A demanda', 'PyG, Servicios, Financiación, Proveedores, Cash Flow, Presupuesto vs Real'],
+            ['Maestro Proveedores (.xlsx)', 'BUSINESS CENTRAL → pagos → proveedores → exportar nº y Nombre', 'Cuando haya cambios', 'Proveedores'],
+            ['Presupuesto GL PPT (.xlsx)', 'BUSINESS CENTRAL → Contabilidad → Presupuestos contables → pinchas ppto → ppto → exportar', 'Anual (1 vez/año)', 'Presupuesto vs Real']
           ]
         }
       },
@@ -223,8 +223,8 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad', 'Pestañas que alimenta'],
           filas: [
-            ['Albaranes y Facturas (.xlsx)', 'ERP → Compras → Histórico', 'Mensual', 'Ppto Compras'],
-            ['Pedidos de Compra (.xlsx)', 'ERP → Compras → Pedidos', 'Mensual', 'Ppto Compras']
+            ['Albaranes y Facturas (.xlsx)', 'BUSINESS CENTRAL → Compras → Histórico', 'Mensual', 'Ppto Compras'],
+            ['Pedidos de Compra (.xlsx)', 'BUSINESS CENTRAL → Compras → Pedidos', 'Mensual', 'Ppto Compras']
           ]
         }
       },
@@ -233,8 +233,8 @@ export const HELP_CONTENT = {
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad', 'Pestañas que alimenta'],
           filas: [
-            ['Planning Producción (.xlsx)', 'ERP → Producción → Planning', 'Según necesidad', 'Seg. Estructuras'],
-            ['Fichajes Producción (.xlsx)', 'ERP → Producción → Fichajes', 'Según necesidad', 'Seg. Estructuras']
+            ['Planning Producción (.xlsx)', 'Excel externo (planning manual)', 'Según necesidad', 'Seg. Estructuras'],
+            ['Fichajes Producción (.xlsx)', 'BUSINESS CENTRAL → tiempo captura datos', 'Según necesidad', 'Seg. Estructuras']
           ]
         }
       },
