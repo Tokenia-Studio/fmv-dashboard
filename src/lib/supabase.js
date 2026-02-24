@@ -573,5 +573,137 @@ export const documental = {
       total: data.length,
       docsTotal: data.reduce((sum, b) => sum + (b.total_documentos || 0), 0)
     }
+  },
+
+  // Proveedores únicos de todos los documentos
+  getProveedoresUnicos: async () => {
+    const { data, error } = await supabase
+      .from('doc_documents')
+      .select('proveedor_nombre')
+      .not('proveedor_nombre', 'is', null)
+      .order('proveedor_nombre', { ascending: true })
+    if (error || !data) return { data: [], error }
+    const unicos = [...new Set(data.map(d => d.proveedor_nombre).filter(Boolean))]
+    return { data: unicos, error: null }
+  },
+
+  // Borrar TODO el histórico (batches + documents + previews storage)
+  deleteAllHistory: async () => {
+    // 1. Obtener IDs de batches para limpiar storage
+    const { data: batches } = await supabase.from('doc_batches').select('id')
+    const batchIds = (batches || []).map(b => b.id)
+
+    // 2. Eliminar documentos
+    const { error: errDocs } = await supabase
+      .from('doc_documents')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000')
+    if (errDocs) return { error: errDocs, count: 0 }
+
+    // 3. Eliminar log
+    await supabase
+      .from('doc_processing_log')
+      .delete()
+      .neq('id', 0)
+
+    // 4. Eliminar batches
+    const { error: errBatch } = await supabase
+      .from('doc_batches')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000')
+    if (errBatch) return { error: errBatch, count: 0 }
+
+    // 5. Limpiar storage de previews
+    for (const bId of batchIds) {
+      try {
+        const { data: files } = await supabase.storage.from('doc-previews').list(bId)
+        if (files?.length) {
+          await supabase.storage.from('doc-previews').remove(files.map(f => `${bId}/${f.name}`))
+        }
+      } catch {}
+    }
+
+    return { error: null, count: batchIds.length }
+  },
+
+  // Borrar por rango de fechas
+  deleteByDateRange: async (desde, hasta) => {
+    // 1. Obtener batches en rango
+    const { data: batches } = await supabase
+      .from('doc_batches')
+      .select('id')
+      .gte('created_at', desde + 'T00:00:00')
+      .lte('created_at', hasta + 'T23:59:59')
+    const batchIds = (batches || []).map(b => b.id)
+    if (batchIds.length === 0) return { error: null, count: 0 }
+
+    // 2. Eliminar documentos de esos batches
+    for (const bId of batchIds) {
+      await supabase.from('doc_documents').delete().eq('batch_id', bId)
+      await supabase.from('doc_processing_log').delete().eq('batch_id', bId)
+    }
+
+    // 3. Eliminar batches
+    const { error } = await supabase
+      .from('doc_batches')
+      .delete()
+      .gte('created_at', desde + 'T00:00:00')
+      .lte('created_at', hasta + 'T23:59:59')
+
+    // 4. Limpiar storage
+    for (const bId of batchIds) {
+      try {
+        const { data: files } = await supabase.storage.from('doc-previews').list(bId)
+        if (files?.length) {
+          await supabase.storage.from('doc-previews').remove(files.map(f => `${bId}/${f.name}`))
+        }
+      } catch {}
+    }
+
+    return { error, count: batchIds.length }
+  },
+
+  // Borrar por proveedor
+  deleteByProveedor: async (proveedorNombre) => {
+    // 1. Obtener documentos del proveedor
+    const { data: docs } = await supabase
+      .from('doc_documents')
+      .select('id, batch_id')
+      .eq('proveedor_nombre', proveedorNombre)
+    if (!docs?.length) return { error: null, count: 0 }
+
+    // 2. Eliminar documentos
+    const { error } = await supabase
+      .from('doc_documents')
+      .delete()
+      .eq('proveedor_nombre', proveedorNombre)
+
+    // 3. Limpiar batches vacíos
+    const batchIds = [...new Set(docs.map(d => d.batch_id))]
+    for (const bId of batchIds) {
+      const { data: remaining } = await supabase
+        .from('doc_documents')
+        .select('id', { count: 'exact', head: true })
+        .eq('batch_id', bId)
+      // Si no quedan docs, eliminar batch y su storage
+      if (!remaining || remaining.length === 0) {
+        await supabase.from('doc_processing_log').delete().eq('batch_id', bId)
+        await supabase.from('doc_batches').delete().eq('id', bId)
+        try {
+          const { data: files } = await supabase.storage.from('doc-previews').list(bId)
+          if (files?.length) {
+            await supabase.storage.from('doc-previews').remove(files.map(f => `${bId}/${f.name}`))
+          }
+        } catch {}
+      } else {
+        // Actualizar contadores del batch
+        await supabase
+          .from('doc_batches')
+          .update({ total_documentos: remaining.length })
+          .eq('id', bId)
+      }
+    }
+
+    return { error, count: docs.length }
   }
 }

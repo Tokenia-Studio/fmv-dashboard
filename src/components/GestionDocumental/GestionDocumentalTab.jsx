@@ -5,13 +5,15 @@
 import React, { useState, useEffect } from 'react'
 import KPICard from '../UI/KPICard'
 import BatchList from './BatchList'
-import BatchReview from './BatchReview'
+import ReviewPanel from './ReviewPanel'
+import HistoricoModal from './HistoricoModal'
 import { documental } from '../../lib/supabase'
 
 export default function GestionDocumentalTab() {
   const [batches, setBatches] = useState([])
   const [stats, setStats] = useState({ procesados: 0, pendientes: 0, total: 0, docsTotal: 0 })
   const [selectedBatchId, setSelectedBatchId] = useState(null)
+  const [showHistorico, setShowHistorico] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -33,10 +35,10 @@ export default function GestionDocumentalTab() {
     setLoading(false)
   }
 
-  // Si hay un lote seleccionado, mostrar la pantalla de revisión
+  // Si hay un lote seleccionado, mostrar la pantalla de revisión agrupada
   if (selectedBatchId) {
     return (
-      <BatchReview
+      <ReviewPanel
         batchId={selectedBatchId}
         onBack={() => {
           setSelectedBatchId(null)
@@ -72,38 +74,54 @@ export default function GestionDocumentalTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard
-          titulo="Lotes procesados"
-          valor={stats.procesados}
-          icono="✅"
-          colorValor="text-green-600"
-        />
-        <KPICard
-          titulo="Pendientes revisión"
-          valor={stats.pendientes}
-          icono="⚠️"
-          colorValor={stats.pendientes > 0 ? 'text-amber-600' : 'text-gray-600'}
-        />
-        <KPICard
-          titulo="Total documentos"
-          valor={stats.docsTotal}
-          icono="📄"
-          colorValor="text-blue-600"
-        />
-        <KPICard
-          titulo="Lotes totales"
-          valor={stats.total}
-          icono="📦"
-          colorValor="text-gray-600"
-        />
+      {/* KPIs + botón histórico */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+          <KPICard
+            titulo="Lotes procesados"
+            valor={stats.procesados}
+            icono="✅"
+            colorValor="text-green-600"
+          />
+          <KPICard
+            titulo="Pendientes revisión"
+            valor={stats.pendientes}
+            icono="⚠️"
+            colorValor={stats.pendientes > 0 ? 'text-amber-600' : 'text-gray-600'}
+          />
+          <KPICard
+            titulo="Total documentos"
+            valor={stats.docsTotal}
+            icono="📄"
+            colorValor="text-blue-600"
+          />
+          <KPICard
+            titulo="Lotes totales"
+            valor={stats.total}
+            icono="📦"
+            colorValor="text-gray-600"
+          />
+        </div>
+        <button
+          onClick={() => setShowHistorico(true)}
+          className="shrink-0 px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors font-medium"
+          title="Gestionar histórico"
+        >
+          Histórico
+        </button>
       </div>
 
       {/* Lista de lotes */}
       <BatchList
         batches={batches}
         onSelectBatch={setSelectedBatchId}
+      />
+
+      {/* Modal histórico */}
+      <HistoricoModal
+        isOpen={showHistorico}
+        onClose={() => setShowHistorico(false)}
+        onDeleted={loadData}
       />
     </div>
   )
