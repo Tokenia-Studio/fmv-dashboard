@@ -3,8 +3,6 @@
 // ============================================
 
 import React, { useState } from 'react'
-import { documental } from '../../lib/supabase'
-
 export default function DocumentPreview({ document: doc, batchId, onUpdate }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
@@ -39,10 +37,6 @@ export default function DocumentPreview({ document: doc, batchId, onUpdate }) {
 
   const confianza = Math.round((doc.confianza || 0) * 100)
 
-  // Preview de la primera página
-  const firstPage = doc.paginas?.[0] || 1
-  const previewUrl = doc.preview_url || documental.getPreviewUrl(batchId, firstPage)
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -56,22 +50,6 @@ export default function DocumentPreview({ document: doc, batchId, onUpdate }) {
       </div>
 
       <div className="p-6 space-y-6">
-        {/* Preview de imagen */}
-        <div className="bg-gray-100 rounded-lg overflow-hidden">
-          <img
-            src={previewUrl}
-            alt={`Preview página ${firstPage}`}
-            className="w-full max-h-[300px] object-contain"
-            onError={(e) => {
-              e.target.style.display = 'none'
-              e.target.nextSibling.style.display = 'flex'
-            }}
-          />
-          <div className="hidden items-center justify-center h-[200px] text-gray-400 text-sm">
-            Preview no disponible
-          </div>
-        </div>
-
         {/* Datos extraídos */}
         <div className="space-y-3">
           <div className="flex items-center justify-between mb-2">
