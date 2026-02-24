@@ -28,8 +28,9 @@ class SupabaseSync:
             "estado": batch.estado.value,
         }).execute()
 
-        # Insertar documentos
-        for doc in batch.documents:
+        # Insertar documentos (primero sin FK, luego con factura_asociada_id)
+        sorted_docs = sorted(batch.documents, key=lambda d: 1 if d.factura_asociada_id else 0)
+        for doc in sorted_docs:
             self.client.table("doc_documents").insert({
                 "id": doc.id,
                 "batch_id": batch.id,
@@ -103,3 +104,31 @@ class SupabaseSync:
             .execute()
         )
         return response.data
+
+    def list_pending_uploads(self) -> list[dict]:
+        """Lista PDFs pendientes en el bucket doc-entrada/pendiente/."""
+        try:
+            response = self.client.storage.from_("doc-entrada").list("pendiente")
+            return [f for f in (response or []) if f.get("name", "").lower().endswith(".pdf")]
+        except Exception as e:
+            logger.debug(f"Error listando uploads pendientes: {e}")
+            return []
+
+    def download_upload(self, storage_path: str, local_path: Path) -> bool:
+        """Descarga un PDF del bucket doc-entrada a disco local."""
+        try:
+            data = self.client.storage.from_("doc-entrada").download(storage_path)
+            local_path.write_bytes(data)
+            logger.info(f"Descargado: {storage_path} -> {local_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Error descargando {storage_path}: {e}")
+            return False
+
+    def delete_upload(self, storage_path: str) -> None:
+        """Elimina un PDF procesado del bucket doc-entrada."""
+        try:
+            self.client.storage.from_("doc-entrada").remove([storage_path])
+            logger.info(f"Eliminado de storage: {storage_path}")
+        except Exception as e:
+            logger.warning(f"Error eliminando {storage_path}: {e}")

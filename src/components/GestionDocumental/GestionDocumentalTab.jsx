@@ -7,6 +7,7 @@ import KPICard from '../UI/KPICard'
 import BatchList from './BatchList'
 import ReviewPanel from './ReviewPanel'
 import HistoricoModal from './HistoricoModal'
+import UploadPDF from './UploadPDF'
 import { documental } from '../../lib/supabase'
 
 export default function GestionDocumentalTab() {
@@ -59,15 +60,15 @@ export default function GestionDocumentalTab() {
 
   if (batches.length === 0) {
     return (
-      <div className="text-center py-20">
-        <div className="text-6xl mb-4">📄</div>
-        <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin lotes procesados</h2>
-        <p className="text-gray-500">
-          Cuando el servicio de gestión documental procese PDFs escaneados, aparecerán aquí para revisión.
-        </p>
-        <p className="text-gray-400 text-sm mt-4">
-          El servicio vigila la carpeta de entrada del servidor y procesa automáticamente los PDFs.
-        </p>
+      <div className="space-y-6 animate-fadeIn">
+        <UploadPDF onUploaded={loadData} />
+        <div className="text-center py-12">
+          <div className="text-4xl mb-3">📭</div>
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">Sin lotes procesados</h2>
+          <p className="text-gray-500 text-sm">
+            Sube un PDF escaneado o espera a que el servicio procese los de la carpeta de entrada.
+          </p>
+        </div>
       </div>
     )
   }
@@ -110,6 +111,9 @@ export default function GestionDocumentalTab() {
           Histórico
         </button>
       </div>
+
+      {/* Subir PDF */}
+      <UploadPDF onUploaded={loadData} />
 
       {/* Lista de lotes */}
       <BatchList
