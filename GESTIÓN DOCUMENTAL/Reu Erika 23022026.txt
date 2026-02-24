@@ -1,0 +1,56 @@
+      Como de tomar. La evolución antes de e.Bueno, esto se va a llamar gestión documental. Tú llegas. Recibe facturas. Bien. Facturas que vienen con un pedido y un albarán que te traes del sistema, los albaranes y me lo tengo que buscar.
+      
+       El liquidar la factura. Buscas el albarán? Buscan. La creamos. Albaranes y facturas en papel. Aquí me he quedado mal en este paso que el otro día estuve. Es que la cuenta y ya está. Que tengo mi y esta que como referencia.
+      
+       Yo imprimo mis facturas y luego me punteo que tenga todos los albaranes, me busco. Bueno, me apunto los albaranes con los albaranes físicos o bien los tengo aquí o los tengo archivados en la carpeta y la relación que hay entre varones y facturas es que la factura aparece un número de albarán y yo voy buscando que tengamos todos e incluso algún número de pedido. Hay veces si hay veces en los que a lo mejor me facturan esto y yo no tengo el albarán físico, pero si voy al programa y veo que está recibido el programa y han metido el número de albarán y todo, si tengo el número de pedido, claro, pues ya está, me da igual, me lo traigo, pero hay veces que tengo un número.
+      
+       Tengo facturado este albarán, pero ni tengo el albarán físico ni está recibido el pedido. No es que sea muy habitual, pero pacientes. Ahí es cuando yo empiezo. Sachi Raúl No tengo esto. Me lo tenéis que buscar.
+      
+       Y esas cosas. Y una vez que tú lo contabilizas, que eso lo contabiliza, se supone que lo tengo que escanear, adjuntar al programa guardarlo en una carpeta. No lo escaneo, lo guardo en la carpeta del proveedor y luego lo adjunto al programa.
+      
+       Y luego ya se guarda la factura junto con sus albaranes. Escaneados. Vale? O sea que la metes en la carpeta primero. Para para, para tenerlo y luego ir referenciarlo. Mira, tienes aquí el cómo llevarlo a Business Central desde la carpeta.
+      
+       Es manual Abriendo factura, Factura porque no habría manera de hacerlo de manera que no, no, no hay una ruta, no hay una ruta. Viene central a esta ruta. O sea que el trabajo seguirá haciéndose igual.
+      
+       Pero a mí lo que sí veo factible es el poder meter los documentos, renombrar los documentos en base a como tú, como los nombras, el número de cliente y número de factura del proveedor, fecha No pones vale renombrar eso y que vaya a una carpeta que está en esta. En business, en en, en tres y cinco es una carpeta de red. En qué?
+       En el sistema. Si está una carpeta de red, el sistema No, no en el servidor. Compra facturas de compra, va por años. Vale. 2025. Te voy a abrir el 2026 por ejemplo. No tengo nada. Vale, porque de momento no tengo nada.
+      
+       2025. Tienes el número del proveedor y el número de factura, como aquí te deja? Yo trabajo, proveedor y factura, así que con fecha de modificación y estos son los números de factura. Una vez que está guardado aquí, yo lo que hago.
+      
+       Además también lo dejo ahí. Acumular porque tardo menos histórico de facturas de compra, por ejemplo. Eso es de enero. Vale, entonces yo lo que hago aquí es filtrar lista, fecha, emisión del documento hasta hoy, por ejemplo.
+      
+       Bueno, la verdad que me lo ordena por meses hasta el 31 del uno del 2026. Y descendente como me viene en orden, porque además yo para no estar abriendo la factura ni estar viendo lo que es, si yo me he escaneado, esto lo tengo aquí. Por ejemplo Val de Pinto, abro la factura aquí adjuntas, elijo y me voy a Val de Pinto 2026. Vale, busca el Vale Pinto, Pinto las factura y carga. Ya te lo cargas.
+      
+       Una factura a y así con todas. Entonces a lo mejor podríamos llevarlo todo a una carpeta. Y lo tuve. Esa carpeta, ya sea lo que importa, es lo que más tardas. Aquí es en escanearlo y nombrar cada cosa.
+      
+       Si. En preparar. Algo menos, en escanear que concebido. Que me den acceso a la a la de abajo, Por ejemplo, si voy a escanear un taquito, así de facturas de venta o de albaranes de venta, lo escaneo aquí.
+      
+       Pero como esto sí que me pongo, o sea, acumulo más, me bajo todo este taco abajo. Lo escaneo de golpe y aquí lo separó en PDF. Ya antes, por ejemplo, lo escaneaba aquí y lo que hacía es primero, esta es una, esta es otra.
+      
+       Y eso ya porque aquí no te entra tampoco mucho taco y tarda muchísimo. Esta impresora. O se tarda muchísimo en coger papel, en pensar en cómo nos aquí con un con este ponerlos PDF. Te deja este me lo dio el pdf 24. Vale, pero no me gusta porque tiene límite.
+      
+       Entonces hay uno que se llama este Nos. Con este este vale, este me lo que ha instalado el informático y vamos a ver un PDF que tenga. Escáner. Lo que se este vale. Abrir con. A escribir vale, yo lo abro con este.
+      
+       Lo he hecho. Este con este lo he hecho muy poquitas veces. Vale se ve un poco mal. Si se ve un poco más perfecto. No, no, pero ya sabes quién es cada uno. Pero yo más o menos. Sí que se. Bueno, aquí no se ve.
+      
+       Vale. Porque todos son el mismo. Claro, pero ahí son el mismo. Además, yo lo que voy a hacer, seleccionar y sacas, seleccionas y extraes aquí. Pues das extraer y te lo manda para un lado y lo quita de ahí y lo quita de ahí.
+      
+       Y una vez que lo extraigo ya lo guardo con el número de factura y lo que sea. Entonces una vez yo por ejemplo a esto, si le doy a extraer vale páginas seleccionadas y ya busco la carpeta a la que iría, por ejemplo servidor. Compras.
+      
+       Bueno, esto luego ya se queda en servidor para lo metes aquí. Número de proveedor, número de factura, guardas el proveedor. Tienes que saberlo, pero yo por eso tengo esto aquí y esto me lo apunto cuando registro la factura.
+      
+       Vale? Y cuando la factura me registro el número de proveedor. Esto me hace falta. Esto y luego esto. Vale. Por norma general, es donde se apuntaba el número de proveedor. Porque ellos o Sachi o Laura sí que lo escaneaban de uno en uno.
+      
+       No, no se lo saben y lo guardaban en la carpeta y luego como en la carpeta ya tienes antiguos, pues vas copiando el número de proveedor, pero para mí es más fácil apuntármelo aquí y así cuando voy a guardarlo no tengo que estar buscando qué número de proveedores lo meto. Vale, vale. O sea que entonces el objetivo sería algo que lo escanee, que lo guarde en una carpeta por proveedor, que lo nombre tú.
+      
+       A qué carpeta proveedor va? Automáticamente ya no sería distinto si la carpeta pusiera el número de proveedor. Aún. Pero bueno, déjame pensarlo. Si lo quiero es que tienes opciones y que se puede hacer?
+       Vale, ya te digo antes no escanear y me dijo yo meto la factura que me mandan en pdf para no perder tiempo. Vale, pero es que ahí no me metes en albaranes. Es verdad que tarda menos directamente no tiene que estar escaneando, pero no entra en los albaranes, no está escaneados.
+      
+       Claro, si se necesitan más grandes. A nivel de detalle, a mí sí que me fastidia que luego vas a ver el diario y vas a sacar una operación y la información que te saca el diario es un número de factura. De verdad.
+      
+       Estamos metiendo todos los datos que metéis y resulta que vais a caer y la mierda. Que no, en vez de salir dentro de la factura algo, algo más que no sea si no y el proveedor? Gracias porque el proveedor sale el número.
+      
+       Pero bueno, con esto yo me vale para pensar.
+
+
+

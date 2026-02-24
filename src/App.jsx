@@ -17,6 +17,7 @@ import PresupuestoTab from './components/Presupuesto/PresupuestoTab'
 import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoComprasTab'
 import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab'
 import CuentasAnualesTab from './components/CuentasAnuales/CuentasAnualesTab'
+import GestionDocumentalTab from './components/GestionDocumental/GestionDocumentalTab'
 import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
@@ -160,6 +161,8 @@ function App() {
         return <PresupuestoTab />
       case 'cuentasAnuales':
         return <CuentasAnualesTab />
+      case 'gestionDocumental':
+        return <GestionDocumentalTab />
       case 'presupuestoCompras':
         return <PresupuestoComprasTab />
       case 'seguimientoEstructuras':

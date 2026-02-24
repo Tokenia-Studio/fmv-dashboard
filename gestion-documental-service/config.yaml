@@ -1,0 +1,21 @@
+paths:
+  entrada: "\\\\servidor\\GestionDocumental\\entrada"
+  procesando: "\\\\servidor\\GestionDocumental\\procesando"
+  salida: "\\\\servidor\\GestionDocumental\\salida"
+  pendientes: "\\\\servidor\\GestionDocumental\\pendientes_revision"
+  procesados: "\\\\servidor\\GestionDocumental\\procesados"
+  errores: "\\\\servidor\\GestionDocumental\\errores"
+
+openai:
+  model: "gpt-4o-mini"
+  fallback_model: "gpt-4o"
+  max_concurrent: 5
+  timeout: 30
+  max_retries: 3
+
+processing:
+  confidence_threshold: 0.80
+  supplier_match_threshold: 80
+  dpi: 300
+  wait_stability_seconds: 5
+  archive_poll_interval: 30

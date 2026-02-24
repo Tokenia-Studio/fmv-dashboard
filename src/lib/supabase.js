@@ -496,3 +496,82 @@ export const storage = {
     return { error }
   }
 }
+
+// ============================================
+// GESTION DOCUMENTAL HELPERS
+// ============================================
+
+export const documental = {
+  // Lista de lotes (más recientes primero)
+  getBatches: async () => {
+    const { data, error } = await supabase
+      .from('doc_batches')
+      .select('*')
+      .order('created_at', { ascending: false })
+    return { data, error }
+  },
+
+  // Detalle de un lote con sus documentos
+  getBatch: async (id) => {
+    const { data, error } = await supabase
+      .from('doc_batches')
+      .select('*, doc_documents(*)')
+      .eq('id', id)
+      .single()
+    return { data, error }
+  },
+
+  // Actualizar estado de un lote
+  updateBatchStatus: async (id, estado) => {
+    const { data, error } = await supabase
+      .from('doc_batches')
+      .update({ estado })
+      .eq('id', id)
+    return { data, error }
+  },
+
+  // Actualizar datos de un documento (corrección manual)
+  updateDocument: async (id, updates) => {
+    const { data, error } = await supabase
+      .from('doc_documents')
+      .update({ ...updates, estado: 'corregido' })
+      .eq('id', id)
+    return { data, error }
+  },
+
+  // Confirmar y archivar un lote completo
+  archiveBatch: async (id) => {
+    // Marcar documentos OK/corregidos como archivados
+    await supabase
+      .from('doc_documents')
+      .update({ estado: 'archivado' })
+      .eq('batch_id', id)
+      .in('estado', ['ok', 'corregido'])
+    // Marcar lote como archivado
+    const { data, error } = await supabase
+      .from('doc_batches')
+      .update({ estado: 'archivado' })
+      .eq('id', id)
+    return { data, error }
+  },
+
+  // URL de preview de una página
+  getPreviewUrl: (batchId, pageNumber) => {
+    const { data } = supabase.storage
+      .from('doc-previews')
+      .getPublicUrl(`${batchId}/page_${String(pageNumber).padStart(3, '0')}.png`)
+    return data.publicUrl
+  },
+
+  // Estadísticas generales
+  getStats: async () => {
+    const { data } = await supabase.from('doc_batches').select('estado, total_documentos, created_at')
+    if (!data) return { procesados: 0, pendientes: 0, total: 0, docsTotal: 0 }
+    return {
+      procesados: data.filter(b => b.estado === 'archivado').length,
+      pendientes: data.filter(b => b.estado === 'pendiente_revision').length,
+      total: data.length,
+      docsTotal: data.reduce((sum, b) => sum + (b.total_documentos || 0), 0)
+    }
+  }
+}

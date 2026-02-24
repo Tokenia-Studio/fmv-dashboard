@@ -1,0 +1,105 @@
+"""Cliente Supabase para sincronizar resultados del pipeline."""
+
+from __future__ import annotations
+import logging
+from pathlib import Path
+
+from supabase import create_client, Client
+
+from core.models import Batch, Document, EstadoBatch
+
+logger = logging.getLogger(__name__)
+
+
+class SupabaseSync:
+    """Sincroniza lotes y documentos procesados con Supabase."""
+
+    def __init__(self, url: str, service_key: str):
+        self.client: Client = create_client(url, service_key)
+
+    def save_batch(self, batch: Batch) -> None:
+        """Inserta un lote y todos sus documentos en Supabase."""
+        # Insertar batch
+        self.client.table("doc_batches").insert({
+            "id": batch.id,
+            "fichero_origen": batch.fichero_origen,
+            "total_paginas": batch.total_paginas,
+            "total_documentos": batch.total_documentos,
+            "estado": batch.estado.value,
+        }).execute()
+
+        # Insertar documentos
+        for doc in batch.documents:
+            self.client.table("doc_documents").insert({
+                "id": doc.id,
+                "batch_id": batch.id,
+                "tipo": doc.tipo.value,
+                "proveedor_nombre": doc.proveedor_nombre,
+                "proveedor_codigo": doc.proveedor_codigo,
+                "numero_factura": doc.numero_factura,
+                "numero_albaran": doc.numero_albaran,
+                "numero_pedido": doc.numero_pedido,
+                "fecha_documento": doc.fecha_documento.isoformat() if doc.fecha_documento else None,
+                "paginas": doc.paginas,
+                "confianza": doc.confianza,
+                "estado": doc.estado.value,
+                "ruta_destino": doc.ruta_destino,
+                "fichero_nombre": doc.fichero_nombre,
+                "factura_asociada_id": doc.factura_asociada_id,
+                "preview_url": doc.preview_url,
+            }).execute()
+
+        logger.info(f"Batch {batch.id[:8]} guardado en Supabase ({batch.total_documentos} docs)")
+
+    def upload_previews(self, batch_id: str, image_paths: list[str]) -> list[str]:
+        """Sube las imágenes de preview a Supabase Storage.
+
+        Returns:
+            Lista de URLs públicas de las imágenes.
+        """
+        urls: list[str] = []
+        bucket = "doc-previews"
+
+        for image_path in image_paths:
+            path = Path(image_path)
+            storage_path = f"{batch_id}/{path.name}"
+
+            with open(image_path, "rb") as f:
+                self.client.storage.from_(bucket).upload(
+                    storage_path,
+                    f.read(),
+                    file_options={"content-type": "image/png"},
+                )
+
+            url = self.client.storage.from_(bucket).get_public_url(storage_path)
+            urls.append(url)
+
+        logger.info(f"Subidas {len(urls)} previews para batch {batch_id[:8]}")
+        return urls
+
+    def log(self, batch_id: str, nivel: str, mensaje: str) -> None:
+        """Inserta una entrada en el log de procesamiento."""
+        self.client.table("doc_processing_log").insert({
+            "batch_id": batch_id,
+            "nivel": nivel,
+            "mensaje": mensaje,
+        }).execute()
+
+    def get_batches_to_archive(self) -> list[dict]:
+        """Obtiene lotes marcados como 'archivado' desde el frontend (polling)."""
+        response = (
+            self.client.table("doc_batches")
+            .select("id, fichero_origen")
+            .eq("estado", "archivado")
+            .execute()
+        )
+        return response.data
+
+    def load_maestro_proveedores(self) -> list[dict]:
+        """Carga el maestro de proveedores."""
+        response = (
+            self.client.table("proveedores")
+            .select("codigo, nombre")
+            .execute()
+        )
+        return response.data
