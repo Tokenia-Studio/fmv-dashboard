@@ -288,7 +288,7 @@ async def _analyze_single_page(
                     "type": "image_url",
                     "image_url": {
                         "url": f"data:{mime};base64,{b64}",
-                        "detail": "low",
+                        "detail": "auto",
                     },
                 },
             ],
@@ -301,7 +301,7 @@ async def _analyze_single_page(
                 client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    max_tokens=400,
+                    max_tokens=500,
                     temperature=0.1,
                     response_format={"type": "json_object"},
                 ),
@@ -345,13 +345,26 @@ async def _retry_with_high_detail(
     model: str,
     timeout: int,
 ) -> PageResult:
-    """Re-analiza una página con detail:high si la confianza fue baja."""
+    """Re-analiza una página con detail:high + PNG original.
+
+    Acepta el nuevo resultado si:
+    - Mejora la confianza, O
+    - Extrae más datos (nºs de albarán referenciados, proveedor, etc.)
+    """
     image_path = result.image_path
     if not image_path:
         return result
 
     # Para retry usar el PNG original (mayor calidad)
     b64 = _encode_image(image_path)
+
+    hint = ""
+    if result.tipo == TipoDocumento.FACTURA:
+        hint = (
+            " IMPORTANTE: Si es una factura, busca con mucho cuidado TODOS los "
+            "numeros de albaran referenciados en las lineas de detalle. "
+            "Los numeros suelen tener 4-6 digitos."
+        )
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -361,8 +374,7 @@ async def _retry_with_high_detail(
                 {
                     "type": "text",
                     "text": (
-                        f"Analiza esta página con MÁXIMO detalle (página {result.page_number}). "
-                        f"Un análisis previo dio baja confianza."
+                        f"Analiza esta pagina con MAXIMO detalle (pagina {result.page_number}).{hint}"
                     ),
                 },
                 {
@@ -381,11 +393,11 @@ async def _retry_with_high_detail(
             client.chat.completions.create(
                 model=model,
                 messages=messages,
-                max_tokens=500,
+                max_tokens=600,
                 temperature=0.1,
                 response_format={"type": "json_object"},
             ),
-            timeout=timeout * 2,  # Más tiempo para high detail
+            timeout=timeout * 2,
         )
 
         raw_text = response.choices[0].message.content or ""
@@ -393,18 +405,28 @@ async def _retry_with_high_detail(
         data = _filter_fmv(data)
         new_result = _to_page_result(data, result.page_number, image_path)
 
-        if new_result.confianza > result.confianza:
+        # Aceptar si mejora confianza O extrae más datos
+        better_confidence = new_result.confianza >= result.confianza
+        more_data = (
+            len(new_result.numeros_albaran_ref) > len(result.numeros_albaran_ref) or
+            (new_result.proveedor and not result.proveedor) or
+            (new_result.proveedor_nif and not result.proveedor_nif)
+        )
+
+        if better_confidence or more_data:
+            refs = new_result.numeros_albaran_ref
             logger.info(
-                f"  Pág {result.page_number} RETRY-HD: {new_result.tipo.value} | "
-                f"conf={result.confianza:.0%}→{new_result.confianza:.0%}"
+                f"  Pag {result.page_number} RETRY-HD: {new_result.tipo.value} | "
+                f"conf={result.confianza:.0%}->{new_result.confianza:.0%} | "
+                f"alb_ref={refs if refs else '-'}"
             )
             return new_result
         else:
-            logger.info(f"  Pág {result.page_number} RETRY-HD: sin mejora, manteniendo original")
+            logger.info(f"  Pag {result.page_number} RETRY-HD: sin mejora, manteniendo original")
             return result
 
     except Exception as e:
-        logger.warning(f"  Pág {result.page_number} RETRY-HD falló: {e}")
+        logger.warning(f"  Pag {result.page_number} RETRY-HD fallo: {e}")
         return result
 
 
@@ -465,13 +487,25 @@ async def analyze_pages(
     t1 = time.time()
     logger.info(f"Fase 1 completada en {t1 - t0:.1f}s ({total} páginas)")
 
-    # ── FASE 2: Retry con detail:high para baja confianza ──
+    # ── FASE 2: Retry con detail:high para páginas que necesitan más detalle ──
+    # - Baja confianza (<0.6)
+    # - Facturas sin nºs de albarán referenciados (necesitan leer líneas de detalle)
 
     LOW_CONFIDENCE = 0.6
-    low_conf_indices = [i for i, r in enumerate(results) if r.confianza < LOW_CONFIDENCE]
+    needs_retry = []
+    for i, r in enumerate(results):
+        if r.confianza < LOW_CONFIDENCE:
+            needs_retry.append(i)
+        elif r.tipo == TipoDocumento.FACTURA and not r.numeros_albaran_ref:
+            needs_retry.append(i)
+
+    low_conf_indices = list(set(needs_retry))
 
     if low_conf_indices:
-        logger.info(f"Fase 2: re-analizando {len(low_conf_indices)} páginas con baja confianza (detail:high)")
+        logger.info(
+            f"Fase 2: re-analizando {len(low_conf_indices)} páginas con detail:high "
+            f"(baja confianza o facturas sin albaranes ref.)"
+        )
 
         retry_semaphore = asyncio.Semaphore(3)  # Menos concurrencia para high detail
 

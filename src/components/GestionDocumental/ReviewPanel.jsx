@@ -61,12 +61,38 @@ function confidenceBadge(confianza) {
   return <span className={`text-xs px-1.5 py-0.5 rounded ${color}`}>{pct}%</span>
 }
 
-// ---- Preview Modal ----
+// ---- Preview Modal con edición ----
 
-function PreviewModal({ doc, batchId, onClose }) {
+function PreviewModal({ doc, batchId, onClose, onUpdateDoc }) {
   if (!doc) return null
 
   const pages = doc.paginas || []
+  const [editing, setEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    tipo: doc.tipo,
+    proveedor_nombre: doc.proveedor_nombre || '',
+    proveedor_codigo: doc.proveedor_codigo || '',
+    numero_factura: doc.numero_factura || '',
+    numero_albaran: doc.numero_albaran || '',
+    fecha_documento: doc.fecha_documento || '',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await documental.updateDocument(doc.id, {
+        ...editData,
+        estado: 'corregido',
+      })
+      // Actualizar doc local
+      if (onUpdateDoc) onUpdateDoc(doc.id, editData)
+      setEditing(false)
+    } catch (err) {
+      alert('Error guardando: ' + err.message)
+    }
+    setSaving(false)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
@@ -79,49 +105,141 @@ function PreviewModal({ doc, batchId, onClose }) {
           <div>
             <h3 className="font-semibold text-gray-800">{docLabel(doc)}</h3>
             <p className="text-sm text-gray-500">
-              {doc.proveedor_nombre || 'Sin proveedor'} · {pages.length} página{pages.length !== 1 ? 's' : ''}
+              {doc.proveedor_nombre || 'Sin proveedor'} · {pages.length} pag.
               {doc.fecha_documento && ` · ${doc.fecha_documento}`}
             </p>
           </div>
           <div className="flex items-center gap-3">
             {confidenceBadge(doc.confianza)}
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+              >
+                Editar
+              </button>
+            )}
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
           </div>
         </div>
 
-        {/* Datos extraídos */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-sm">
-          {doc.numero_factura && (
-            <div><span className="text-gray-500">Factura:</span> <span className="font-medium">{doc.numero_factura}</span></div>
-          )}
-          {doc.numero_albaran && (
-            <div><span className="text-gray-500">Albarán:</span> <span className="font-medium">{doc.numero_albaran}</span></div>
-          )}
-          {doc.proveedor_codigo && (
-            <div><span className="text-gray-500">Código:</span> <span className="font-medium">{doc.proveedor_codigo}</span></div>
-          )}
-          {doc.proveedor_nif && (
-            <div><span className="text-gray-500">NIF:</span> <span className="font-medium">{doc.proveedor_nif}</span></div>
-          )}
-        </div>
+        {/* Panel de edición */}
+        {editing && (
+          <div className="px-6 py-4 bg-amber-50 border-b border-amber-200 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-600 block mb-1">Tipo</label>
+                <select
+                  value={editData.tipo}
+                  onChange={e => setEditData({ ...editData, tipo: e.target.value })}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                >
+                  <option value="factura">Factura</option>
+                  <option value="albaran">Albaran</option>
+                  <option value="desconocido">Desconocido</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 block mb-1">Proveedor</label>
+                <input
+                  type="text"
+                  value={editData.proveedor_nombre}
+                  onChange={e => setEditData({ ...editData, proveedor_nombre: e.target.value })}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                  placeholder="Nombre del proveedor"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 block mb-1">Codigo proveedor</label>
+                <input
+                  type="text"
+                  value={editData.proveedor_codigo}
+                  onChange={e => setEditData({ ...editData, proveedor_codigo: e.target.value })}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                  placeholder="Codigo"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 block mb-1">N. Factura</label>
+                <input
+                  type="text"
+                  value={editData.numero_factura}
+                  onChange={e => setEditData({ ...editData, numero_factura: e.target.value })}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 block mb-1">N. Albaran</label>
+                <input
+                  type="text"
+                  value={editData.numero_albaran}
+                  onChange={e => setEditData({ ...editData, numero_albaran: e.target.value })}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 block mb-1">Fecha</label>
+                <input
+                  type="date"
+                  value={editData.fecha_documento}
+                  onChange={e => setEditData({ ...editData, fecha_documento: e.target.value })}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setEditing(false)}
+                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        )}
 
-        {/* Imágenes */}
+        {/* Datos extraidos (solo lectura) */}
+        {!editing && (
+          <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-sm">
+            {doc.numero_factura && (
+              <div><span className="text-gray-500">Factura:</span> <span className="font-medium">{doc.numero_factura}</span></div>
+            )}
+            {doc.numero_albaran && (
+              <div><span className="text-gray-500">Albaran:</span> <span className="font-medium">{doc.numero_albaran}</span></div>
+            )}
+            {doc.proveedor_codigo && (
+              <div><span className="text-gray-500">Codigo:</span> <span className="font-medium">{doc.proveedor_codigo}</span></div>
+            )}
+            {doc.proveedor_nif && (
+              <div><span className="text-gray-500">NIF:</span> <span className="font-medium">{doc.proveedor_nif}</span></div>
+            )}
+          </div>
+        )}
+
+        {/* Imagenes */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100">
-          {pages.map((pageNum, i) => (
+          {pages.map((pageNum) => (
             <div key={pageNum} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="bg-gray-50 px-3 py-1.5 text-xs text-gray-500 border-b">
-                Página {pageNum}
+                Pagina {pageNum}
               </div>
               <img
                 src={documental.getPreviewUrl(batchId, pageNum)}
-                alt={`Página ${pageNum}`}
+                alt={`Pagina ${pageNum}`}
                 className="w-full"
                 loading="lazy"
               />
             </div>
           ))}
           {pages.length === 0 && (
-            <p className="text-center text-gray-400 py-8">Sin páginas de preview disponibles</p>
+            <p className="text-center text-gray-400 py-8">Sin paginas de preview disponibles</p>
           )}
         </div>
       </div>
@@ -691,6 +809,14 @@ export default function ReviewPanel({ batchId, onBack }) {
           doc={previewDoc}
           batchId={batchId}
           onClose={() => setPreviewDoc(null)}
+          onUpdateDoc={(docId, newData) => {
+            // Actualizar el documento en el estado local
+            setDocuments(prev => prev.map(d =>
+              d.id === docId ? { ...d, ...newData } : d
+            ))
+            // Actualizar el doc del modal
+            setPreviewDoc(prev => prev && prev.id === docId ? { ...prev, ...newData } : prev)
+          }}
         />
       )}
     </div>

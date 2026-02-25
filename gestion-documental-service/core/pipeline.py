@@ -37,13 +37,13 @@ async def process_pdf(
     Returns:
         Batch con los documentos procesados.
     """
-    pdf_path = Path(pdf_path)
+    pdf_path = Path(pdf_path).resolve()
     logger.info(f"=== Procesando lote: {pdf_path.name} ===")
 
     batch = Batch(fichero_origen=pdf_path.name)
 
     # 1. Mover PDF a carpeta 'procesando' para evitar reprocesamiento
-    procesando_dir = Path(config.paths.procesando)
+    procesando_dir = Path(config.paths.procesando).resolve()
     procesando_dir.mkdir(parents=True, exist_ok=True)
     processing_path = procesando_dir / pdf_path.name
 
@@ -68,17 +68,7 @@ async def process_pdf(
                 batch.estado = EstadoBatch.ARCHIVADO
                 return batch
 
-            # 3. Subir previews a Supabase Storage (si hay cliente)
-            if supabase_sync:
-                try:
-                    preview_urls = supabase_sync.upload_previews(batch.id, image_paths)
-                except Exception as e:
-                    logger.warning(f"Error subiendo previews: {e}")
-                    preview_urls = []
-            else:
-                preview_urls = []
-
-            # 4. Analizar cada página con GPT-4o mini
+            # 3. Analizar cada página con GPT-4o mini
             page_results = await analyze_pages(
                 image_paths=image_paths,
                 api_key=config.openai.api_key,
@@ -88,16 +78,16 @@ async def process_pdf(
                 max_retries=config.openai.max_retries,
             )
 
-            # 5. Agrupar páginas en documentos
+            # 4. Agrupar páginas en documentos
             documents = group_pages_into_documents(
                 page_results=page_results,
                 confidence_threshold=config.processing.confidence_threshold,
             )
 
-            # 6. Asociar albaranes con facturas
+            # 5. Asociar albaranes con facturas
             documents = associate_delivery_notes(documents)
 
-            # 7. Generar PDFs unificados (factura + albaranes)
+            # 6. Generar PDFs unificados (factura + albaranes)
             merge_output_dir = Path(temp_dir) / "merged"
             documents = merge_documents(
                 documents=documents,
@@ -105,7 +95,7 @@ async def process_pdf(
                 output_dir=merge_output_dir,
             )
 
-            # 8. Lookup de proveedores (fuzzy match contra maestro)
+            # 7. Lookup de proveedores (fuzzy match contra maestro)
             if maestro:
                 documents = lookup_suppliers(
                     documents=documents,
@@ -113,17 +103,10 @@ async def process_pdf(
                     match_threshold=config.processing.supplier_match_threshold,
                 )
 
-            # 9. Asignar preview URLs a documentos
-            for doc in documents:
-                if doc.paginas and preview_urls:
-                    first_page = doc.paginas[0] - 1  # 0-indexed
-                    if first_page < len(preview_urls):
-                        doc.preview_url = preview_urls[first_page]
-
-            # 10. Archivar: renombrar y mover a carpeta destino
+            # 8. Archivar: renombrar y mover a carpeta destino
             documents = archive_documents(documents, config)
 
-            # 11. Mover original a procesados (backup)
+            # 9. Mover original a procesados (backup)
             move_original_to_processed(processing_path, config)
 
             # Finalizar batch
@@ -131,12 +114,20 @@ async def process_pdf(
             batch.total_documentos = len(documents)
             batch.estado = EstadoBatch.PENDIENTE_REVISION
 
-            # 12. Persistir en Supabase
+            # 9b. Subir previews a Supabase Storage (antes de borrar temp dir)
+            if supabase_sync:
+                try:
+                    preview_urls = supabase_sync.upload_previews(batch.id, image_paths)
+                    logger.info(f"Subidas {len(preview_urls)} previews a Supabase Storage")
+                except Exception as e:
+                    logger.error(f"Error subiendo previews: {e}")
+
+            # 10. Persistir en Supabase
             if supabase_sync:
                 try:
                     supabase_sync.save_batch(batch)
                     supabase_sync.log(batch.id, "info",
-                        f"Procesado: {batch.total_documentos} docs de {batch.total_paginas} págs")
+                        f"Procesado: {batch.total_documentos} docs de {batch.total_paginas} pags")
                 except Exception as e:
                     logger.error(f"Error guardando en Supabase: {e}")
 
