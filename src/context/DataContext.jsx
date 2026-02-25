@@ -985,6 +985,10 @@ export function DataProvider({ children }) {
         const c2 = cuenta.substring(0, 2)
         if (c2 !== '60' && c2 !== '62') return
 
+        // Ignorar líneas ya servidas (cantidad pendiente = 0)
+        const cantPte = parseFloat(row[COL_cantPte]) || 0
+        if (cantPte <= 0) return
+
         const importe = parseFloat(row[COL_importe]) || 0
         if (importe === 0) return
 

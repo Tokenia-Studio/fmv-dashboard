@@ -38,6 +38,52 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
     XLSX.writeFile(wb, `${nombreArchivo}.xlsx`)
   }
 
+  // Exportar albaranes pendientes a Excel
+  const exportarAlbaranesFiltrados = (filtro, nombreArchivo) => {
+    const albFiltrados = (albaranesFacturas || []).filter(a => a.es_pendiente).filter(filtro).map(a => ({
+      Mes: a.mes,
+      Tipo: a.tipo_documento || '',
+      Cuenta: a.cuenta_mapeada || '',
+      Descripcion: a.descripcion || '',
+      Importe: Math.abs(a.importe || 0),
+      'Grupo Contable': a.grupo_contable_prod || '',
+      Proveedor: proveedores[a.cod_proveedor] || a.cod_proveedor || ''
+    }))
+    if (albFiltrados.length === 0) {
+      alert('No hay albaranes pendientes para exportar')
+      return
+    }
+    const ws = XLSX.utils.json_to_sheet(albFiltrados)
+    ws['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 12 }, { wch: 15 }, { wch: 30 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Albaranes Ptes')
+    XLSX.writeFile(wb, `${nombreArchivo}.xlsx`)
+  }
+
+  // Exportar pedidos pendientes a Excel
+  const exportarPedidosFiltrados = (filtro, nombreArchivo) => {
+    const pedFiltrados = (pedidosRemapeados || []).filter(filtro).map(p => ({
+      Mes: p.mes,
+      Documento: p.no_documento || '',
+      Cuenta: p.cuenta || '',
+      Descripcion: p.descripcion || '',
+      Cantidad: p.cantidad || 0,
+      'Cant. Pendiente': p.cantidad_pendiente || 0,
+      Importe: Math.abs(p.importe || 0),
+      Proveedor: proveedores[p.cod_proveedor] || p.cod_proveedor || '',
+      'Fecha Recepción': p.fecha_recepcion || ''
+    }))
+    if (pedFiltrados.length === 0) {
+      alert('No hay pedidos pendientes para exportar')
+      return
+    }
+    const ws = XLSX.utils.json_to_sheet(pedFiltrados)
+    ws['!cols'] = [{ wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 40 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 12 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Pedidos Ptes')
+    XLSX.writeFile(wb, `${nombreArchivo}.xlsx`)
+  }
+
   // Filtro por grupo (60 o 62) y mes
   const exportarGrupo = (grupoId, esMes) => {
     const filtro = (mov) => {
@@ -73,6 +119,68 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
     }
     const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
     exportarMovimientosFiltrados(filtro, `Real_${subcuenta}_${año}_${periodo}`)
+  }
+
+  // --- Exportar Albaranes por grupo / cuenta3 / subcuenta ---
+  const exportarAlbaranesGrupo = (grupoId, esMes) => {
+    const filtro = (a) => {
+      const c2 = (a.cuenta_mapeada || '').substring(0, 2)
+      if (c2 !== grupoId) return false
+      return esMes ? a.mes === mesSeleccionado : a.mes <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarAlbaranesFiltrados(filtro, `Albaranes_Grupo${grupoId}_${año}_${periodo}`)
+  }
+
+  const exportarAlbaranesCuenta3 = (cuenta3, esMes) => {
+    const filtro = (a) => {
+      if (!(a.cuenta_mapeada || '').startsWith(cuenta3)) return false
+      return esMes ? a.mes === mesSeleccionado : a.mes <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarAlbaranesFiltrados(filtro, `Albaranes_${cuenta3}_${año}_${periodo}`)
+  }
+
+  const exportarAlbaranesSubcuenta = (subcuenta, esMes) => {
+    const filtro = (a) => {
+      const c = a.cuenta_mapeada || ''
+      const match = c.length === 9 ? c === subcuenta : c.substring(0, 3) === subcuenta.substring(0, 3)
+      if (!match) return false
+      return esMes ? a.mes === mesSeleccionado : a.mes <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarAlbaranesFiltrados(filtro, `Albaranes_${subcuenta}_${año}_${periodo}`)
+  }
+
+  // --- Exportar Pedidos por grupo / cuenta3 / subcuenta ---
+  const exportarPedidosGrupo = (grupoId, esMes) => {
+    const filtro = (p) => {
+      const c2 = (p.cuenta || '').substring(0, 2)
+      if (c2 !== grupoId) return false
+      return esMes ? p.mes === mesSeleccionado : p.mes <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarPedidosFiltrados(filtro, `Pedidos_Grupo${grupoId}_${año}_${periodo}`)
+  }
+
+  const exportarPedidosCuenta3 = (cuenta3, esMes) => {
+    const filtro = (p) => {
+      if (!(p.cuenta || '').startsWith(cuenta3)) return false
+      return esMes ? p.mes === mesSeleccionado : p.mes <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarPedidosFiltrados(filtro, `Pedidos_${cuenta3}_${año}_${periodo}`)
+  }
+
+  const exportarPedidosSubcuenta = (subcuenta, esMes) => {
+    const filtro = (p) => {
+      const c = p.cuenta || ''
+      const match = c.length === 9 ? c === subcuenta : c.substring(0, 3) === subcuenta.substring(0, 3)
+      if (!match) return false
+      return esMes ? p.mes === mesSeleccionado : p.mes <= mesSeleccionado
+    }
+    const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
+    exportarPedidosFiltrados(filtro, `Pedidos_${subcuenta}_${año}_${periodo}`)
   }
 
   const toggleExpand = (key) => {
@@ -243,8 +351,20 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
         >
           {formatCurrency(tot.realMes)}
         </td>
-        <td className="p-3 text-right">{formatCurrency(tot.albMes)}</td>
-        <td className="p-3 text-right">{formatCurrency(tot.pedMes)}</td>
+        <td
+          className="p-3 text-right cursor-pointer hover:bg-blue-100 hover:underline"
+          onClick={(e) => { e.stopPropagation(); exportarAlbaranesGrupo(grupoId, true) }}
+          title="Clic para exportar albaranes pendientes"
+        >
+          {formatCurrency(tot.albMes)}
+        </td>
+        <td
+          className="p-3 text-right cursor-pointer hover:bg-blue-100 hover:underline"
+          onClick={(e) => { e.stopPropagation(); exportarPedidosGrupo(grupoId, true) }}
+          title="Clic para exportar pedidos pendientes"
+        >
+          {formatCurrency(tot.pedMes)}
+        </td>
         <td className="p-3 text-right font-medium">{formatCurrency(tot.totalEstMes)}</td>
         <td className="p-3 text-right">{formatVar(desvMes)}</td>
         <td className="p-3 text-right bg-slate-50 text-gray-600">{formatCurrency(tot.presAcum)}</td>
@@ -288,8 +408,20 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
             >
               {formatCurrency(d.realMes)}
             </td>
-            <td className="p-2 text-right">{formatCurrency(d.albMes)}</td>
-            <td className="p-2 text-right">{formatCurrency(d.pedMes)}</td>
+            <td
+              className="p-2 text-right cursor-pointer hover:bg-blue-50 hover:underline"
+              onClick={(e) => { e.stopPropagation(); exportarAlbaranesCuenta3(d.cuenta3, true) }}
+              title="Clic para exportar albaranes pendientes"
+            >
+              {formatCurrency(d.albMes)}
+            </td>
+            <td
+              className="p-2 text-right cursor-pointer hover:bg-blue-50 hover:underline"
+              onClick={(e) => { e.stopPropagation(); exportarPedidosCuenta3(d.cuenta3, true) }}
+              title="Clic para exportar pedidos pendientes"
+            >
+              {formatCurrency(d.pedMes)}
+            </td>
             <td className="p-2 text-right font-medium">{formatCurrency(d.totalEstMes)}</td>
             <td className="p-2 text-right">{formatVar(d.desvMes)}</td>
             <td className="p-2 text-right bg-slate-50 text-gray-500">{formatCurrency(d.presAcum)}</td>
@@ -325,8 +457,20 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
                 >
                   {formatCurrency(sub.realMes)}
                 </td>
-                <td className="p-1.5 text-right">{sub.albMes ? formatCurrency(sub.albMes) : <span className="text-gray-300">-</span>}</td>
-                <td className="p-1.5 text-right">{sub.pedMes ? formatCurrency(sub.pedMes) : <span className="text-gray-300">-</span>}</td>
+                <td
+                  className="p-1.5 text-right cursor-pointer hover:bg-blue-50 hover:underline"
+                  onClick={() => exportarAlbaranesSubcuenta(sub.cuenta, true)}
+                  title="Clic para exportar albaranes pendientes"
+                >
+                  {sub.albMes ? formatCurrency(sub.albMes) : <span className="text-gray-300">-</span>}
+                </td>
+                <td
+                  className="p-1.5 text-right cursor-pointer hover:bg-blue-50 hover:underline"
+                  onClick={() => exportarPedidosSubcuenta(sub.cuenta, true)}
+                  title="Clic para exportar pedidos pendientes"
+                >
+                  {sub.pedMes ? formatCurrency(sub.pedMes) : <span className="text-gray-300">-</span>}
+                </td>
                 <td className="p-1.5 text-right">{formatCurrency(totalEstMes)}</td>
                 <td className="p-1.5 text-right">{formatVar(desvSubMes)}</td>
                 <td className="p-1.5 text-right bg-slate-50 text-gray-500">{sub.pptoAcum ? formatCurrency(sub.pptoAcum) : <span className="text-gray-300">-</span>}</td>
