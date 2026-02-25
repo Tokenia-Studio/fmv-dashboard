@@ -7,8 +7,8 @@ paths:
   errores: "test_folders/errores"
 
 openai:
-  model: "gpt-4o-mini"
-  fallback_model: "gpt-4o"
+  model: "gpt-4o"
+  fallback_model: "gpt-4o-mini"
   max_concurrent: 10
   timeout: 30
   max_retries: 3

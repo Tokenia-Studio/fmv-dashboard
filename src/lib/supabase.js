@@ -555,12 +555,22 @@ export const documental = {
     return { data, error }
   },
 
-  // URL de preview de una página
+  // URL de preview de una página (public URL)
   getPreviewUrl: (batchId, pageNumber) => {
     const { data } = supabase.storage
       .from('doc-previews')
       .getPublicUrl(`${batchId}/page_${String(pageNumber).padStart(3, '0')}.png`)
     return data.publicUrl
+  },
+
+  // URL firmada de preview (para buckets privados, 1h de validez)
+  getSignedPreviewUrl: async (batchId, pageNumber) => {
+    const path = `${batchId}/page_${String(pageNumber).padStart(3, '0')}.png`
+    const { data, error } = await supabase.storage
+      .from('doc-previews')
+      .createSignedUrl(path, 3600)
+    if (error) return null
+    return data.signedUrl
   },
 
   // Estadísticas generales

@@ -177,11 +177,11 @@ function DocRow({ doc, isEditing, onStartEdit, onSaveEdit, onCancelEdit, isDragg
       <span className="text-gray-300">{pags}p</span>
       <div className="flex-1" />
       <button onClick={(e) => { e.stopPropagation(); onStartEdit() }}
-        className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity px-1"
+        className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded px-1.5 py-0.5 text-sm"
         title="Editar">✎</button>
       {onRemove && (
         <button onClick={(e) => { e.stopPropagation(); onRemove(doc.id) }}
-          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity px-1"
+          className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded px-1.5 py-0.5 text-sm"
           title="Desasociar">✕</button>
       )}
       {children}
@@ -360,7 +360,26 @@ export default function ReviewPanel({ batchId, onBack }) {
   }
 
   const handleSaveEdit = useCallback((docId, newData) => {
-    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, ...newData } : d))
+    setDocuments(prev => {
+      const updated = prev.map(d => d.id === docId ? { ...d, ...newData } : d)
+
+      // Si cambió el tipo, recalcular assignments
+      const oldDoc = prev.find(d => d.id === docId)
+      if (oldDoc && oldDoc.tipo !== newData.tipo) {
+        // Recalcular agrupación desde cero con los docs actualizados
+        const { assignments: a, orphans } = initializeFromBackend(updated)
+
+        // Si el doc era huérfano y ahora es factura, crear slot
+        if (newData.tipo === 'factura' && !a[docId]) {
+          a[docId] = []
+        }
+
+        setAssignments(a)
+        setHuerfanos(orphans)
+      }
+
+      return updated
+    })
     setEditingId(null)
   }, [])
 
@@ -401,41 +420,50 @@ export default function ReviewPanel({ batchId, onBack }) {
     if (!allConfirmed) { alert('Confirma todos los grupos primero.'); return }
     setDownloading(true)
     try {
-      const facturas = documents.filter(d => d.tipo === 'factura')
-      for (const factura of facturas) {
+      const facturasList = documents.filter(d => d.tipo === 'factura')
+      let errCount = 0
+      for (const factura of facturasList) {
         const albaranIds = assignments[factura.id] || []
         const albaranDocs = albaranIds.map(id => documents.find(d => d.id === id)).filter(Boolean)
         const allPages = [...(factura.paginas || []), ...albaranDocs.flatMap(a => a.paginas || [])]
-        if (allPages.length === 0) continue
+        if (allPages.length === 0) { errCount++; continue }
+
         const pdfDoc = await PDFDocument.create()
         for (const pageNum of allPages) {
           try {
-            const url = documental.getPreviewUrl(batchId, pageNum)
+            // Intentar URL firmada (bucket privado) y fallback a public
+            let url = await documental.getSignedPreviewUrl(batchId, pageNum)
+            if (!url) url = documental.getPreviewUrl(batchId, pageNum)
+
             const resp = await fetch(url)
-            if (!resp.ok) continue
+            if (!resp.ok) { console.warn(`Página ${pageNum}: HTTP ${resp.status}`); continue }
             const imgBytes = await resp.arrayBuffer()
+            if (imgBytes.byteLength < 100) { console.warn(`Página ${pageNum}: imagen vacía`); continue }
+
             const img = await pdfDoc.embedPng(imgBytes).catch(() => null)
             if (!img) continue
             const page = pdfDoc.addPage([img.width, img.height])
             page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
-          } catch (err) { console.warn(`Error pagina ${pageNum}:`, err) }
+          } catch (err) { console.warn(`Error página ${pageNum}:`, err) }
         }
-        if (pdfDoc.getPageCount() === 0) continue
+        if (pdfDoc.getPageCount() === 0) { errCount++; continue }
+
         const pdfBytes = await pdfDoc.save()
         const blob = new Blob([pdfBytes], { type: 'application/pdf' })
-        const url = URL.createObjectURL(blob)
+        const blobUrl = URL.createObjectURL(blob)
         const prov = (factura.proveedor_codigo || factura.proveedor_nombre || 'PROV').replace(/[^a-zA-Z0-9]/g, '_')
         const num = (factura.numero_factura || 'SN').replace(/[^a-zA-Z0-9]/g, '_')
         const fecha = (factura.fecha_documento || new Date().toISOString().slice(0, 10)).replace(/-/g, '')
         const link = document.createElement('a')
-        link.href = url
+        link.href = blobUrl
         link.download = `${prov}_${num}_${fecha}.pdf`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
-        URL.revokeObjectURL(url)
+        URL.revokeObjectURL(blobUrl)
       }
-    } catch (err) { alert('Error: ' + err.message) }
+      if (errCount > 0) alert(`${errCount} grupo(s) sin páginas disponibles`)
+    } catch (err) { alert('Error generando PDFs: ' + err.message) }
     setDownloading(false)
   }
 

@@ -21,8 +21,8 @@ class PathsConfig:
 
 @dataclass
 class OpenAIConfig:
-    model: str = "gpt-4o-mini"
-    fallback_model: str = "gpt-4o"
+    model: str = "gpt-4o"
+    fallback_model: str = "gpt-4o-mini"
     api_key: str = ""
     max_concurrent: int = 10
     timeout: int = 30
