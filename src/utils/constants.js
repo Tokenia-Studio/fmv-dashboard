@@ -98,7 +98,7 @@ export const TABS = [
   { id: 'cashflow', label: 'Cash Flow', icon: '💰' },
   { id: 'presupuesto', label: 'Presupuesto', icon: '📊' },
   { id: 'cuentasAnuales', label: 'Cuentas Anuales', icon: '📑' },
-  { id: 'gestionDocumental', label: 'Gest. Documental', icon: '📄' },
+  // { id: 'gestionDocumental', label: 'Gest. Documental', icon: '📄' }, // APARCADO 25/02/2026
   { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
   { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' },
   { id: 'cargar', label: 'Cargar', icon: '📤' },
@@ -107,14 +107,14 @@ export const TABS = [
 
 // Secciones de navegación para sidebar (rol direccion)
 export const NAVIGATION_SECTIONS = {
-  finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'gestionDocumental'] },
+  finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales'] },
   produccion: { label: 'Producción', icon: '🏭', tabs: ['seguimientoEstructuras'] },
   admin: { label: 'Administración', icon: '⚙️', tabs: ['cargar', 'usuarios'] }
 }
 
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'gestionDocumental', 'seguimientoEstructuras', 'cargar', 'usuarios'],
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'seguimientoEstructuras', 'cargar', 'usuarios'],
   compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
 }
 
