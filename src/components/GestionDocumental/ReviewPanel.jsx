@@ -1,7 +1,6 @@
 // ============================================
 // REVIEW PANEL - Vista compacta con edicion inline
-// Cada doc se puede editar in-situ
-// Drag & drop con auto-scroll
+// Drag & drop + unir documentos + exportar PDF combinado
 // ============================================
 
 import React, { useState, useEffect, useCallback } from 'react'
@@ -13,7 +12,7 @@ import { PDFDocument } from 'pdf-lib'
 function initializeFromBackend(docs) {
   const facturas = docs.filter(d => d.tipo === 'factura')
   const albaranes = docs.filter(d => d.tipo === 'albaran')
-  const otros = docs.filter(d => d.tipo === 'desconocido')
+  const otros = docs.filter(d => d.tipo !== 'factura' && d.tipo !== 'albaran')
 
   const assignments = {}
   facturas.forEach(f => { assignments[f.id] = [] })
@@ -55,9 +54,9 @@ function useAutoScroll(active) {
   }, [active])
 }
 
-// ---- Documento editable ----
+// ---- Formulario de edicion inline ----
 
-function DocRow({ doc, isEditing, onStartEdit, onSaveEdit, onCancelEdit, isDraggable, onDragStart, onRemove, children }) {
+function EditForm({ doc, onSave, onCancel }) {
   const [data, setData] = useState({
     tipo: doc.tipo || 'desconocido',
     proveedor_nombre: doc.proveedor_nombre || '',
@@ -68,92 +67,88 @@ function DocRow({ doc, isEditing, onStartEdit, onSaveEdit, onCancelEdit, isDragg
   })
   const [saving, setSaving] = useState(false)
 
-  // Reset form cuando cambia el doc o entra en edicion
-  useEffect(() => {
-    setData({
-      tipo: doc.tipo || 'desconocido',
-      proveedor_nombre: doc.proveedor_nombre || '',
-      proveedor_codigo: doc.proveedor_codigo || '',
-      numero_factura: doc.numero_factura || '',
-      numero_albaran: doc.numero_albaran || '',
-      fecha_documento: doc.fecha_documento || '',
-    })
-  }, [doc.id, isEditing])
-
   const handleSave = async () => {
     setSaving(true)
     try {
       await documental.updateDocument(doc.id, { ...data, estado: 'corregido' })
-      onSaveEdit(doc.id, data)
+      onSave(doc.id, data)
     } catch (err) {
-      alert('Error: ' + err.message)
+      alert('Error guardando: ' + err.message)
     }
     setSaving(false)
   }
 
+  return (
+    <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg px-4 py-3 space-y-3 shadow-md">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-bold text-yellow-800">
+          EDITANDO: {doc.tipo === 'factura' ? 'FAC' : doc.tipo === 'albaran' ? 'ALB' : 'DOC'} {doc.numero_factura || doc.numero_albaran || 'S/N'}
+          {' '}({(doc.paginas?.length || 0)}p)
+        </span>
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+            className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 font-medium">
+            Cancelar
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 font-medium">
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className="text-[10px] text-gray-600 block font-medium">Tipo</label>
+          <select value={data.tipo} onChange={e => setData({ ...data, tipo: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            <option value="factura">Factura</option>
+            <option value="albaran">Albaran</option>
+            <option value="desconocido">Desconocido</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-600 block font-medium">Proveedor</label>
+          <input type="text" value={data.proveedor_nombre}
+            onChange={e => setData({ ...data, proveedor_nombre: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Nombre proveedor" />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-600 block font-medium">Cod. Proveedor</label>
+          <input type="text" value={data.proveedor_codigo}
+            onChange={e => setData({ ...data, proveedor_codigo: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Codigo" />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-600 block font-medium">N. Factura</label>
+          <input type="text" value={data.numero_factura}
+            onChange={e => setData({ ...data, numero_factura: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="N. Factura" />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-600 block font-medium">N. Albaran</label>
+          <input type="text" value={data.numero_albaran}
+            onChange={e => setData({ ...data, numero_albaran: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="N. Albaran" />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-600 block font-medium">Fecha</label>
+          <input type="date" value={data.fecha_documento}
+            onChange={e => setData({ ...data, fecha_documento: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---- Fila de documento ----
+
+function DocRow({ doc, isDraggable, onDragStart, onRemove, onEdit, onMergeWithPrev, children }) {
   const icon = doc.tipo === 'factura' ? '🧾' : doc.tipo === 'albaran' ? '📋' : '❓'
   const tipoLabel = doc.tipo === 'factura' ? 'FAC' : doc.tipo === 'albaran' ? 'ALB' : 'DOC'
   const num = doc.numero_factura || doc.numero_albaran || 'S/N'
   const pags = doc.paginas?.length || 0
 
-  if (isEditing) {
-    return (
-      <div className="bg-amber-50 border-2 border-amber-300 rounded px-3 py-2.5 space-y-2">
-        <div className="text-xs font-medium text-amber-700 mb-1">Editando: {icon} {tipoLabel} {num} ({pags}p)</div>
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <label className="text-[10px] text-gray-500 block">Tipo</label>
-            <select value={data.tipo} onChange={e => setData({ ...data, tipo: e.target.value })}
-              className="w-full px-2 py-1 border rounded text-xs bg-white">
-              <option value="factura">Factura</option>
-              <option value="albaran">Albaran</option>
-              <option value="desconocido">Desconocido</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500 block">Proveedor</label>
-            <input type="text" value={data.proveedor_nombre}
-              onChange={e => setData({ ...data, proveedor_nombre: e.target.value })}
-              className="w-full px-2 py-1 border rounded text-xs" placeholder="Nombre" />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500 block">Cod. Proveedor</label>
-            <input type="text" value={data.proveedor_codigo}
-              onChange={e => setData({ ...data, proveedor_codigo: e.target.value })}
-              className="w-full px-2 py-1 border rounded text-xs" placeholder="Codigo" />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500 block">N. Factura</label>
-            <input type="text" value={data.numero_factura}
-              onChange={e => setData({ ...data, numero_factura: e.target.value })}
-              className="w-full px-2 py-1 border rounded text-xs" placeholder="N. Factura" />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500 block">N. Albaran</label>
-            <input type="text" value={data.numero_albaran}
-              onChange={e => setData({ ...data, numero_albaran: e.target.value })}
-              className="w-full px-2 py-1 border rounded text-xs" placeholder="N. Albaran" />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500 block">Fecha</label>
-            <input type="date" value={data.fecha_documento}
-              onChange={e => setData({ ...data, fecha_documento: e.target.value })}
-              className="w-full px-2 py-1 border rounded text-xs" />
-          </div>
-        </div>
-        <div className="flex gap-2 justify-end pt-1">
-          <button onClick={onCancelEdit}
-            className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
-          <button onClick={handleSave} disabled={saving}
-            className="px-4 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-            {saving ? 'Guardando...' : 'Guardar'}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // Vista normal (no edición)
   const dragProps = isDraggable ? {
     draggable: true,
     onDragStart: (e) => {
@@ -165,7 +160,7 @@ function DocRow({ doc, isEditing, onStartEdit, onSaveEdit, onCancelEdit, isDragg
 
   return (
     <div {...dragProps}
-      className={`flex items-center gap-1.5 px-2 py-1.5 rounded border transition-colors group text-xs
+      className={`flex items-center gap-1.5 px-2 py-1.5 rounded border transition-colors text-xs
         ${isDraggable ? 'cursor-grab active:cursor-grabbing bg-blue-50 border-blue-100 hover:bg-blue-100' : 'bg-white border-gray-100 hover:bg-gray-50'}
       `}
     >
@@ -176,13 +171,18 @@ function DocRow({ doc, isEditing, onStartEdit, onSaveEdit, onCancelEdit, isDragg
       {doc.fecha_documento && <span className="text-gray-300">{doc.fecha_documento}</span>}
       <span className="text-gray-300">{pags}p</span>
       <div className="flex-1" />
-      <button onClick={(e) => { e.stopPropagation(); onStartEdit() }}
-        className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded px-1.5 py-0.5 text-sm"
-        title="Editar">✎</button>
+      {onMergeWithPrev && (
+        <button onClick={(e) => { e.stopPropagation(); onMergeWithPrev() }}
+          className="bg-purple-100 text-purple-700 hover:bg-purple-200 rounded px-2 py-0.5 font-medium"
+          title="Unir con documento anterior (misma factura multi-pagina)">Unir</button>
+      )}
+      <button onClick={(e) => { e.stopPropagation(); onEdit() }}
+        className="bg-blue-100 text-blue-700 hover:bg-blue-200 rounded px-2 py-0.5 font-medium"
+        title="Editar documento">Editar</button>
       {onRemove && (
         <button onClick={(e) => { e.stopPropagation(); onRemove(doc.id) }}
-          className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded px-1.5 py-0.5 text-sm"
-          title="Desasociar">✕</button>
+          className="bg-red-100 text-red-600 hover:bg-red-200 rounded px-2 py-0.5 font-medium"
+          title="Desasociar">Quitar</button>
       )}
       {children}
     </div>
@@ -191,7 +191,7 @@ function DocRow({ doc, isEditing, onStartEdit, onSaveEdit, onCancelEdit, isDragg
 
 // ---- Bloque Factura + albaranes ----
 
-function FacturaBlock({ grupo, editingId, onStartEdit, onSaveEdit, onCancelEdit, onDrop, onToggleConfirm, onRemoveAlbaran, dragOver, setDragOver }) {
+function FacturaBlock({ grupo, editingId, onEdit, onSaveEdit, onCancelEdit, onDrop, onToggleConfirm, onRemoveAlbaran, onMerge, dragOver, setDragOver, allDocs }) {
   const { factura, albaranes, confirmed } = grupo
 
   const handleDragOver = (e) => {
@@ -219,36 +219,35 @@ function FacturaBlock({ grupo, editingId, onStartEdit, onSaveEdit, onCancelEdit,
     >
       {/* Factura */}
       <div className="p-1.5">
-        <DocRow
-          doc={factura}
-          isEditing={editingId === factura.id}
-          onStartEdit={() => onStartEdit(factura.id)}
-          onSaveEdit={onSaveEdit}
-          onCancelEdit={onCancelEdit}
-        >
-          <button
-            onClick={() => onToggleConfirm(factura.id)}
-            className={`text-xs px-1.5 py-0.5 rounded-full font-medium ml-1 ${
-              confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400 hover:bg-amber-100'
-            }`}
-          >{confirmed ? '✓' : '○'}</button>
-        </DocRow>
+        {editingId === factura.id ? (
+          <EditForm doc={factura} onSave={onSaveEdit} onCancel={onCancelEdit} />
+        ) : (
+          <DocRow doc={factura} onEdit={() => onEdit(factura.id)}>
+            <button
+              onClick={() => onToggleConfirm(factura.id)}
+              className={`text-xs px-1.5 py-0.5 rounded-full font-medium ml-1 ${
+                confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400 hover:bg-amber-100'
+              }`}
+            >{confirmed ? '✓' : '○'}</button>
+          </DocRow>
+        )}
       </div>
 
       {/* Albaranes asociados */}
       {albaranes.length > 0 && (
         <div className="px-1.5 pb-1.5 pl-7 space-y-0.5">
           {albaranes.map(a => (
-            <DocRow
-              key={a.id}
-              doc={a}
-              isEditing={editingId === a.id}
-              onStartEdit={() => onStartEdit(a.id)}
-              onSaveEdit={onSaveEdit}
-              onCancelEdit={onCancelEdit}
-              isDraggable
-              onRemove={onRemoveAlbaran}
-            />
+            editingId === a.id ? (
+              <EditForm key={a.id} doc={a} onSave={onSaveEdit} onCancel={onCancelEdit} />
+            ) : (
+              <DocRow
+                key={a.id}
+                doc={a}
+                onEdit={() => onEdit(a.id)}
+                isDraggable
+                onRemove={onRemoveAlbaran}
+              />
+            )
           ))}
         </div>
       )}
@@ -264,7 +263,7 @@ function FacturaBlock({ grupo, editingId, onStartEdit, onSaveEdit, onCancelEdit,
 
 // ---- Secciones ----
 
-function ProveedorSection({ nombre, codigo, facturas, editingId, onStartEdit, onSaveEdit, onCancelEdit, onDrop, onToggleConfirm, onRemoveAlbaran, dragOver, setDragOver }) {
+function ProveedorSection({ nombre, codigo, facturas, editingId, onEdit, onSaveEdit, onCancelEdit, onDrop, onToggleConfirm, onRemoveAlbaran, onMerge, dragOver, setDragOver, allDocs }) {
   const allConfirmed = facturas.every(f => f.confirmed)
   const totalAlb = facturas.reduce((s, f) => s + f.albaranes.length, 0)
 
@@ -283,14 +282,16 @@ function ProveedorSection({ nombre, codigo, facturas, editingId, onStartEdit, on
             key={g.factura.id}
             grupo={g}
             editingId={editingId}
-            onStartEdit={onStartEdit}
+            onEdit={onEdit}
             onSaveEdit={onSaveEdit}
             onCancelEdit={onCancelEdit}
             onDrop={onDrop}
             onToggleConfirm={onToggleConfirm}
             onRemoveAlbaran={onRemoveAlbaran}
+            onMerge={onMerge}
             dragOver={dragOver}
             setDragOver={setDragOver}
+            allDocs={allDocs}
           />
         ))}
       </div>
@@ -298,27 +299,29 @@ function ProveedorSection({ nombre, codigo, facturas, editingId, onStartEdit, on
   )
 }
 
-function HuerfanosSection({ docs, editingId, onStartEdit, onSaveEdit, onCancelEdit, onDragStart }) {
+function HuerfanosSection({ docs, editingId, onEdit, onSaveEdit, onCancelEdit, onDragStart, onMerge }) {
   if (docs.length === 0) return null
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-amber-200">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-100 bg-amber-50/50">
         <span className="font-semibold text-amber-800 text-sm">Sin asociar ({docs.length})</span>
-        <span className="text-xs text-amber-600">Arrastra a una factura</span>
+        <span className="text-xs text-amber-600">Arrastra a una factura o usa Editar/Unir</span>
       </div>
       <div className="p-1.5 space-y-0.5">
-        {docs.map(d => (
-          <DocRow
-            key={d.id}
-            doc={d}
-            isEditing={editingId === d.id}
-            onStartEdit={() => onStartEdit(d.id)}
-            onSaveEdit={onSaveEdit}
-            onCancelEdit={onCancelEdit}
-            isDraggable
-            onDragStart={onDragStart}
-          />
+        {docs.map((d, idx) => (
+          editingId === d.id ? (
+            <EditForm key={d.id} doc={d} onSave={onSaveEdit} onCancel={onCancelEdit} />
+          ) : (
+            <DocRow
+              key={d.id}
+              doc={d}
+              onEdit={() => onEdit(d.id)}
+              isDraggable
+              onDragStart={onDragStart}
+              onMergeWithPrev={idx > 0 ? () => onMerge(d.id, docs[idx - 1].id) : undefined}
+            />
+          )
         ))}
       </div>
     </div>
@@ -362,25 +365,38 @@ export default function ReviewPanel({ batchId, onBack }) {
   const handleSaveEdit = useCallback((docId, newData) => {
     setDocuments(prev => {
       const updated = prev.map(d => d.id === docId ? { ...d, ...newData } : d)
-
-      // Si cambió el tipo, recalcular assignments
       const oldDoc = prev.find(d => d.id === docId)
       if (oldDoc && oldDoc.tipo !== newData.tipo) {
-        // Recalcular agrupación desde cero con los docs actualizados
         const { assignments: a, orphans } = initializeFromBackend(updated)
-
-        // Si el doc era huérfano y ahora es factura, crear slot
         if (newData.tipo === 'factura' && !a[docId]) {
           a[docId] = []
         }
-
         setAssignments(a)
         setHuerfanos(orphans)
       }
-
       return updated
     })
     setEditingId(null)
+  }, [])
+
+  // Unir doc B dentro de doc A (las paginas de B se añaden a A, B desaparece)
+  const handleMerge = useCallback((sourceId, targetId) => {
+    setDocuments(prev => {
+      const source = prev.find(d => d.id === sourceId)
+      const target = prev.find(d => d.id === targetId)
+      if (!source || !target) return prev
+
+      const mergedPages = [...(target.paginas || []), ...(source.paginas || [])]
+      const updated = prev
+        .map(d => d.id === targetId ? { ...d, paginas: mergedPages } : d)
+        .filter(d => d.id !== sourceId)
+
+      // Recalcular agrupacion sin el doc eliminado
+      const { assignments: a, orphans } = initializeFromBackend(updated)
+      setAssignments(a)
+      setHuerfanos(orphans)
+      return updated
+    })
   }, [])
 
   const handleDrop = useCallback((albaranId, targetFacturaId) => {
@@ -425,26 +441,26 @@ export default function ReviewPanel({ batchId, onBack }) {
       for (const factura of facturasList) {
         const albaranIds = assignments[factura.id] || []
         const albaranDocs = albaranIds.map(id => documents.find(d => d.id === id)).filter(Boolean)
+        // Factura (todas sus paginas) + Albaranes (todas sus paginas) = 1 solo PDF
         const allPages = [...(factura.paginas || []), ...albaranDocs.flatMap(a => a.paginas || [])]
         if (allPages.length === 0) { errCount++; continue }
 
         const pdfDoc = await PDFDocument.create()
         for (const pageNum of allPages) {
           try {
-            // Intentar URL firmada (bucket privado) y fallback a public
             let url = await documental.getSignedPreviewUrl(batchId, pageNum)
             if (!url) url = documental.getPreviewUrl(batchId, pageNum)
 
             const resp = await fetch(url)
-            if (!resp.ok) { console.warn(`Página ${pageNum}: HTTP ${resp.status}`); continue }
+            if (!resp.ok) { console.warn(`Pag ${pageNum}: HTTP ${resp.status}`); continue }
             const imgBytes = await resp.arrayBuffer()
-            if (imgBytes.byteLength < 100) { console.warn(`Página ${pageNum}: imagen vacía`); continue }
+            if (imgBytes.byteLength < 100) { console.warn(`Pag ${pageNum}: vacia`); continue }
 
             const img = await pdfDoc.embedPng(imgBytes).catch(() => null)
             if (!img) continue
             const page = pdfDoc.addPage([img.width, img.height])
             page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
-          } catch (err) { console.warn(`Error página ${pageNum}:`, err) }
+          } catch (err) { console.warn(`Error pag ${pageNum}:`, err) }
         }
         if (pdfDoc.getPageCount() === 0) { errCount++; continue }
 
@@ -462,7 +478,7 @@ export default function ReviewPanel({ batchId, onBack }) {
         document.body.removeChild(link)
         URL.revokeObjectURL(blobUrl)
       }
-      if (errCount > 0) alert(`${errCount} grupo(s) sin páginas disponibles`)
+      if (errCount > 0) alert(`${errCount} grupo(s) sin paginas disponibles`)
     } catch (err) { alert('Error generando PDFs: ' + err.message) }
     setDownloading(false)
   }
@@ -546,7 +562,7 @@ export default function ReviewPanel({ batchId, onBack }) {
           )}
           <button onClick={handleDownload} disabled={!allConfirmed || downloading}
             className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
-            {downloading ? 'Generando...' : 'Descargar'}
+            {downloading ? 'Generando...' : 'Descargar PDFs'}
           </button>
           <button onClick={handleArchive} disabled={!allConfirmed || archiving}
             className="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 disabled:opacity-40">
@@ -563,14 +579,16 @@ export default function ReviewPanel({ batchId, onBack }) {
           codigo={codigo}
           facturas={facts}
           editingId={editingId}
-          onStartEdit={setEditingId}
+          onEdit={setEditingId}
           onSaveEdit={handleSaveEdit}
           onCancelEdit={() => setEditingId(null)}
           onDrop={handleDrop}
           onToggleConfirm={handleToggleConfirm}
           onRemoveAlbaran={handleRemoveAlbaran}
+          onMerge={handleMerge}
           dragOver={dragOver}
           setDragOver={setDragOver}
+          allDocs={documents}
         />
       ))}
 
@@ -578,10 +596,11 @@ export default function ReviewPanel({ batchId, onBack }) {
       <HuerfanosSection
         docs={huerfanoDocs}
         editingId={editingId}
-        onStartEdit={setEditingId}
+        onEdit={setEditingId}
         onSaveEdit={handleSaveEdit}
         onCancelEdit={() => setEditingId(null)}
         onDragStart={setDraggingId}
+        onMerge={handleMerge}
       />
 
       {facturas.length === 0 && huerfanoDocs.length === 0 && (
