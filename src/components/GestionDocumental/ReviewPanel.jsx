@@ -1,9 +1,10 @@
 // ============================================
 // REVIEW PANEL - Vista compacta con edicion inline
+// Cada doc se puede editar in-situ
 // Drag & drop con auto-scroll
 // ============================================
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { documental } from '../../lib/supabase'
 import { PDFDocument } from 'pdf-lib'
 
@@ -12,7 +13,7 @@ import { PDFDocument } from 'pdf-lib'
 function initializeFromBackend(docs) {
   const facturas = docs.filter(d => d.tipo === 'factura')
   const albaranes = docs.filter(d => d.tipo === 'albaran')
-  const desconocidos = docs.filter(d => d.tipo === 'desconocido')
+  const otros = docs.filter(d => d.tipo === 'desconocido')
 
   const assignments = {}
   facturas.forEach(f => { assignments[f.id] = [] })
@@ -35,37 +36,30 @@ function initializeFromBackend(docs) {
     }
   })
 
-  desconocidos.forEach(d => orphans.push(d.id))
+  otros.forEach(d => orphans.push(d.id))
   return { assignments, orphans }
 }
 
 // ---- Auto-scroll durante drag ----
 
-function useAutoScroll() {
-  const scrollRef = useRef(null)
-  const rafRef = useRef(null)
-
-  const handleDragOver = useCallback((e) => {
-    const ZONE = 80 // px desde el borde
-    const SPEED = 15
-    const y = e.clientY
-    const h = window.innerHeight
-
-    if (y < ZONE) {
-      window.scrollBy(0, -SPEED)
-    } else if (y > h - ZONE) {
-      window.scrollBy(0, SPEED)
+function useAutoScroll(active) {
+  useEffect(() => {
+    if (!active) return
+    const handler = (e) => {
+      const ZONE = 80, SPEED = 15
+      if (e.clientY < ZONE) window.scrollBy(0, -SPEED)
+      else if (e.clientY > window.innerHeight - ZONE) window.scrollBy(0, SPEED)
     }
-  }, [])
-
-  return { handleDragOver }
+    window.addEventListener('dragover', handler)
+    return () => window.removeEventListener('dragover', handler)
+  }, [active])
 }
 
-// ---- Edicion inline de un documento ----
+// ---- Documento editable ----
 
-function EditRow({ doc, onSave, onCancel }) {
+function DocRow({ doc, isEditing, onStartEdit, onSaveEdit, onCancelEdit, isDraggable, onDragStart, onRemove, children }) {
   const [data, setData] = useState({
-    tipo: doc.tipo || 'factura',
+    tipo: doc.tipo || 'desconocido',
     proveedor_nombre: doc.proveedor_nombre || '',
     proveedor_codigo: doc.proveedor_codigo || '',
     numero_factura: doc.numero_factura || '',
@@ -74,85 +68,130 @@ function EditRow({ doc, onSave, onCancel }) {
   })
   const [saving, setSaving] = useState(false)
 
+  // Reset form cuando cambia el doc o entra en edicion
+  useEffect(() => {
+    setData({
+      tipo: doc.tipo || 'desconocido',
+      proveedor_nombre: doc.proveedor_nombre || '',
+      proveedor_codigo: doc.proveedor_codigo || '',
+      numero_factura: doc.numero_factura || '',
+      numero_albaran: doc.numero_albaran || '',
+      fecha_documento: doc.fecha_documento || '',
+    })
+  }, [doc.id, isEditing])
+
   const handleSave = async () => {
     setSaving(true)
     try {
       await documental.updateDocument(doc.id, { ...data, estado: 'corregido' })
-      onSave(doc.id, data)
+      onSaveEdit(doc.id, data)
     } catch (err) {
       alert('Error: ' + err.message)
     }
     setSaving(false)
   }
 
-  return (
-    <div className="bg-amber-50 border border-amber-200 rounded px-3 py-2 space-y-2">
-      <div className="grid grid-cols-3 gap-2">
-        <select value={data.tipo} onChange={e => setData({ ...data, tipo: e.target.value })}
-          className="px-2 py-1 border rounded text-xs">
-          <option value="factura">Factura</option>
-          <option value="albaran">Albaran</option>
-          <option value="desconocido">Desconocido</option>
-        </select>
-        <input type="text" value={data.proveedor_nombre}
-          onChange={e => setData({ ...data, proveedor_nombre: e.target.value })}
-          className="px-2 py-1 border rounded text-xs" placeholder="Proveedor" />
-        <input type="text" value={data.proveedor_codigo}
-          onChange={e => setData({ ...data, proveedor_codigo: e.target.value })}
-          className="px-2 py-1 border rounded text-xs" placeholder="Codigo" />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <input type="text" value={data.numero_factura}
-          onChange={e => setData({ ...data, numero_factura: e.target.value })}
-          className="px-2 py-1 border rounded text-xs" placeholder="N. Factura" />
-        <input type="text" value={data.numero_albaran}
-          onChange={e => setData({ ...data, numero_albaran: e.target.value })}
-          className="px-2 py-1 border rounded text-xs" placeholder="N. Albaran" />
-        <input type="date" value={data.fecha_documento}
-          onChange={e => setData({ ...data, fecha_documento: e.target.value })}
-          className="px-2 py-1 border rounded text-xs" />
-      </div>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
-        <button onClick={handleSave} disabled={saving}
-          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
-          {saving ? '...' : 'Guardar'}
-        </button>
-      </div>
-    </div>
-  )
-}
+  const icon = doc.tipo === 'factura' ? '🧾' : doc.tipo === 'albaran' ? '📋' : '❓'
+  const tipoLabel = doc.tipo === 'factura' ? 'FAC' : doc.tipo === 'albaran' ? 'ALB' : 'DOC'
+  const num = doc.numero_factura || doc.numero_albaran || 'S/N'
+  const pags = doc.paginas?.length || 0
 
-// ---- Componentes compactos ----
+  if (isEditing) {
+    return (
+      <div className="bg-amber-50 border-2 border-amber-300 rounded px-3 py-2.5 space-y-2">
+        <div className="text-xs font-medium text-amber-700 mb-1">Editando: {icon} {tipoLabel} {num} ({pags}p)</div>
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-[10px] text-gray-500 block">Tipo</label>
+            <select value={data.tipo} onChange={e => setData({ ...data, tipo: e.target.value })}
+              className="w-full px-2 py-1 border rounded text-xs bg-white">
+              <option value="factura">Factura</option>
+              <option value="albaran">Albaran</option>
+              <option value="desconocido">Desconocido</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block">Proveedor</label>
+            <input type="text" value={data.proveedor_nombre}
+              onChange={e => setData({ ...data, proveedor_nombre: e.target.value })}
+              className="w-full px-2 py-1 border rounded text-xs" placeholder="Nombre" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block">Cod. Proveedor</label>
+            <input type="text" value={data.proveedor_codigo}
+              onChange={e => setData({ ...data, proveedor_codigo: e.target.value })}
+              className="w-full px-2 py-1 border rounded text-xs" placeholder="Codigo" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block">N. Factura</label>
+            <input type="text" value={data.numero_factura}
+              onChange={e => setData({ ...data, numero_factura: e.target.value })}
+              className="w-full px-2 py-1 border rounded text-xs" placeholder="N. Factura" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block">N. Albaran</label>
+            <input type="text" value={data.numero_albaran}
+              onChange={e => setData({ ...data, numero_albaran: e.target.value })}
+              className="w-full px-2 py-1 border rounded text-xs" placeholder="N. Albaran" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500 block">Fecha</label>
+            <input type="date" value={data.fecha_documento}
+              onChange={e => setData({ ...data, fecha_documento: e.target.value })}
+              className="w-full px-2 py-1 border rounded text-xs" />
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onCancelEdit}
+            className="px-3 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
-function AlbaranRow({ doc, onDragStart, onRemove, onEdit }) {
+  // Vista normal (no edición)
+  const dragProps = isDraggable ? {
+    draggable: true,
+    onDragStart: (e) => {
+      e.dataTransfer.setData('text/plain', doc.id)
+      e.dataTransfer.effectAllowed = 'move'
+      if (onDragStart) onDragStart(doc.id)
+    },
+  } : {}
+
   return (
-    <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', doc.id)
-        e.dataTransfer.effectAllowed = 'move'
-        onDragStart(doc.id)
-      }}
-      className="flex items-center gap-2 px-2 py-1.5 bg-blue-50 rounded border border-blue-100
-                 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors group text-xs"
+    <div {...dragProps}
+      className={`flex items-center gap-1.5 px-2 py-1.5 rounded border transition-colors group text-xs
+        ${isDraggable ? 'cursor-grab active:cursor-grabbing bg-blue-50 border-blue-100 hover:bg-blue-100' : 'bg-white border-gray-100 hover:bg-gray-50'}
+      `}
     >
-      <span>📋</span>
-      <span className="text-gray-700 flex-1 truncate">
-        ALB {doc.numero_albaran || 'S/N'}
-      </span>
-      <span className="text-gray-400 truncate max-w-[120px]">{doc.proveedor_nombre || '-'}</span>
-      <button onClick={(e) => { e.stopPropagation(); onEdit(doc) }}
-        className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity"
+      <span>{icon}</span>
+      <span className="font-medium text-gray-800">{tipoLabel} {num}</span>
+      <span className="text-gray-400 truncate max-w-[140px]">{doc.proveedor_nombre || 'Sin proveedor'}</span>
+      {doc.proveedor_codigo && <span className="text-gray-300">({doc.proveedor_codigo})</span>}
+      {doc.fecha_documento && <span className="text-gray-300">{doc.fecha_documento}</span>}
+      <span className="text-gray-300">{pags}p</span>
+      <div className="flex-1" />
+      <button onClick={(e) => { e.stopPropagation(); onStartEdit() }}
+        className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity px-1"
         title="Editar">✎</button>
-      <button onClick={(e) => { e.stopPropagation(); onRemove(doc.id) }}
-        className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity"
-        title="Desasociar">✕</button>
+      {onRemove && (
+        <button onClick={(e) => { e.stopPropagation(); onRemove(doc.id) }}
+          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity px-1"
+          title="Desasociar">✕</button>
+      )}
+      {children}
     </div>
   )
 }
 
-function FacturaBlock({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, onEditDoc, dragOver, setDragOver }) {
+// ---- Bloque Factura + albaranes ----
+
+function FacturaBlock({ grupo, editingId, onStartEdit, onSaveEdit, onCancelEdit, onDrop, onToggleConfirm, onRemoveAlbaran, dragOver, setDragOver }) {
   const { factura, albaranes, confirmed } = grupo
 
   const handleDragOver = (e) => {
@@ -166,9 +205,7 @@ function FacturaBlock({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, onEditD
     if (albaranId) onDrop(albaranId, factura.id)
     setDragOver(null)
   }
-
   const isDragTarget = dragOver === factura.id
-  const totalPags = (factura.paginas?.length || 0) + albaranes.reduce((s, a) => s + (a.paginas?.length || 0), 0)
 
   return (
     <div
@@ -176,47 +213,48 @@ function FacturaBlock({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, onEditD
       onDragLeave={() => setDragOver(null)}
       onDrop={handleDrop}
       className={`rounded border transition-all ${
-        isDragTarget ? 'border-blue-400 bg-blue-50/50' :
+        isDragTarget ? 'border-blue-400 bg-blue-50/50 shadow-sm' :
         confirmed ? 'border-green-200 bg-green-50/20' : 'border-gray-200'
       }`}
     >
-      {/* Factura row */}
-      <div className="flex items-center gap-2 px-3 py-2 text-sm">
-        <span>🧾</span>
-        <span className="font-medium text-gray-800">
-          FAC {factura.numero_factura || 'S/N'}
-        </span>
-        <span className="text-gray-400 text-xs truncate max-w-[150px]">
-          {factura.proveedor_nombre || 'Sin proveedor'}
-        </span>
-        {factura.fecha_documento && <span className="text-gray-400 text-xs">{factura.fecha_documento}</span>}
-        <span className="text-gray-400 text-xs">{factura.paginas?.length || 0}p</span>
-        <span className="text-gray-400 text-xs">{albaranes.length}alb</span>
-        <div className="flex-1" />
-        <button onClick={() => onEditDoc(factura)}
-          className="text-xs text-blue-500 hover:text-blue-700" title="Editar">✎</button>
-        <button
-          onClick={() => onToggleConfirm(factura.id)}
-          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500 hover:bg-amber-100'
-          }`}
+      {/* Factura */}
+      <div className="p-1.5">
+        <DocRow
+          doc={factura}
+          isEditing={editingId === factura.id}
+          onStartEdit={() => onStartEdit(factura.id)}
+          onSaveEdit={onSaveEdit}
+          onCancelEdit={onCancelEdit}
         >
-          {confirmed ? '✓' : '○'}
-        </button>
+          <button
+            onClick={() => onToggleConfirm(factura.id)}
+            className={`text-xs px-1.5 py-0.5 rounded-full font-medium ml-1 ${
+              confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400 hover:bg-amber-100'
+            }`}
+          >{confirmed ? '✓' : '○'}</button>
+        </DocRow>
       </div>
 
-      {/* Albaranes */}
+      {/* Albaranes asociados */}
       {albaranes.length > 0 && (
-        <div className="px-3 pb-2 pl-8 space-y-1">
+        <div className="px-1.5 pb-1.5 pl-7 space-y-0.5">
           {albaranes.map(a => (
-            <AlbaranRow key={a.id} doc={a} onDragStart={() => {}} onRemove={onRemoveAlbaran} onEdit={onEditDoc} />
+            <DocRow
+              key={a.id}
+              doc={a}
+              isEditing={editingId === a.id}
+              onStartEdit={() => onStartEdit(a.id)}
+              onSaveEdit={onSaveEdit}
+              onCancelEdit={onCancelEdit}
+              isDraggable
+              onRemove={onRemoveAlbaran}
+            />
           ))}
         </div>
       )}
 
-      {/* Drop zone */}
       {isDragTarget && (
-        <div className="mx-3 mb-2 ml-8 px-2 py-1.5 border-2 border-dashed border-blue-300 rounded text-center">
+        <div className="mx-1.5 mb-1.5 ml-7 px-2 py-1 border-2 border-dashed border-blue-300 rounded text-center">
           <span className="text-xs text-blue-500">Soltar aqui</span>
         </div>
       )}
@@ -224,30 +262,33 @@ function FacturaBlock({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, onEditD
   )
 }
 
-function ProveedorSection({ nombre, codigo, facturas, onDrop, onToggleConfirm, onRemoveAlbaran, onEditDoc, dragOver, setDragOver }) {
+// ---- Secciones ----
+
+function ProveedorSection({ nombre, codigo, facturas, editingId, onStartEdit, onSaveEdit, onCancelEdit, onDrop, onToggleConfirm, onRemoveAlbaran, dragOver, setDragOver }) {
   const allConfirmed = facturas.every(f => f.confirmed)
-  const totalAlb = facturas.reduce((sum, f) => sum + f.albaranes.length, 0)
+  const totalAlb = facturas.reduce((s, f) => s + f.albaranes.length, 0)
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-      {/* Proveedor header */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50/50">
         <span className="font-semibold text-gray-800 text-sm">{nombre}</span>
         {codigo && <span className="text-xs text-gray-400">({codigo})</span>}
         <div className="flex-1" />
         <span className="text-xs text-gray-400">{facturas.length}f · {totalAlb}a</span>
-        {allConfirmed && <span className="text-green-500 text-sm font-bold">✓</span>}
+        {allConfirmed && <span className="text-green-500 font-bold">✓</span>}
       </div>
-
-      <div className="p-2 space-y-1.5">
+      <div className="p-1.5 space-y-1">
         {facturas.map(g => (
           <FacturaBlock
             key={g.factura.id}
             grupo={g}
+            editingId={editingId}
+            onStartEdit={onStartEdit}
+            onSaveEdit={onSaveEdit}
+            onCancelEdit={onCancelEdit}
             onDrop={onDrop}
             onToggleConfirm={onToggleConfirm}
             onRemoveAlbaran={onRemoveAlbaran}
-            onEditDoc={onEditDoc}
             dragOver={dragOver}
             setDragOver={setDragOver}
           />
@@ -257,18 +298,27 @@ function ProveedorSection({ nombre, codigo, facturas, onDrop, onToggleConfirm, o
   )
 }
 
-function HuerfanosSection({ docs, onDragStart, onRemove, onEditDoc }) {
+function HuerfanosSection({ docs, editingId, onStartEdit, onSaveEdit, onCancelEdit, onDragStart }) {
   if (docs.length === 0) return null
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-amber-200">
-      <div className="px-4 py-2.5 border-b border-amber-100 bg-amber-50/50">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-100 bg-amber-50/50">
         <span className="font-semibold text-amber-800 text-sm">Sin asociar ({docs.length})</span>
-        <span className="text-xs text-amber-600 ml-2">Arrastra a una factura</span>
+        <span className="text-xs text-amber-600">Arrastra a una factura</span>
       </div>
-      <div className="p-2 space-y-1">
+      <div className="p-1.5 space-y-0.5">
         {docs.map(d => (
-          <AlbaranRow key={d.id} doc={d} onDragStart={onDragStart} onRemove={() => {}} onEdit={onEditDoc} />
+          <DocRow
+            key={d.id}
+            doc={d}
+            isEditing={editingId === d.id}
+            onStartEdit={() => onStartEdit(d.id)}
+            onSaveEdit={onSaveEdit}
+            onCancelEdit={onCancelEdit}
+            isDraggable
+            onDragStart={onDragStart}
+          />
         ))}
       </div>
     </div>
@@ -288,19 +338,11 @@ export default function ReviewPanel({ batchId, onBack }) {
   const [archiving, setArchiving] = useState(false)
   const [dragOver, setDragOver] = useState(null)
   const [draggingId, setDraggingId] = useState(null)
-  const [editingDoc, setEditingDoc] = useState(null)
-  const { handleDragOver: autoScroll } = useAutoScroll()
+  const [editingId, setEditingId] = useState(null)
+
+  useAutoScroll(!!draggingId)
 
   useEffect(() => { loadBatch() }, [batchId])
-
-  // Auto-scroll global durante drag
-  useEffect(() => {
-    const handler = (e) => {
-      if (draggingId) autoScroll(e)
-    }
-    window.addEventListener('dragover', handler)
-    return () => window.removeEventListener('dragover', handler)
-  }, [draggingId, autoScroll])
 
   const loadBatch = async () => {
     setLoading(true)
@@ -316,6 +358,11 @@ export default function ReviewPanel({ batchId, onBack }) {
     }
     setLoading(false)
   }
+
+  const handleSaveEdit = useCallback((docId, newData) => {
+    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, ...newData } : d))
+    setEditingId(null)
+  }, [])
 
   const handleDrop = useCallback((albaranId, targetFacturaId) => {
     setAssignments(prev => {
@@ -345,11 +392,6 @@ export default function ReviewPanel({ batchId, onBack }) {
     const all = {}
     Object.keys(assignments).forEach(fId => { all[fId] = true })
     setConfirmed(all)
-  }
-
-  const handleUpdateDoc = (docId, newData) => {
-    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, ...newData } : d))
-    setEditingDoc(null)
   }
 
   const allConfirmed = Object.keys(assignments).length > 0 &&
@@ -424,12 +466,7 @@ export default function ReviewPanel({ batchId, onBack }) {
 
   // ---- Render ----
 
-  if (loading) return (
-    <div className="text-center py-20">
-      <p className="text-gray-500">Cargando...</p>
-    </div>
-  )
-
+  if (loading) return <div className="text-center py-20"><p className="text-gray-500">Cargando...</p></div>
   if (!batch) return (
     <div className="text-center py-20">
       <p className="text-gray-500">Lote no encontrado</p>
@@ -463,9 +500,7 @@ export default function ReviewPanel({ batchId, onBack }) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <button onClick={onBack} className="text-xs text-gray-500 hover:text-gray-700 mb-1">
-            ← Volver
-          </button>
+          <button onClick={onBack} className="text-xs text-gray-500 hover:text-gray-700 mb-1">← Volver</button>
           <h2 className="text-base font-semibold text-gray-800">{batch.fichero_origen}</h2>
           <p className="text-xs text-gray-500">
             {facturas.length}f · {totalAlb}a ({asociados} asoc.) · {documents.length} docs ·
@@ -492,11 +527,6 @@ export default function ReviewPanel({ batchId, onBack }) {
         </div>
       </div>
 
-      {/* Edicion inline */}
-      {editingDoc && (
-        <EditRow doc={editingDoc} onSave={handleUpdateDoc} onCancel={() => setEditingDoc(null)} />
-      )}
-
       {/* Grupos por proveedor */}
       {Object.values(proveedorMap).map(({ proveedor, codigo, facturas: facts }) => (
         <ProveedorSection
@@ -504,10 +534,13 @@ export default function ReviewPanel({ batchId, onBack }) {
           nombre={proveedor}
           codigo={codigo}
           facturas={facts}
+          editingId={editingId}
+          onStartEdit={setEditingId}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={() => setEditingId(null)}
           onDrop={handleDrop}
           onToggleConfirm={handleToggleConfirm}
           onRemoveAlbaran={handleRemoveAlbaran}
-          onEditDoc={setEditingDoc}
           dragOver={dragOver}
           setDragOver={setDragOver}
         />
@@ -516,14 +549,16 @@ export default function ReviewPanel({ batchId, onBack }) {
       {/* Huerfanos */}
       <HuerfanosSection
         docs={huerfanoDocs}
+        editingId={editingId}
+        onStartEdit={setEditingId}
+        onSaveEdit={handleSaveEdit}
+        onCancelEdit={() => setEditingId(null)}
         onDragStart={setDraggingId}
-        onRemove={() => {}}
-        onEditDoc={setEditingDoc}
       />
 
-      {facturas.length === 0 && (
+      {facturas.length === 0 && huerfanoDocs.length === 0 && (
         <div className="text-center py-8 bg-white rounded-lg border border-gray-100">
-          <p className="text-gray-500 text-sm">No hay facturas en este lote</p>
+          <p className="text-gray-500 text-sm">No hay documentos en este lote</p>
         </div>
       )}
     </div>
