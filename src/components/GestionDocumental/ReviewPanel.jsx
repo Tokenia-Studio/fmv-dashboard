@@ -1,7 +1,6 @@
 // ============================================
-// REVIEW PANEL - Revisión agrupada por proveedor
-// con drag & drop de albaranes, preview de imagen
-// y asociación inteligente factura↔albarán
+// REVIEW PANEL - Vista compacta con edicion inline
+// Drag & drop con auto-scroll
 // ============================================
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
@@ -11,10 +10,6 @@ import { PDFDocument } from 'pdf-lib'
 // ---- Helpers ----
 
 function initializeFromBackend(docs) {
-  /**
-   * Usa factura_asociada_id del backend como primera fuente de verdad.
-   * Fallback: match por proveedor si el backend no asoció.
-   */
   const facturas = docs.filter(d => d.tipo === 'factura')
   const albaranes = docs.filter(d => d.tipo === 'albaran')
   const desconocidos = docs.filter(d => d.tipo === 'desconocido')
@@ -25,13 +20,10 @@ function initializeFromBackend(docs) {
   const orphans = []
 
   albaranes.forEach(a => {
-    // 1. Usar asociación del backend (factura_asociada_id)
     if (a.factura_asociada_id && assignments[a.factura_asociada_id] !== undefined) {
       assignments[a.factura_asociada_id].push(a.id)
       return
     }
-
-    // 2. Fallback: match por proveedor
     const match = facturas.find(f =>
       f.proveedor_nombre && a.proveedor_nombre &&
       f.proveedor_nombre.toLowerCase().trim() === a.proveedor_nombre.toLowerCase().trim()
@@ -43,33 +35,37 @@ function initializeFromBackend(docs) {
     }
   })
 
-  // Desconocidos van a huérfanos
   desconocidos.forEach(d => orphans.push(d.id))
-
   return { assignments, orphans }
 }
 
-function docLabel(doc) {
-  const num = doc.numero_factura || doc.numero_albaran || 'S/N'
-  const tipo = doc.tipo === 'factura' ? 'FAC' : doc.tipo === 'albaran' ? 'ALB' : 'DOC'
-  return `${tipo} ${num}`
+// ---- Auto-scroll durante drag ----
+
+function useAutoScroll() {
+  const scrollRef = useRef(null)
+  const rafRef = useRef(null)
+
+  const handleDragOver = useCallback((e) => {
+    const ZONE = 80 // px desde el borde
+    const SPEED = 15
+    const y = e.clientY
+    const h = window.innerHeight
+
+    if (y < ZONE) {
+      window.scrollBy(0, -SPEED)
+    } else if (y > h - ZONE) {
+      window.scrollBy(0, SPEED)
+    }
+  }, [])
+
+  return { handleDragOver }
 }
 
-function confidenceBadge(confianza) {
-  const pct = Math.round((confianza || 0) * 100)
-  const color = pct >= 80 ? 'text-green-600 bg-green-50' : pct >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'
-  return <span className={`text-xs px-1.5 py-0.5 rounded ${color}`}>{pct}%</span>
-}
+// ---- Edicion inline de un documento ----
 
-// ---- Preview Modal con edición ----
-
-function PreviewModal({ doc, batchId, onClose, onUpdateDoc }) {
-  if (!doc) return null
-
-  const pages = doc.paginas || []
-  const [editing, setEditing] = useState(false)
-  const [editData, setEditData] = useState({
-    tipo: doc.tipo,
+function EditRow({ doc, onSave, onCancel }) {
+  const [data, setData] = useState({
+    tipo: doc.tipo || 'factura',
     proveedor_nombre: doc.proveedor_nombre || '',
     proveedor_codigo: doc.proveedor_codigo || '',
     numero_factura: doc.numero_factura || '',
@@ -81,190 +77,55 @@ function PreviewModal({ doc, batchId, onClose, onUpdateDoc }) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await documental.updateDocument(doc.id, {
-        ...editData,
-        estado: 'corregido',
-      })
-      // Actualizar doc local
-      if (onUpdateDoc) onUpdateDoc(doc.id, editData)
-      setEditing(false)
+      await documental.updateDocument(doc.id, { ...data, estado: 'corregido' })
+      onSave(doc.id, data)
     } catch (err) {
-      alert('Error guardando: ' + err.message)
+      alert('Error: ' + err.message)
     }
     setSaving(false)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
-      <div
-        className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="font-semibold text-gray-800">{docLabel(doc)}</h3>
-            <p className="text-sm text-gray-500">
-              {doc.proveedor_nombre || 'Sin proveedor'} · {pages.length} pag.
-              {doc.fecha_documento && ` · ${doc.fecha_documento}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {confidenceBadge(doc.confianza)}
-            {!editing && (
-              <button
-                onClick={() => setEditing(true)}
-                className="text-xs px-3 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-              >
-                Editar
-              </button>
-            )}
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-          </div>
-        </div>
-
-        {/* Panel de edición */}
-        {editing && (
-          <div className="px-6 py-4 bg-amber-50 border-b border-amber-200 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-gray-600 block mb-1">Tipo</label>
-                <select
-                  value={editData.tipo}
-                  onChange={e => setEditData({ ...editData, tipo: e.target.value })}
-                  className="w-full px-2 py-1.5 border rounded text-sm"
-                >
-                  <option value="factura">Factura</option>
-                  <option value="albaran">Albaran</option>
-                  <option value="desconocido">Desconocido</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 block mb-1">Proveedor</label>
-                <input
-                  type="text"
-                  value={editData.proveedor_nombre}
-                  onChange={e => setEditData({ ...editData, proveedor_nombre: e.target.value })}
-                  className="w-full px-2 py-1.5 border rounded text-sm"
-                  placeholder="Nombre del proveedor"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 block mb-1">Codigo proveedor</label>
-                <input
-                  type="text"
-                  value={editData.proveedor_codigo}
-                  onChange={e => setEditData({ ...editData, proveedor_codigo: e.target.value })}
-                  className="w-full px-2 py-1.5 border rounded text-sm"
-                  placeholder="Codigo"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 block mb-1">N. Factura</label>
-                <input
-                  type="text"
-                  value={editData.numero_factura}
-                  onChange={e => setEditData({ ...editData, numero_factura: e.target.value })}
-                  className="w-full px-2 py-1.5 border rounded text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 block mb-1">N. Albaran</label>
-                <input
-                  type="text"
-                  value={editData.numero_albaran}
-                  onChange={e => setEditData({ ...editData, numero_albaran: e.target.value })}
-                  className="w-full px-2 py-1.5 border rounded text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-600 block mb-1">Fecha</label>
-                <input
-                  type="date"
-                  value={editData.fecha_documento}
-                  onChange={e => setEditData({ ...editData, fecha_documento: e.target.value })}
-                  className="w-full px-2 py-1.5 border rounded text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setEditing(false)}
-                className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Datos extraidos (solo lectura) */}
-        {!editing && (
-          <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-sm">
-            {doc.numero_factura && (
-              <div><span className="text-gray-500">Factura:</span> <span className="font-medium">{doc.numero_factura}</span></div>
-            )}
-            {doc.numero_albaran && (
-              <div><span className="text-gray-500">Albaran:</span> <span className="font-medium">{doc.numero_albaran}</span></div>
-            )}
-            {doc.proveedor_codigo && (
-              <div><span className="text-gray-500">Codigo:</span> <span className="font-medium">{doc.proveedor_codigo}</span></div>
-            )}
-            {doc.proveedor_nif && (
-              <div><span className="text-gray-500">NIF:</span> <span className="font-medium">{doc.proveedor_nif}</span></div>
-            )}
-          </div>
-        )}
-
-        {/* Imagenes */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100">
-          {pages.map((pageNum) => (
-            <div key={pageNum} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-3 py-1.5 text-xs text-gray-500 border-b">
-                Pagina {pageNum}
-              </div>
-              <img
-                src={documental.getPreviewUrl(batchId, pageNum)}
-                alt={`Pagina ${pageNum}`}
-                className="w-full"
-                loading="lazy"
-              />
-            </div>
-          ))}
-          {pages.length === 0 && (
-            <p className="text-center text-gray-400 py-8">Sin paginas de preview disponibles</p>
-          )}
-        </div>
+    <div className="bg-amber-50 border border-amber-200 rounded px-3 py-2 space-y-2">
+      <div className="grid grid-cols-3 gap-2">
+        <select value={data.tipo} onChange={e => setData({ ...data, tipo: e.target.value })}
+          className="px-2 py-1 border rounded text-xs">
+          <option value="factura">Factura</option>
+          <option value="albaran">Albaran</option>
+          <option value="desconocido">Desconocido</option>
+        </select>
+        <input type="text" value={data.proveedor_nombre}
+          onChange={e => setData({ ...data, proveedor_nombre: e.target.value })}
+          className="px-2 py-1 border rounded text-xs" placeholder="Proveedor" />
+        <input type="text" value={data.proveedor_codigo}
+          onChange={e => setData({ ...data, proveedor_codigo: e.target.value })}
+          className="px-2 py-1 border rounded text-xs" placeholder="Codigo" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <input type="text" value={data.numero_factura}
+          onChange={e => setData({ ...data, numero_factura: e.target.value })}
+          className="px-2 py-1 border rounded text-xs" placeholder="N. Factura" />
+        <input type="text" value={data.numero_albaran}
+          onChange={e => setData({ ...data, numero_albaran: e.target.value })}
+          className="px-2 py-1 border rounded text-xs" placeholder="N. Albaran" />
+        <input type="date" value={data.fecha_documento}
+          onChange={e => setData({ ...data, fecha_documento: e.target.value })}
+          className="px-2 py-1 border rounded text-xs" />
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button onClick={onCancel} className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
+        <button onClick={handleSave} disabled={saving}
+          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+          {saving ? '...' : 'Guardar'}
+        </button>
       </div>
     </div>
   )
 }
 
-// ---- Componentes internos ----
+// ---- Componentes compactos ----
 
-function ConfirmBadge({ confirmed, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`text-xs px-2 py-0.5 rounded-full font-medium transition-colors ${
-        confirmed
-          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-          : 'bg-gray-100 text-gray-500 hover:bg-amber-100 hover:text-amber-700'
-      }`}
-    >
-      {confirmed ? 'Confirmado' : 'Pendiente'}
-    </button>
-  )
-}
-
-function AlbaranItem({ doc, batchId, onDragStart, onRemove, onPreview }) {
+function AlbaranRow({ doc, onDragStart, onRemove, onEdit }) {
   return (
     <div
       draggable
@@ -273,45 +134,32 @@ function AlbaranItem({ doc, batchId, onDragStart, onRemove, onPreview }) {
         e.dataTransfer.effectAllowed = 'move'
         onDragStart(doc.id)
       }}
-      className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200
-                 cursor-grab active:cursor-grabbing hover:shadow-sm transition-all group"
+      className="flex items-center gap-2 px-2 py-1.5 bg-blue-50 rounded border border-blue-100
+                 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors group text-xs"
     >
-      <span className="text-sm">📋</span>
-      <button
-        onClick={(e) => { e.stopPropagation(); onPreview(doc) }}
-        className="text-sm text-gray-700 flex-1 truncate text-left hover:text-blue-600 hover:underline"
-        title="Ver preview"
-      >
-        {doc.numero_albaran || 'S/N'}
-        {doc.proveedor_nombre && <span className="text-gray-400 ml-1.5 text-xs">({doc.proveedor_nombre})</span>}
-      </button>
-      {confidenceBadge(doc.confianza)}
-      <button
-        onClick={(e) => { e.stopPropagation(); onRemove(doc.id) }}
-        title="Marcar como huérfano"
-        className="opacity-0 group-hover:opacity-100 text-xs text-red-400 hover:text-red-600 transition-opacity"
-      >
-        ✕
-      </button>
+      <span>📋</span>
+      <span className="text-gray-700 flex-1 truncate">
+        ALB {doc.numero_albaran || 'S/N'}
+      </span>
+      <span className="text-gray-400 truncate max-w-[120px]">{doc.proveedor_nombre || '-'}</span>
+      <button onClick={(e) => { e.stopPropagation(); onEdit(doc) }}
+        className="opacity-0 group-hover:opacity-100 text-blue-500 hover:text-blue-700 transition-opacity"
+        title="Editar">✎</button>
+      <button onClick={(e) => { e.stopPropagation(); onRemove(doc.id) }}
+        className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity"
+        title="Desasociar">✕</button>
     </div>
   )
 }
 
-function FacturaGroup({ grupo, batchId, onDrop, onToggleConfirm, onRemoveAlbaran, onPreview, dragOver, setDragOver }) {
+function FacturaBlock({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, onEditDoc, dragOver, setDragOver }) {
   const { factura, albaranes, confirmed } = grupo
-  const [expanded, setExpanded] = useState(true)
-  const dropRef = useRef(null)
 
   const handleDragOver = (e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     setDragOver(factura.id)
   }
-
-  const handleDragLeave = () => {
-    setDragOver(null)
-  }
-
   const handleDrop = (e) => {
     e.preventDefault()
     const albaranId = e.dataTransfer.getData('text/plain')
@@ -320,161 +168,107 @@ function FacturaGroup({ grupo, batchId, onDrop, onToggleConfirm, onRemoveAlbaran
   }
 
   const isDragTarget = dragOver === factura.id
-
-  // Thumbnail de la primera página de la factura
-  const firstPage = factura.paginas?.[0]
-  const thumbUrl = firstPage ? documental.getPreviewUrl(batchId, firstPage) : null
+  const totalPags = (factura.paginas?.length || 0) + albaranes.reduce((s, a) => s + (a.paginas?.length || 0), 0)
 
   return (
     <div
-      ref={dropRef}
       onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
+      onDragLeave={() => setDragOver(null)}
       onDrop={handleDrop}
-      className={`rounded-lg border transition-all ${
-        isDragTarget
-          ? 'border-blue-400 bg-blue-50 shadow-md'
-          : confirmed
-            ? 'border-green-200 bg-green-50/30'
-            : 'border-gray-200 bg-white'
+      className={`rounded border transition-all ${
+        isDragTarget ? 'border-blue-400 bg-blue-50/50' :
+        confirmed ? 'border-green-200 bg-green-50/20' : 'border-gray-200'
       }`}
     >
-      {/* Factura header con thumbnail */}
-      <div className="flex items-start gap-3 px-4 py-3">
-        {/* Thumbnail */}
-        {thumbUrl && (
-          <button
-            onClick={() => onPreview(factura)}
-            className="flex-shrink-0 w-16 h-20 rounded border border-gray-200 overflow-hidden hover:border-blue-400 hover:shadow transition-all bg-white"
-            title="Ver factura"
-          >
-            <img src={thumbUrl} alt="Preview" className="w-full h-full object-cover object-top" loading="lazy" />
-          </button>
-        )}
-
-        {/* Info */}
-        <div
-          onClick={() => setExpanded(!expanded)}
-          className="flex-1 cursor-pointer min-w-0"
+      {/* Factura row */}
+      <div className="flex items-center gap-2 px-3 py-2 text-sm">
+        <span>🧾</span>
+        <span className="font-medium text-gray-800">
+          FAC {factura.numero_factura || 'S/N'}
+        </span>
+        <span className="text-gray-400 text-xs truncate max-w-[150px]">
+          {factura.proveedor_nombre || 'Sin proveedor'}
+        </span>
+        {factura.fecha_documento && <span className="text-gray-400 text-xs">{factura.fecha_documento}</span>}
+        <span className="text-gray-400 text-xs">{factura.paginas?.length || 0}p</span>
+        <span className="text-gray-400 text-xs">{albaranes.length}alb</span>
+        <div className="flex-1" />
+        <button onClick={() => onEditDoc(factura)}
+          className="text-xs text-blue-500 hover:text-blue-700" title="Editar">✎</button>
+        <button
+          onClick={() => onToggleConfirm(factura.id)}
+          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500 hover:bg-amber-100'
+          }`}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-gray-400 text-xs">{expanded ? '▼' : '▶'}</span>
-            <span className="text-lg">🧾</span>
-            <button
-              onClick={(e) => { e.stopPropagation(); onPreview(factura) }}
-              className="font-medium text-gray-800 truncate hover:text-blue-600 hover:underline"
-            >
-              Factura {factura.numero_factura || 'S/N'}
-            </button>
-            {confidenceBadge(factura.confianza)}
-          </div>
-          <div className="text-xs text-gray-500 mt-1 ml-7">
-            {factura.proveedor_nombre || 'Sin proveedor'}
-            {factura.fecha_documento && ` · ${factura.fecha_documento}`}
-            {' · '}{factura.paginas?.length || 0} pág.
-            {' · '}{albaranes.length} albarán{albaranes.length !== 1 ? 'es' : ''}
-          </div>
-        </div>
-
-        <ConfirmBadge confirmed={confirmed} onClick={(e) => { e.stopPropagation?.(); onToggleConfirm(factura.id) }} />
+          {confirmed ? '✓' : '○'}
+        </button>
       </div>
 
       {/* Albaranes */}
-      {expanded && (
-        <div className="px-4 pb-3 space-y-2">
-          {albaranes.length === 0 ? (
-            <p className="text-xs text-gray-400 italic pl-7">
-              Sin albaranes vinculados. Arrastra albaranes aquí.
-            </p>
-          ) : (
-            albaranes.map(a => (
-              <div key={a.id} className="ml-6">
-                <AlbaranItem
-                  doc={a}
-                  batchId={batchId}
-                  onDragStart={() => {}}
-                  onRemove={onRemoveAlbaran}
-                  onPreview={onPreview}
-                />
-              </div>
-            ))
-          )}
-          {/* Drop zone visual when dragging */}
-          {isDragTarget && (
-            <div className="ml-6 px-3 py-2 border-2 border-dashed border-blue-300 rounded-lg text-center">
-              <span className="text-xs text-blue-500">Soltar albarán aquí</span>
-            </div>
-          )}
+      {albaranes.length > 0 && (
+        <div className="px-3 pb-2 pl-8 space-y-1">
+          {albaranes.map(a => (
+            <AlbaranRow key={a.id} doc={a} onDragStart={() => {}} onRemove={onRemoveAlbaran} onEdit={onEditDoc} />
+          ))}
+        </div>
+      )}
+
+      {/* Drop zone */}
+      {isDragTarget && (
+        <div className="mx-3 mb-2 ml-8 px-2 py-1.5 border-2 border-dashed border-blue-300 rounded text-center">
+          <span className="text-xs text-blue-500">Soltar aqui</span>
         </div>
       )}
     </div>
   )
 }
 
-function ProveedorAccordion({ nombre, codigo, facturas, batchId, onDrop, onToggleConfirm, onRemoveAlbaran, onPreview, dragOver, setDragOver }) {
-  const [expanded, setExpanded] = useState(true)
+function ProveedorSection({ nombre, codigo, facturas, onDrop, onToggleConfirm, onRemoveAlbaran, onEditDoc, dragOver, setDragOver }) {
   const allConfirmed = facturas.every(f => f.confirmed)
   const totalAlb = facturas.reduce((sum, f) => sum + f.albaranes.length, 0)
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50 border-b border-gray-100"
-      >
-        <span className="text-gray-400">{expanded ? '▼' : '▶'}</span>
-        <div className="flex-1 min-w-0">
-          <span className="font-semibold text-gray-800">{nombre}</span>
-          {codigo && <span className="text-xs text-gray-400 ml-2">({codigo})</span>}
-        </div>
-        <span className="text-xs text-gray-500">
-          {facturas.length} fac. · {totalAlb} alb.
-        </span>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+      {/* Proveedor header */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
+        <span className="font-semibold text-gray-800 text-sm">{nombre}</span>
+        {codigo && <span className="text-xs text-gray-400">({codigo})</span>}
+        <div className="flex-1" />
+        <span className="text-xs text-gray-400">{facturas.length}f · {totalAlb}a</span>
         {allConfirmed && <span className="text-green-500 text-sm font-bold">✓</span>}
       </div>
 
-      {expanded && (
-        <div className="p-4 space-y-3">
-          {facturas.map(g => (
-            <FacturaGroup
-              key={g.factura.id}
-              grupo={g}
-              batchId={batchId}
-              onDrop={onDrop}
-              onToggleConfirm={onToggleConfirm}
-              onRemoveAlbaran={onRemoveAlbaran}
-              onPreview={onPreview}
-              dragOver={dragOver}
-              setDragOver={setDragOver}
-            />
-          ))}
-        </div>
-      )}
+      <div className="p-2 space-y-1.5">
+        {facturas.map(g => (
+          <FacturaBlock
+            key={g.factura.id}
+            grupo={g}
+            onDrop={onDrop}
+            onToggleConfirm={onToggleConfirm}
+            onRemoveAlbaran={onRemoveAlbaran}
+            onEditDoc={onEditDoc}
+            dragOver={dragOver}
+            setDragOver={setDragOver}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
-function HuerfanosSection({ docs, batchId, onDragStart, onPreview }) {
+function HuerfanosSection({ docs, onDragStart, onRemove, onEditDoc }) {
   if (docs.length === 0) return null
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-amber-200 overflow-hidden">
-      <div className="px-5 py-4 border-b border-amber-100 bg-amber-50/50">
-        <h3 className="font-semibold text-amber-800">
-          Documentos sin factura asociada ({docs.length})
-        </h3>
-        <p className="text-xs text-amber-600 mt-1">Arrastra estos documentos a la factura correspondiente</p>
+    <div className="bg-white rounded-lg shadow-sm border border-amber-200">
+      <div className="px-4 py-2.5 border-b border-amber-100 bg-amber-50/50">
+        <span className="font-semibold text-amber-800 text-sm">Sin asociar ({docs.length})</span>
+        <span className="text-xs text-amber-600 ml-2">Arrastra a una factura</span>
       </div>
-      <div className="p-4 space-y-2">
+      <div className="p-2 space-y-1">
         {docs.map(d => (
-          <AlbaranItem
-            key={d.id}
-            doc={d}
-            batchId={batchId}
-            onDragStart={onDragStart}
-            onRemove={() => {}}
-            onPreview={onPreview}
-          />
+          <AlbaranRow key={d.id} doc={d} onDragStart={onDragStart} onRemove={() => {}} onEdit={onEditDoc} />
         ))}
       </div>
     </div>
@@ -486,23 +280,31 @@ function HuerfanosSection({ docs, batchId, onDragStart, onPreview }) {
 export default function ReviewPanel({ batchId, onBack }) {
   const [batch, setBatch] = useState(null)
   const [documents, setDocuments] = useState([])
-  const [assignments, setAssignments] = useState({}) // { facturaId: [albaranId, ...] }
+  const [assignments, setAssignments] = useState({})
   const [huerfanos, setHuerfanos] = useState([])
-  const [confirmed, setConfirmed] = useState({}) // { facturaId: bool }
+  const [confirmed, setConfirmed] = useState({})
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [dragOver, setDragOver] = useState(null)
   const [draggingId, setDraggingId] = useState(null)
-  const [previewDoc, setPreviewDoc] = useState(null) // doc para modal de preview
+  const [editingDoc, setEditingDoc] = useState(null)
+  const { handleDragOver: autoScroll } = useAutoScroll()
 
+  useEffect(() => { loadBatch() }, [batchId])
+
+  // Auto-scroll global durante drag
   useEffect(() => {
-    loadBatch()
-  }, [batchId])
+    const handler = (e) => {
+      if (draggingId) autoScroll(e)
+    }
+    window.addEventListener('dragover', handler)
+    return () => window.removeEventListener('dragover', handler)
+  }, [draggingId, autoScroll])
 
   const loadBatch = async () => {
     setLoading(true)
-    const { data, error } = await documental.getBatch(batchId)
+    const { data } = await documental.getBatch(batchId)
     if (data) {
       setBatch(data)
       const docs = data.doc_documents || []
@@ -515,140 +317,97 @@ export default function ReviewPanel({ batchId, onBack }) {
     setLoading(false)
   }
 
-  // Mover albarán a una factura
   const handleDrop = useCallback((albaranId, targetFacturaId) => {
     setAssignments(prev => {
       const next = { ...prev }
-      // Quitar de su factura actual
-      Object.keys(next).forEach(fId => {
-        next[fId] = next[fId].filter(id => id !== albaranId)
-      })
-      // Añadir a la nueva factura
+      Object.keys(next).forEach(fId => { next[fId] = next[fId].filter(id => id !== albaranId) })
       next[targetFacturaId] = [...(next[targetFacturaId] || []), albaranId]
       return next
     })
-    // Quitar de huérfanos si estaba
     setHuerfanos(prev => prev.filter(id => id !== albaranId))
     setDragOver(null)
   }, [])
 
-  // Marcar como huérfano
   const handleRemoveAlbaran = useCallback((albaranId) => {
     setAssignments(prev => {
       const next = { ...prev }
-      Object.keys(next).forEach(fId => {
-        next[fId] = next[fId].filter(id => id !== albaranId)
-      })
+      Object.keys(next).forEach(fId => { next[fId] = next[fId].filter(id => id !== albaranId) })
       return next
     })
     setHuerfanos(prev => prev.includes(albaranId) ? prev : [...prev, albaranId])
   }, [])
 
-  // Toggle confirmación de un grupo
   const handleToggleConfirm = useCallback((facturaId) => {
     setConfirmed(prev => ({ ...prev, [facturaId]: !prev[facturaId] }))
   }, [])
 
-  // Confirmar todos
   const handleConfirmAll = () => {
     const all = {}
     Object.keys(assignments).forEach(fId => { all[fId] = true })
     setConfirmed(all)
   }
 
-  // Verificar si todo está confirmado
+  const handleUpdateDoc = (docId, newData) => {
+    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, ...newData } : d))
+    setEditingDoc(null)
+  }
+
   const allConfirmed = Object.keys(assignments).length > 0 &&
     Object.keys(assignments).every(fId => confirmed[fId])
 
-  // Descargar PDFs agrupados
   const handleDownload = async () => {
-    if (!allConfirmed) {
-      alert('Debes confirmar todos los grupos antes de descargar.')
-      return
-    }
-
+    if (!allConfirmed) { alert('Confirma todos los grupos primero.'); return }
     setDownloading(true)
     try {
       const facturas = documents.filter(d => d.tipo === 'factura')
-
       for (const factura of facturas) {
         const albaranIds = assignments[factura.id] || []
         const albaranDocs = albaranIds.map(id => documents.find(d => d.id === id)).filter(Boolean)
-
-        // Recopilar todas las páginas en orden: factura + albaranes
-        const allPages = [
-          ...(factura.paginas || []),
-          ...albaranDocs.flatMap(a => a.paginas || [])
-        ]
-
+        const allPages = [...(factura.paginas || []), ...albaranDocs.flatMap(a => a.paginas || [])]
         if (allPages.length === 0) continue
-
-        // Crear PDF desde las preview PNGs
         const pdfDoc = await PDFDocument.create()
-
         for (const pageNum of allPages) {
           try {
             const url = documental.getPreviewUrl(batchId, pageNum)
             const resp = await fetch(url)
             if (!resp.ok) continue
             const imgBytes = await resp.arrayBuffer()
-
             const img = await pdfDoc.embedPng(imgBytes).catch(() => null)
             if (!img) continue
-
             const page = pdfDoc.addPage([img.width, img.height])
             page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height })
-          } catch (err) {
-            console.warn(`Error cargando página ${pageNum}:`, err)
-          }
+          } catch (err) { console.warn(`Error pagina ${pageNum}:`, err) }
         }
-
         if (pdfDoc.getPageCount() === 0) continue
-
         const pdfBytes = await pdfDoc.save()
         const blob = new Blob([pdfBytes], { type: 'application/pdf' })
         const url = URL.createObjectURL(blob)
-
-        // Nombre: [Proveedor]_[NºFactura]_[Fecha].pdf
         const prov = (factura.proveedor_codigo || factura.proveedor_nombre || 'PROV').replace(/[^a-zA-Z0-9]/g, '_')
         const num = (factura.numero_factura || 'SN').replace(/[^a-zA-Z0-9]/g, '_')
         const fecha = (factura.fecha_documento || new Date().toISOString().slice(0, 10)).replace(/-/g, '')
-        const filename = `${prov}_${num}_${fecha}.pdf`
-
         const link = document.createElement('a')
         link.href = url
-        link.download = filename
+        link.download = `${prov}_${num}_${fecha}.pdf`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
         URL.revokeObjectURL(url)
       }
-    } catch (err) {
-      console.error('Error generando PDFs:', err)
-      alert('Error al generar los PDFs: ' + err.message)
-    }
+    } catch (err) { alert('Error: ' + err.message) }
     setDownloading(false)
   }
 
-  // Confirmar y archivar
   const handleArchive = async () => {
-    if (!allConfirmed) {
-      alert('Debes confirmar todos los grupos antes de archivar.')
-      return
-    }
-    if (!confirm('¿Confirmar archivado? Los documentos se marcarán como archivados.')) return
-
+    if (!allConfirmed) { alert('Confirma todos los grupos primero.'); return }
+    if (!confirm('Confirmar archivado?')) return
     setArchiving(true)
     try {
-      // Guardar reasignaciones en Supabase
       for (const [facturaId, albaranIds] of Object.entries(assignments)) {
         const factura = documents.find(d => d.id === facturaId)
         if (!factura) continue
-
         for (const albId of albaranIds) {
           const alb = documents.find(d => d.id === albId)
-          if (!alb) continue
-          if (alb.proveedor_nombre !== factura.proveedor_nombre) {
+          if (alb && alb.proveedor_nombre !== factura.proveedor_nombre) {
             await documental.updateDocument(albId, {
               proveedor_nombre: factura.proveedor_nombre,
               proveedor_codigo: factura.proveedor_codigo
@@ -656,48 +415,36 @@ export default function ReviewPanel({ batchId, onBack }) {
           }
         }
       }
-
       const { error } = await documental.archiveBatch(batchId)
       if (error) throw error
       onBack()
-    } catch (err) {
-      alert('Error al archivar: ' + err.message)
-    }
+    } catch (err) { alert('Error: ' + err.message) }
     setArchiving(false)
   }
 
   // ---- Render ----
 
-  if (loading) {
-    return (
-      <div className="text-center py-20">
-        <div className="text-4xl mb-4 animate-spin">⏳</div>
-        <p className="text-gray-500">Cargando documentos para revisión...</p>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className="text-center py-20">
+      <p className="text-gray-500">Cargando...</p>
+    </div>
+  )
 
-  if (!batch) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-gray-500">Lote no encontrado</p>
-        <button onClick={onBack} className="mt-4 text-blue-600 hover:underline">Volver</button>
-      </div>
-    )
-  }
+  if (!batch) return (
+    <div className="text-center py-20">
+      <p className="text-gray-500">Lote no encontrado</p>
+      <button onClick={onBack} className="mt-4 text-blue-600 hover:underline">Volver</button>
+    </div>
+  )
 
-  // Construir datos para render
   const facturas = documents.filter(d => d.tipo === 'factura')
   const docById = {}
   documents.forEach(d => { docById[d.id] = d })
 
-  // Agrupar por proveedor para el render
   const proveedorMap = {}
   facturas.forEach(f => {
     const key = f.proveedor_nombre || 'Sin proveedor'
-    if (!proveedorMap[key]) {
-      proveedorMap[key] = { proveedor: key, codigo: f.proveedor_codigo || '', facturas: [] }
-    }
+    if (!proveedorMap[key]) proveedorMap[key] = { proveedor: key, codigo: f.proveedor_codigo || '', facturas: [] }
     proveedorMap[key].facturas.push({
       factura: f,
       albaranes: (assignments[f.id] || []).map(id => docById[id]).filter(Boolean),
@@ -708,116 +455,76 @@ export default function ReviewPanel({ batchId, onBack }) {
   const huerfanoDocs = huerfanos.map(id => docById[id]).filter(Boolean)
   const totalGroups = facturas.length
   const confirmedCount = Object.values(confirmed).filter(Boolean).length
-  const totalAlbaranes = documents.filter(d => d.tipo === 'albaran').length
-  const asociados = totalAlbaranes - huerfanoDocs.filter(d => d.tipo === 'albaran').length
+  const totalAlb = documents.filter(d => d.tipo === 'albaran').length
+  const asociados = totalAlb - huerfanoDocs.filter(d => d.tipo === 'albaran').length
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <button
-            onClick={onBack}
-            className="text-sm text-gray-500 hover:text-gray-700 mb-1 flex items-center gap-1"
-          >
-            ← Volver a lotes
+          <button onClick={onBack} className="text-xs text-gray-500 hover:text-gray-700 mb-1">
+            ← Volver
           </button>
-          <h2 className="text-lg font-semibold text-gray-800">
-            Revisión: {batch.fichero_origen}
-          </h2>
-          <p className="text-sm text-gray-500">
-            {facturas.length} factura{facturas.length !== 1 ? 's' : ''} ·
-            {' '}{totalAlbaranes} albarán{totalAlbaranes !== 1 ? 'es' : ''} ({asociados} asociados) ·
-            {' '}{documents.length} docs totales ·
-            <span className={confirmedCount === totalGroups ? ' text-green-600 font-medium' : ' text-amber-600'}>
-              {' '}{confirmedCount}/{totalGroups} confirmados
+          <h2 className="text-base font-semibold text-gray-800">{batch.fichero_origen}</h2>
+          <p className="text-xs text-gray-500">
+            {facturas.length}f · {totalAlb}a ({asociados} asoc.) · {documents.length} docs ·
+            <span className={confirmedCount === totalGroups ? ' text-green-600' : ' text-amber-600'}>
+              {' '}{confirmedCount}/{totalGroups} conf.
             </span>
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {!allConfirmed && (
-            <button
-              onClick={handleConfirmAll}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
-            >
+            <button onClick={handleConfirmAll}
+              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200">
               Confirmar todos
             </button>
           )}
-          <button
-            onClick={handleDownload}
-            disabled={!allConfirmed || downloading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
-          >
-            {downloading ? 'Generando PDFs...' : 'Descargar PDFs'}
+          <button onClick={handleDownload} disabled={!allConfirmed || downloading}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
+            {downloading ? 'Generando...' : 'Descargar'}
           </button>
-          <button
-            onClick={handleArchive}
-            disabled={!allConfirmed || archiving}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
-          >
-            {archiving ? 'Archivando...' : 'Confirmar y archivar'}
+          <button onClick={handleArchive} disabled={!allConfirmed || archiving}
+            className="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 disabled:opacity-40">
+            {archiving ? 'Archivando...' : 'Archivar'}
           </button>
         </div>
       </div>
 
-      {/* Instrucciones */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-        <p className="text-sm text-blue-700">
-          Haz <strong>click</strong> en una factura o albarán para ver la imagen.
-          <strong> Arrastra</strong> los albaranes entre facturas para corregir la asignación.
-          Pulsa <strong>✕</strong> en un albarán para marcarlo como huérfano.
-        </p>
-      </div>
+      {/* Edicion inline */}
+      {editingDoc && (
+        <EditRow doc={editingDoc} onSave={handleUpdateDoc} onCancel={() => setEditingDoc(null)} />
+      )}
 
       {/* Grupos por proveedor */}
       {Object.values(proveedorMap).map(({ proveedor, codigo, facturas: facts }) => (
-        <ProveedorAccordion
+        <ProveedorSection
           key={proveedor}
           nombre={proveedor}
           codigo={codigo}
           facturas={facts}
-          batchId={batchId}
           onDrop={handleDrop}
           onToggleConfirm={handleToggleConfirm}
           onRemoveAlbaran={handleRemoveAlbaran}
-          onPreview={setPreviewDoc}
+          onEditDoc={setEditingDoc}
           dragOver={dragOver}
           setDragOver={setDragOver}
         />
       ))}
 
-      {/* Huérfanos */}
+      {/* Huerfanos */}
       <HuerfanosSection
         docs={huerfanoDocs}
-        batchId={batchId}
         onDragStart={setDraggingId}
-        onPreview={setPreviewDoc}
+        onRemove={() => {}}
+        onEditDoc={setEditingDoc}
       />
 
-      {/* Sin documentos */}
       {facturas.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-          <div className="text-4xl mb-3">📭</div>
-          <p className="text-gray-500">No hay facturas en este lote</p>
+        <div className="text-center py-8 bg-white rounded-lg border border-gray-100">
+          <p className="text-gray-500 text-sm">No hay facturas en este lote</p>
         </div>
-      )}
-
-      {/* Modal de preview */}
-      {previewDoc && (
-        <PreviewModal
-          doc={previewDoc}
-          batchId={batchId}
-          onClose={() => setPreviewDoc(null)}
-          onUpdateDoc={(docId, newData) => {
-            // Actualizar el documento en el estado local
-            setDocuments(prev => prev.map(d =>
-              d.id === docId ? { ...d, ...newData } : d
-            ))
-            // Actualizar el doc del modal
-            setPreviewDoc(prev => prev && prev.id === docId ? { ...prev, ...newData } : prev)
-          }}
-        />
       )}
     </div>
   )
