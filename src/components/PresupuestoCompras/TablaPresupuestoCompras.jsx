@@ -192,15 +192,17 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
     })
   }
 
-  // Remap pedidos accounts dynamically using proveedoresCuentas
+  // Remap pedidos accounts + filtrar líneas ya servidas (cant. pendiente = 0)
   const pedidosRemapeados = useMemo(() => {
     if (!pedidosCompra || pedidosCompra.length === 0) return pedidosCompra
-    return pedidosCompra.map(p => {
-      if (p.cuenta === '600000000' && p.cod_proveedor && proveedoresCuentas[p.cod_proveedor]) {
-        return { ...p, cuenta: proveedoresCuentas[p.cod_proveedor] }
-      }
-      return p
-    })
+    return pedidosCompra
+      .filter(p => (parseFloat(p.cantidad_pendiente) || 0) > 0)
+      .map(p => {
+        if (p.cuenta === '600000000' && p.cod_proveedor && proveedoresCuentas[p.cod_proveedor]) {
+          return { ...p, cuenta: proveedoresCuentas[p.cod_proveedor] }
+        }
+        return p
+      })
   }, [pedidosCompra, proveedoresCuentas])
 
   // Calculate presupuesto compras data
