@@ -1,6 +1,7 @@
 // ============================================
 // REVIEW PANEL - Revisión agrupada por proveedor
-// con drag & drop de albaranes entre facturas
+// con drag & drop de albaranes, preview de imagen
+// y asociación inteligente factura↔albarán
 // ============================================
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
@@ -9,54 +10,123 @@ import { PDFDocument } from 'pdf-lib'
 
 // ---- Helpers ----
 
-function buildGroups(documents) {
-  const facturas = documents.filter(d => d.tipo === 'factura')
-  const albaranes = documents.filter(d => d.tipo === 'albaran')
-  const desconocidos = documents.filter(d => d.tipo === 'desconocido')
+function initializeFromBackend(docs) {
+  /**
+   * Usa factura_asociada_id del backend como primera fuente de verdad.
+   * Fallback: match por proveedor si el backend no asoció.
+   */
+  const facturas = docs.filter(d => d.tipo === 'factura')
+  const albaranes = docs.filter(d => d.tipo === 'albaran')
+  const desconocidos = docs.filter(d => d.tipo === 'desconocido')
 
-  // Mapa: facturaId -> { factura, albaranes[] }
-  const facMap = {}
-  facturas.forEach(f => {
-    facMap[f.id] = { factura: f, albaranes: [], confirmed: false }
-  })
+  const assignments = {}
+  facturas.forEach(f => { assignments[f.id] = [] })
 
-  // Asignar albaranes a facturas por proveedor coincidente
-  const huerfanos = []
+  const orphans = []
+
   albaranes.forEach(a => {
-    // Buscar factura del mismo proveedor
+    // 1. Usar asociación del backend (factura_asociada_id)
+    if (a.factura_asociada_id && assignments[a.factura_asociada_id] !== undefined) {
+      assignments[a.factura_asociada_id].push(a.id)
+      return
+    }
+
+    // 2. Fallback: match por proveedor
     const match = facturas.find(f =>
       f.proveedor_nombre && a.proveedor_nombre &&
-      f.proveedor_nombre.toLowerCase() === a.proveedor_nombre.toLowerCase()
+      f.proveedor_nombre.toLowerCase().trim() === a.proveedor_nombre.toLowerCase().trim()
     )
     if (match) {
-      facMap[match.id].albaranes.push(a)
+      assignments[match.id].push(a.id)
     } else {
-      huerfanos.push(a)
+      orphans.push(a.id)
     }
   })
 
-  // Agrupar por proveedor
-  const provGroups = {}
-  Object.values(facMap).forEach(({ factura, albaranes: albs, confirmed }) => {
-    const key = factura.proveedor_nombre || 'Sin proveedor'
-    if (!provGroups[key]) {
-      provGroups[key] = {
-        proveedor: factura.proveedor_nombre || 'Sin proveedor',
-        codigo: factura.proveedor_codigo || '',
-        facturas: []
-      }
-    }
-    provGroups[key].facturas.push({ factura, albaranes: albs, confirmed })
-  })
+  // Desconocidos van a huérfanos
+  desconocidos.forEach(d => orphans.push(d.id))
 
-  return { provGroups, huerfanos, desconocidos }
+  return { assignments, orphans }
 }
 
 function docLabel(doc) {
-  const cod = doc.proveedor_codigo || '???'
   const num = doc.numero_factura || doc.numero_albaran || 'S/N'
   const tipo = doc.tipo === 'factura' ? 'FAC' : doc.tipo === 'albaran' ? 'ALB' : 'DOC'
-  return `${cod} - ${num} - ${tipo}`
+  return `${tipo} ${num}`
+}
+
+function confidenceBadge(confianza) {
+  const pct = Math.round((confianza || 0) * 100)
+  const color = pct >= 80 ? 'text-green-600 bg-green-50' : pct >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'
+  return <span className={`text-xs px-1.5 py-0.5 rounded ${color}`}>{pct}%</span>
+}
+
+// ---- Preview Modal ----
+
+function PreviewModal({ doc, batchId, onClose }) {
+  if (!doc) return null
+
+  const pages = doc.paginas || []
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <div>
+            <h3 className="font-semibold text-gray-800">{docLabel(doc)}</h3>
+            <p className="text-sm text-gray-500">
+              {doc.proveedor_nombre || 'Sin proveedor'} · {pages.length} página{pages.length !== 1 ? 's' : ''}
+              {doc.fecha_documento && ` · ${doc.fecha_documento}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {confidenceBadge(doc.confianza)}
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          </div>
+        </div>
+
+        {/* Datos extraídos */}
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-sm">
+          {doc.numero_factura && (
+            <div><span className="text-gray-500">Factura:</span> <span className="font-medium">{doc.numero_factura}</span></div>
+          )}
+          {doc.numero_albaran && (
+            <div><span className="text-gray-500">Albarán:</span> <span className="font-medium">{doc.numero_albaran}</span></div>
+          )}
+          {doc.proveedor_codigo && (
+            <div><span className="text-gray-500">Código:</span> <span className="font-medium">{doc.proveedor_codigo}</span></div>
+          )}
+          {doc.proveedor_nif && (
+            <div><span className="text-gray-500">NIF:</span> <span className="font-medium">{doc.proveedor_nif}</span></div>
+          )}
+        </div>
+
+        {/* Imágenes */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-100">
+          {pages.map((pageNum, i) => (
+            <div key={pageNum} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-3 py-1.5 text-xs text-gray-500 border-b">
+                Página {pageNum}
+              </div>
+              <img
+                src={documental.getPreviewUrl(batchId, pageNum)}
+                alt={`Página ${pageNum}`}
+                className="w-full"
+                loading="lazy"
+              />
+            </div>
+          ))}
+          {pages.length === 0 && (
+            <p className="text-center text-gray-400 py-8">Sin páginas de preview disponibles</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ---- Componentes internos ----
@@ -76,7 +146,7 @@ function ConfirmBadge({ confirmed, onClick }) {
   )
 }
 
-function AlbaranItem({ doc, onDragStart, onRemove }) {
+function AlbaranItem({ doc, batchId, onDragStart, onRemove, onPreview }) {
   return (
     <div
       draggable
@@ -89,8 +159,15 @@ function AlbaranItem({ doc, onDragStart, onRemove }) {
                  cursor-grab active:cursor-grabbing hover:shadow-sm transition-all group"
     >
       <span className="text-sm">📋</span>
-      <span className="text-sm text-gray-700 flex-1 truncate">{docLabel(doc)}</span>
-      <span className="text-xs text-gray-400">{doc.numero_albaran || ''}</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); onPreview(doc) }}
+        className="text-sm text-gray-700 flex-1 truncate text-left hover:text-blue-600 hover:underline"
+        title="Ver preview"
+      >
+        {doc.numero_albaran || 'S/N'}
+        {doc.proveedor_nombre && <span className="text-gray-400 ml-1.5 text-xs">({doc.proveedor_nombre})</span>}
+      </button>
+      {confidenceBadge(doc.confianza)}
       <button
         onClick={(e) => { e.stopPropagation(); onRemove(doc.id) }}
         title="Marcar como huérfano"
@@ -102,7 +179,7 @@ function AlbaranItem({ doc, onDragStart, onRemove }) {
   )
 }
 
-function FacturaGroup({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, dragOver, setDragOver }) {
+function FacturaGroup({ grupo, batchId, onDrop, onToggleConfirm, onRemoveAlbaran, onPreview, dragOver, setDragOver }) {
   const { factura, albaranes, confirmed } = grupo
   const [expanded, setExpanded] = useState(true)
   const dropRef = useRef(null)
@@ -126,6 +203,10 @@ function FacturaGroup({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, dragOve
 
   const isDragTarget = dragOver === factura.id
 
+  // Thumbnail de la primera página de la factura
+  const firstPage = factura.paginas?.[0]
+  const thumbUrl = firstPage ? documental.getPreviewUrl(batchId, firstPage) : null
+
   return (
     <div
       ref={dropRef}
@@ -140,18 +221,44 @@ function FacturaGroup({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, dragOve
             : 'border-gray-200 bg-white'
       }`}
     >
-      {/* Factura header */}
-      <div
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 rounded-t-lg"
-      >
-        <span className="text-gray-400 text-xs">{expanded ? '▼' : '▶'}</span>
-        <span className="text-lg">🧾</span>
-        <span className="font-medium text-gray-800 flex-1 truncate">{docLabel(factura)}</span>
-        <span className="text-xs text-gray-400">
-          {albaranes.length} alb.
-        </span>
-        <ConfirmBadge confirmed={confirmed} onClick={(e) => { e.stopPropagation(); onToggleConfirm(factura.id) }} />
+      {/* Factura header con thumbnail */}
+      <div className="flex items-start gap-3 px-4 py-3">
+        {/* Thumbnail */}
+        {thumbUrl && (
+          <button
+            onClick={() => onPreview(factura)}
+            className="flex-shrink-0 w-16 h-20 rounded border border-gray-200 overflow-hidden hover:border-blue-400 hover:shadow transition-all bg-white"
+            title="Ver factura"
+          >
+            <img src={thumbUrl} alt="Preview" className="w-full h-full object-cover object-top" loading="lazy" />
+          </button>
+        )}
+
+        {/* Info */}
+        <div
+          onClick={() => setExpanded(!expanded)}
+          className="flex-1 cursor-pointer min-w-0"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-gray-400 text-xs">{expanded ? '▼' : '▶'}</span>
+            <span className="text-lg">🧾</span>
+            <button
+              onClick={(e) => { e.stopPropagation(); onPreview(factura) }}
+              className="font-medium text-gray-800 truncate hover:text-blue-600 hover:underline"
+            >
+              Factura {factura.numero_factura || 'S/N'}
+            </button>
+            {confidenceBadge(factura.confianza)}
+          </div>
+          <div className="text-xs text-gray-500 mt-1 ml-7">
+            {factura.proveedor_nombre || 'Sin proveedor'}
+            {factura.fecha_documento && ` · ${factura.fecha_documento}`}
+            {' · '}{factura.paginas?.length || 0} pág.
+            {' · '}{albaranes.length} albarán{albaranes.length !== 1 ? 'es' : ''}
+          </div>
+        </div>
+
+        <ConfirmBadge confirmed={confirmed} onClick={(e) => { e.stopPropagation?.(); onToggleConfirm(factura.id) }} />
       </div>
 
       {/* Albaranes */}
@@ -166,8 +273,10 @@ function FacturaGroup({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, dragOve
               <div key={a.id} className="ml-6">
                 <AlbaranItem
                   doc={a}
+                  batchId={batchId}
                   onDragStart={() => {}}
                   onRemove={onRemoveAlbaran}
+                  onPreview={onPreview}
                 />
               </div>
             ))
@@ -184,9 +293,10 @@ function FacturaGroup({ grupo, onDrop, onToggleConfirm, onRemoveAlbaran, dragOve
   )
 }
 
-function ProveedorAccordion({ nombre, codigo, facturas, onDrop, onToggleConfirm, onRemoveAlbaran, dragOver, setDragOver }) {
+function ProveedorAccordion({ nombre, codigo, facturas, batchId, onDrop, onToggleConfirm, onRemoveAlbaran, onPreview, dragOver, setDragOver }) {
   const [expanded, setExpanded] = useState(true)
   const allConfirmed = facturas.every(f => f.confirmed)
+  const totalAlb = facturas.reduce((sum, f) => sum + f.albaranes.length, 0)
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -195,12 +305,14 @@ function ProveedorAccordion({ nombre, codigo, facturas, onDrop, onToggleConfirm,
         className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50 border-b border-gray-100"
       >
         <span className="text-gray-400">{expanded ? '▼' : '▶'}</span>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <span className="font-semibold text-gray-800">{nombre}</span>
           {codigo && <span className="text-xs text-gray-400 ml-2">({codigo})</span>}
         </div>
-        <span className="text-xs text-gray-500">{facturas.length} factura{facturas.length > 1 ? 's' : ''}</span>
-        {allConfirmed && <span className="text-green-500 text-sm">✓</span>}
+        <span className="text-xs text-gray-500">
+          {facturas.length} fac. · {totalAlb} alb.
+        </span>
+        {allConfirmed && <span className="text-green-500 text-sm font-bold">✓</span>}
       </div>
 
       {expanded && (
@@ -209,9 +321,11 @@ function ProveedorAccordion({ nombre, codigo, facturas, onDrop, onToggleConfirm,
             <FacturaGroup
               key={g.factura.id}
               grupo={g}
+              batchId={batchId}
               onDrop={onDrop}
               onToggleConfirm={onToggleConfirm}
               onRemoveAlbaran={onRemoveAlbaran}
+              onPreview={onPreview}
               dragOver={dragOver}
               setDragOver={setDragOver}
             />
@@ -222,7 +336,7 @@ function ProveedorAccordion({ nombre, codigo, facturas, onDrop, onToggleConfirm,
   )
 }
 
-function HuerfanosSection({ docs, onDragStart }) {
+function HuerfanosSection({ docs, batchId, onDragStart, onPreview }) {
   if (docs.length === 0) return null
 
   return (
@@ -238,8 +352,10 @@ function HuerfanosSection({ docs, onDragStart }) {
           <AlbaranItem
             key={d.id}
             doc={d}
+            batchId={batchId}
             onDragStart={onDragStart}
             onRemove={() => {}}
+            onPreview={onPreview}
           />
         ))}
       </div>
@@ -254,13 +370,13 @@ export default function ReviewPanel({ batchId, onBack }) {
   const [documents, setDocuments] = useState([])
   const [assignments, setAssignments] = useState({}) // { facturaId: [albaranId, ...] }
   const [huerfanos, setHuerfanos] = useState([])
-  const [desconocidos, setDesconocidos] = useState([])
   const [confirmed, setConfirmed] = useState({}) // { facturaId: bool }
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [dragOver, setDragOver] = useState(null)
   const [draggingId, setDraggingId] = useState(null)
+  const [previewDoc, setPreviewDoc] = useState(null) // doc para modal de preview
 
   useEffect(() => {
     loadBatch()
@@ -273,40 +389,12 @@ export default function ReviewPanel({ batchId, onBack }) {
       setBatch(data)
       const docs = data.doc_documents || []
       setDocuments(docs)
-      initializeGroups(docs)
+      const { assignments: a, orphans } = initializeFromBackend(docs)
+      setAssignments(a)
+      setHuerfanos(orphans)
+      setConfirmed({})
     }
     setLoading(false)
-  }
-
-  const initializeGroups = (docs) => {
-    const facturas = docs.filter(d => d.tipo === 'factura')
-    const albaranes = docs.filter(d => d.tipo === 'albaran')
-    const desc = docs.filter(d => d.tipo === 'desconocido')
-
-    const newAssignments = {}
-    const orphans = []
-
-    facturas.forEach(f => { newAssignments[f.id] = [] })
-
-    albaranes.forEach(a => {
-      const match = facturas.find(f =>
-        f.proveedor_nombre && a.proveedor_nombre &&
-        f.proveedor_nombre.toLowerCase().trim() === a.proveedor_nombre.toLowerCase().trim()
-      )
-      if (match) {
-        newAssignments[match.id].push(a.id)
-      } else {
-        orphans.push(a.id)
-      }
-    })
-
-    // Desconocidos van a huérfanos también
-    desc.forEach(d => orphans.push(d.id))
-
-    setAssignments(newAssignments)
-    setHuerfanos(orphans)
-    setDesconocidos([])
-    setConfirmed({})
   }
 
   // Mover albarán a una factura
@@ -434,7 +522,7 @@ export default function ReviewPanel({ batchId, onBack }) {
 
     setArchiving(true)
     try {
-      // Guardar reasignaciones en Supabase (actualizar proveedor en albaranes movidos)
+      // Guardar reasignaciones en Supabase
       for (const [facturaId, albaranIds] of Object.entries(assignments)) {
         const factura = documents.find(d => d.id === facturaId)
         if (!factura) continue
@@ -442,7 +530,6 @@ export default function ReviewPanel({ batchId, onBack }) {
         for (const albId of albaranIds) {
           const alb = documents.find(d => d.id === albId)
           if (!alb) continue
-          // Si el proveedor del albarán no coincide con la factura, actualizar
           if (alb.proveedor_nombre !== factura.proveedor_nombre) {
             await documental.updateDocument(albId, {
               proveedor_nombre: factura.proveedor_nombre,
@@ -452,7 +539,6 @@ export default function ReviewPanel({ batchId, onBack }) {
         }
       }
 
-      // Archivar el lote
       const { error } = await documental.archiveBatch(batchId)
       if (error) throw error
       onBack()
@@ -504,6 +590,8 @@ export default function ReviewPanel({ batchId, onBack }) {
   const huerfanoDocs = huerfanos.map(id => docById[id]).filter(Boolean)
   const totalGroups = facturas.length
   const confirmedCount = Object.values(confirmed).filter(Boolean).length
+  const totalAlbaranes = documents.filter(d => d.tipo === 'albaran').length
+  const asociados = totalAlbaranes - huerfanoDocs.filter(d => d.tipo === 'albaran').length
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -520,7 +608,9 @@ export default function ReviewPanel({ batchId, onBack }) {
             Revisión: {batch.fichero_origen}
           </h2>
           <p className="text-sm text-gray-500">
-            {facturas.length} factura{facturas.length !== 1 ? 's' : ''} · {documents.length} documentos totales ·
+            {facturas.length} factura{facturas.length !== 1 ? 's' : ''} ·
+            {' '}{totalAlbaranes} albarán{totalAlbaranes !== 1 ? 'es' : ''} ({asociados} asociados) ·
+            {' '}{documents.length} docs totales ·
             <span className={confirmedCount === totalGroups ? ' text-green-600 font-medium' : ' text-amber-600'}>
               {' '}{confirmedCount}/{totalGroups} confirmados
             </span>
@@ -556,9 +646,9 @@ export default function ReviewPanel({ batchId, onBack }) {
       {/* Instrucciones */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
         <p className="text-sm text-blue-700">
-          <strong>Arrastra</strong> los albaranes entre facturas para corregir la asignación.
+          Haz <strong>click</strong> en una factura o albarán para ver la imagen.
+          <strong> Arrastra</strong> los albaranes entre facturas para corregir la asignación.
           Pulsa <strong>✕</strong> en un albarán para marcarlo como huérfano.
-          Confirma cada grupo antes de descargar.
         </p>
       </div>
 
@@ -569,9 +659,11 @@ export default function ReviewPanel({ batchId, onBack }) {
           nombre={proveedor}
           codigo={codigo}
           facturas={facts}
+          batchId={batchId}
           onDrop={handleDrop}
           onToggleConfirm={handleToggleConfirm}
           onRemoveAlbaran={handleRemoveAlbaran}
+          onPreview={setPreviewDoc}
           dragOver={dragOver}
           setDragOver={setDragOver}
         />
@@ -580,7 +672,9 @@ export default function ReviewPanel({ batchId, onBack }) {
       {/* Huérfanos */}
       <HuerfanosSection
         docs={huerfanoDocs}
+        batchId={batchId}
         onDragStart={setDraggingId}
+        onPreview={setPreviewDoc}
       />
 
       {/* Sin documentos */}
@@ -589,6 +683,15 @@ export default function ReviewPanel({ batchId, onBack }) {
           <div className="text-4xl mb-3">📭</div>
           <p className="text-gray-500">No hay facturas en este lote</p>
         </div>
+      )}
+
+      {/* Modal de preview */}
+      {previewDoc && (
+        <PreviewModal
+          doc={previewDoc}
+          batchId={batchId}
+          onClose={() => setPreviewDoc(null)}
+        />
       )}
     </div>
   )

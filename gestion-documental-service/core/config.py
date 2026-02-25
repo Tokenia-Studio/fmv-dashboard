@@ -24,7 +24,7 @@ class OpenAIConfig:
     model: str = "gpt-4o-mini"
     fallback_model: str = "gpt-4o"
     api_key: str = ""
-    max_concurrent: int = 5
+    max_concurrent: int = 10
     timeout: int = 30
     max_retries: int = 3
 
@@ -33,7 +33,7 @@ class OpenAIConfig:
 class ProcessingConfig:
     confidence_threshold: float = 0.80
     supplier_match_threshold: int = 80
-    dpi: int = 300
+    dpi: int = 200
     wait_stability_seconds: int = 5
     archive_poll_interval: int = 30
 
@@ -91,14 +91,14 @@ def load_config(config_path: str | Path | None = None) -> AppConfig:
             model=openai_raw.get("model", "gpt-4o-mini"),
             fallback_model=openai_raw.get("fallback_model", "gpt-4o"),
             api_key=os.getenv("OPENAI_API_KEY", ""),
-            max_concurrent=openai_raw.get("max_concurrent", 5),
+            max_concurrent=openai_raw.get("max_concurrent", 10),
             timeout=openai_raw.get("timeout", 30),
             max_retries=openai_raw.get("max_retries", 3),
         ),
         processing=ProcessingConfig(
             confidence_threshold=processing_raw.get("confidence_threshold", 0.80),
             supplier_match_threshold=processing_raw.get("supplier_match_threshold", 80),
-            dpi=processing_raw.get("dpi", 300),
+            dpi=processing_raw.get("dpi", 200),
             wait_stability_seconds=processing_raw.get("wait_stability_seconds", 5),
             archive_poll_interval=processing_raw.get("archive_poll_interval", 30),
         ),

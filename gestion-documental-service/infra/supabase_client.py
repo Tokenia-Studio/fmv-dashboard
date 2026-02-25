@@ -55,6 +55,8 @@ class SupabaseSync:
     def upload_previews(self, batch_id: str, image_paths: list[str]) -> list[str]:
         """Sube las imágenes de preview a Supabase Storage.
 
+        Solo sube los PNGs de preview (ignora los _api.jpg que son para OpenAI).
+
         Returns:
             Lista de URLs públicas de las imágenes.
         """
@@ -63,6 +65,10 @@ class SupabaseSync:
 
         for image_path in image_paths:
             path = Path(image_path)
+            # Saltar imágenes _api.jpg (son solo para OpenAI)
+            if "_api." in path.name:
+                continue
+
             storage_path = f"{batch_id}/{path.name}"
 
             with open(image_path, "rb") as f:
