@@ -891,9 +891,8 @@ export function DataProvider({ children }) {
 
       const rows = []
       json.forEach(row => {
-        // Solo líneas con Importe coste (Esperado) > 0
         const esperado = parseFloat(row[COL_esperado]) || 0
-        if (esperado <= 0) return
+        if (esperado === 0) return // Solo descartar filas sin importe
 
         const grupoContable = String(row[COL_grupo] || '').trim()
 

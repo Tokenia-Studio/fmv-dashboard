@@ -45,7 +45,7 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       Tipo: a.tipo_documento || '',
       Cuenta: a.cuenta_mapeada || '',
       Descripcion: a.descripcion || '',
-      Importe: Math.abs(a.importe || 0),
+      Importe: a.importe || 0,
       'Grupo Contable': a.grupo_contable_prod || '',
       Proveedor: proveedores[a.cod_proveedor] || a.cod_proveedor || ''
     }))
@@ -292,7 +292,7 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       if (!result[sub].albMeses) result[sub].albMeses = {}
       const m = a.mes
       if (!result[sub].albMeses[m]) result[sub].albMeses[m] = 0
-      result[sub].albMeses[m] += Math.abs(a.importe || 0)
+      result[sub].albMeses[m] += (a.importe || 0)
     })
 
     // 5. Calcular totales y usar nombre del plan de cuentas

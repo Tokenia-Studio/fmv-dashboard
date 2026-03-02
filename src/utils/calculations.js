@@ -519,7 +519,7 @@ export function calcularPresupuestoCompras(pyg3Digitos, presupuestos, albaranesP
     const m = a.mes
     if (!albPorCuenta[c]) albPorCuenta[c] = {}
     if (!albPorCuenta[c][m]) albPorCuenta[c][m] = 0
-    albPorCuenta[c][m] += Math.abs(a.importe || 0)
+    albPorCuenta[c][m] += (a.importe || 0)
   })
 
   // Agrupar pedidos por cuenta 3 dígitos y mes
