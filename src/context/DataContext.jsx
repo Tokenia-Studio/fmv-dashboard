@@ -180,6 +180,17 @@ export function DataProvider({ children }) {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Cargando datos...' })
 
     try {
+      // Cargar rol de usuario PRIMERO (evita flash de pestañas incorrectas)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: role } = await db.userRoles.getByUserId(user.id)
+          dispatch({ type: 'SET_USER_ROLE', payload: role || 'direccion' })
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar rol de usuario:', e)
+      }
+
       // Obtener anos disponibles
       const { data: años, error: errorAños } = await db.movimientos.getYears()
       if (errorAños) throw errorAños
@@ -275,17 +286,6 @@ export function DataProvider({ children }) {
       const { data: presupuestosData } = await db.presupuestos.getByYear(añoActual)
       if (presupuestosData) {
         dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestosData })
-      }
-
-      // Cargar rol de usuario
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: role } = await db.userRoles.getByUserId(user.id)
-          dispatch({ type: 'SET_USER_ROLE', payload: role || 'direccion' })
-        }
-      } catch (e) {
-        console.warn('No se pudo cargar rol de usuario:', e)
       }
 
       // Cargar albaranes, pedidos, mapeo, plan de cuentas
