@@ -423,6 +423,47 @@ export const db = {
     }
   },
 
+  // --- PLANIFICACION ORDENES ---
+  planificacionOrdenes: {
+    upsert: async (ordenes, metadata) => {
+      await supabase.from('planificacion_ordenes').delete().neq('id', 0)
+      const row = {
+        data: JSON.stringify(ordenes),
+        total_ordenes: metadata?.totalOrdenes || ordenes.length,
+        total_rutas: metadata?.totalRutas || 0,
+        total_vinculos: metadata?.totalVinculos || 0,
+        fecha_carga: new Date().toISOString(),
+        usuario: metadata?.usuario || null
+      }
+      const { data, error } = await supabase
+        .from('planificacion_ordenes')
+        .insert([row])
+      return { data, error }
+    },
+
+    get: async () => {
+      const { data, error } = await supabase
+        .from('planificacion_ordenes')
+        .select('*')
+        .order('fecha_carga', { ascending: false })
+        .limit(1)
+        .single()
+      if (error && error.code === 'PGRST116') return { data: null, error: null }
+      if (data) {
+        try { data.data = JSON.parse(data.data) } catch { data.data = [] }
+      }
+      return { data, error }
+    },
+
+    clear: async () => {
+      const { error } = await supabase
+        .from('planificacion_ordenes')
+        .delete()
+        .neq('id', 0)
+      return { error }
+    }
+  },
+
   // --- PLAN DE CUENTAS ---
   planCuentas: {
     getAll: async () => {

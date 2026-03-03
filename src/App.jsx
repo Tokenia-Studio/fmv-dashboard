@@ -18,6 +18,7 @@ import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoCo
 import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab'
 import CuentasAnualesTab from './components/CuentasAnuales/CuentasAnualesTab'
 import GestionDocumentalTab from './components/GestionDocumental/GestionDocumentalTab'
+import PlanificacionProduccionTab from './components/PlanificacionProduccion/PlanificacionProduccionTab'
 import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
@@ -142,7 +143,7 @@ function App() {
   // Renderizar pestaña activa
   const renderTab = () => {
     // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)
-    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'seguimientoEstructuras' && tabActiva !== 'usuarios') {
+    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'seguimientoEstructuras' && tabActiva !== 'planificacionProduccion' && tabActiva !== 'usuarios') {
       return <UploadTab />
     }
 
@@ -167,6 +168,8 @@ function App() {
         return <PresupuestoComprasTab />
       case 'seguimientoEstructuras':
         return <SeguimientoEstructurasTab />
+      case 'planificacionProduccion':
+        return <PlanificacionProduccionTab />
       case 'cargar':
         return <UploadTab />
       case 'usuarios':
