@@ -298,20 +298,35 @@ export function DataProvider({ children }) {
 
       console.log(`Cargados ${todosMovimientos.length} movimientos (años ${añosRecientes.join(', ')}) desde Supabase`)
 
-      // Procesar datos de compras (ya cargados en paralelo)
-      if (presupuestosResult.data) dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestosResult.data })
-      if (albResult.data) dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albResult.data })
-      if (pedResult.data) dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: pedResult.data })
-
+      // Procesar mapeo (antes de albaranes para poder aplicar fallback)
+      let mapeoActual = {}
       if (mapeoResult.data && mapeoResult.data.length > 0) {
         dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: mapeoResult.data })
+        mapeoResult.data.forEach(m => { if (m.cuenta) mapeoActual[m.grupo_contable] = m.cuenta })
       } else {
         const defaultRows = Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).map(([grupo, cuenta]) => ({
           grupo_contable: grupo, cuenta, descripcion: ''
         }))
         await db.mapeoGrupoCuenta.upsert(defaultRows)
         dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: defaultRows })
+        Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).forEach(([g, c]) => { mapeoActual[g] = c })
       }
+
+      // Procesar datos de compras
+      if (presupuestosResult.data) dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestosResult.data })
+
+      // Albaranes: aplicar mapeo si cuenta_mapeada está vacía
+      if (albResult.data) {
+        const albConMapeo = albResult.data.map(a => {
+          if (!a.cuenta_mapeada && a.grupo_contable_prod && mapeoActual[a.grupo_contable_prod]) {
+            return { ...a, cuenta_mapeada: mapeoActual[a.grupo_contable_prod] }
+          }
+          return a
+        })
+        dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albConMapeo })
+      }
+
+      if (pedResult.data) dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: pedResult.data })
 
       if (planResult.data && planResult.data.length > 0) {
         const planMap = {}
@@ -332,7 +347,18 @@ export function DataProvider({ children }) {
       }).catch(err => console.error('Error cargando presupuestos:', err))
 
       db.albaranesFacturas.getByYear(state.añoActual).then(({ data }) => {
-        if (data) dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: data })
+        if (data) {
+          // Aplicar mapeo si cuenta_mapeada está vacía
+          const mapeo = {}
+          state.mapeoGrupoCuenta.forEach(m => { if (m.cuenta) mapeo[m.grupo_contable] = m.cuenta })
+          const albConMapeo = data.map(a => {
+            if (!a.cuenta_mapeada && a.grupo_contable_prod && mapeo[a.grupo_contable_prod]) {
+              return { ...a, cuenta_mapeada: mapeo[a.grupo_contable_prod] }
+            }
+            return a
+          })
+          dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albConMapeo })
+        }
       }).catch(err => console.error('Error cargando albaranes:', err))
 
       db.pedidosCompra.getByYear(state.añoActual).then(({ data }) => {
