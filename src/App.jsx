@@ -145,7 +145,7 @@ function App() {
   // Renderizar pestaña activa
   const renderTab = () => {
     // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)
-    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'seguimientoEstructuras' && tabActiva !== 'planificacionProduccion' && tabActiva !== 'usuarios') {
+    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'seguimientoEstructuras' && tabActiva !== 'planificacionProduccion' && tabActiva !== 'presupuestoCompras' && tabActiva !== 'usuarios') {
       return <UploadTab />
     }
 
