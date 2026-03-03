@@ -828,25 +828,29 @@ export function DataProvider({ children }) {
   }
 
   // Helper: parsear Excel detectando fila de cabeceras automáticamente
+  // Busca en TODAS las hojas del libro la que tenga las cabeceras correctas
   const parseExcelAutoHeader = (buffer, headerPatterns) => {
     const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true })
 
-    // Buscar la fila que contiene las cabeceras reales
-    let headerRow = 0
-    for (let i = 0; i < Math.min(10, aoa.length); i++) {
-      const row = (aoa[i] || []).map(c => String(c || '').toLowerCase())
-      const matches = headerPatterns.filter(p => row.some(c => c.includes(p.toLowerCase())))
-      if (matches.length >= 2) {
-        headerRow = i
-        break
+    // Probar cada hoja hasta encontrar la que tiene las cabeceras
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName]
+      const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true })
+
+      // Buscar la fila que contiene las cabeceras reales
+      for (let i = 0; i < Math.min(10, aoa.length); i++) {
+        const row = (aoa[i] || []).map(c => String(c || '').toLowerCase())
+        const matches = headerPatterns.filter(p => row.some(c => c.includes(p.toLowerCase())))
+        if (matches.length >= 2) {
+          const json = XLSX.utils.sheet_to_json(sheet, { raw: true, range: i })
+          if (json.length > 0) return json
+        }
       }
     }
 
-    // Re-parsear desde la fila correcta
-    const json = XLSX.utils.sheet_to_json(sheet, { raw: true, range: headerRow })
-    return json
+    // Fallback: primera hoja, fila 0
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    return XLSX.utils.sheet_to_json(sheet, { raw: true })
   }
 
   // Cargar albaranes y facturas desde Excel (fichero acumulado anual)
