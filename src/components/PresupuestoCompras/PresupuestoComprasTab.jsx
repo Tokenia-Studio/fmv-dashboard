@@ -9,7 +9,7 @@ import ConfigMapeo from './ConfigMapeo'
 import MapeoProveedorCuenta from './MapeoProveedorCuenta'
 
 export default function PresupuestoComprasTab() {
-  const { movimientos, presupuestos, añoActual, planCuentas, cargarPlanCuentas } = useData()
+  const { movimientos, presupuestos, añoActual, planCuentas, cargarPlanCuentas, albaranesFacturas, pedidosCompra } = useData()
   const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth() + 1)
   const [mostrarConfig, setMostrarConfig] = useState(false)
   const [mostrarMapeoProveedor, setMostrarMapeoProveedor] = useState(false)
@@ -17,7 +17,7 @@ export default function PresupuestoComprasTab() {
   const [mensajePlan, setMensajePlan] = useState(null)
   const fileInputRef = useRef(null)
 
-  const tieneDatos = movimientos.length > 0
+  const tieneDatos = movimientos.length > 0 || albaranesFacturas.length > 0 || pedidosCompra.length > 0
   const numCuentasPlan = Object.keys(planCuentas).length
 
   const handleCargarPlanCuentas = async (e) => {
