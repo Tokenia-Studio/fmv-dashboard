@@ -219,7 +219,9 @@ function App() {
       ) : (
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
           <ErrorBoundary>
-            {renderTab()}
+            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="text-gray-400 animate-pulse">Cargando...</div></div>}>
+              {renderTab()}
+            </Suspense>
           </ErrorBoundary>
         </main>
       )}
