@@ -292,9 +292,9 @@ export const db = {
 
   // --- ALBARANES Y FACTURAS ---
   albaranesFacturas: {
-    upsert: async (rows, año, mes) => {
-      // Delete existing for this year/month first
-      await supabase.from('albaranes_facturas').delete().eq('año', año).eq('mes', mes)
+    upsert: async (rows, año) => {
+      // Delete ALL existing for this year (fichero acumulado reemplaza todo)
+      await supabase.from('albaranes_facturas').delete().eq('año', año)
       if (rows.length === 0) return { data: null, error: null }
       const BATCH = 500
       for (let i = 0; i < rows.length; i += BATCH) {

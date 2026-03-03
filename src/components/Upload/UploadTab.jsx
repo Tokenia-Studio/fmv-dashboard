@@ -196,7 +196,7 @@ export default function UploadTab() {
         </div>
 
         <div className="p-4">
-          {/* Selector año/mes */}
+          {/* Selector año + mes (mes solo para pedidos) */}
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">Año:</span>
@@ -211,7 +211,7 @@ export default function UploadTab() {
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Mes:</span>
+              <span className="text-sm text-gray-600">Mes (pedidos):</span>
               <select
                 value={mesCompras}
                 onChange={(e) => setMesCompras(parseInt(e.target.value))}
@@ -237,8 +237,8 @@ export default function UploadTab() {
                 accept=".xlsx,.xls"
                 onChange={async (e) => {
                   if (!e.target.files[0]) return
-                  setMensaje({ tipo: 'loading', texto: 'Procesando albaranes...' })
-                  const result = await cargarAlbaranes(e.target.files[0], añoCompras, mesCompras)
+                  setMensaje({ tipo: 'loading', texto: 'Procesando albaranes acumulado...' })
+                  const result = await cargarAlbaranes(e.target.files[0], añoCompras)
                   if (result.success) {
                     setMensaje({ tipo: 'success', texto: `Cargados ${result.count} albaranes pendientes` })
                   } else {
@@ -249,8 +249,8 @@ export default function UploadTab() {
                 className="hidden"
               />
               <div className="text-3xl mb-2">&#128230;</div>
-              <p className="font-medium text-gray-700 text-sm">Albaranes y Facturas</p>
-              <p className="text-xs text-gray-400 mt-1">Excel (.xlsx/.xls)</p>
+              <p className="font-medium text-gray-700 text-sm">Albaranes Acumulado Anual</p>
+              <p className="text-xs text-gray-400 mt-1">Mov. valor del año completo (.xlsx)</p>
             </div>
 
             {/* Pedidos de Compra */}
