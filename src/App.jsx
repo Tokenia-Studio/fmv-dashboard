@@ -2,28 +2,26 @@
 // APP - Componente principal FMV Dashboard v2.0
 // ============================================
 
-import React, { useState, useEffect, lazy, Suspense } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useData } from './context/DataContext'
 import { auth } from './lib/supabase'
 import Header from './components/Layout/Header'
 import Footer from './components/Layout/Footer'
 import Sidebar from './components/Layout/Sidebar'
-import LoginScreen from './components/Auth/LoginScreen'
+import PyGTab from './components/PyG/PyGTab'
+import ServiciosTab from './components/ServiciosExt/ServiciosTab'
+import FinanciacionTab from './components/Financiacion/FinanciacionTab'
+import ProveedoresTab from './components/Proveedores/ProveedoresTab'
+import CashFlowTab from './components/CashFlow/CashFlowTab'
+import PresupuestoTab from './components/Presupuesto/PresupuestoTab'
+import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoComprasTab'
+import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab'
+import CuentasAnualesTab from './components/CuentasAnuales/CuentasAnualesTab'
+import GestionDocumentalTab from './components/GestionDocumental/GestionDocumentalTab'
+import PlanificacionProduccionTab from './components/PlanificacionProduccion/PlanificacionProduccionTab'
+import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
-
-// Lazy loading: solo se cargan cuando el usuario abre la pestaña
-const PyGTab = lazy(() => import('./components/PyG/PyGTab'))
-const ServiciosTab = lazy(() => import('./components/ServiciosExt/ServiciosTab'))
-const FinanciacionTab = lazy(() => import('./components/Financiacion/FinanciacionTab'))
-const ProveedoresTab = lazy(() => import('./components/Proveedores/ProveedoresTab'))
-const CashFlowTab = lazy(() => import('./components/CashFlow/CashFlowTab'))
-const PresupuestoTab = lazy(() => import('./components/Presupuesto/PresupuestoTab'))
-const PresupuestoComprasTab = lazy(() => import('./components/PresupuestoCompras/PresupuestoComprasTab'))
-const SeguimientoEstructurasTab = lazy(() => import('./components/SeguimientoEstructuras/SeguimientoEstructurasTab'))
-const CuentasAnualesTab = lazy(() => import('./components/CuentasAnuales/CuentasAnualesTab'))
-const GestionDocumentalTab = lazy(() => import('./components/GestionDocumental/GestionDocumentalTab'))
-const PlanificacionProduccionTab = lazy(() => import('./components/PlanificacionProduccion/PlanificacionProduccionTab'))
-const GestionUsuarios = lazy(() => import('./components/Admin/GestionUsuarios'))
+import LoginScreen from './components/Auth/LoginScreen'
 
 // Error Boundary
 class ErrorBoundary extends React.Component {
@@ -210,18 +208,14 @@ function App() {
           <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
             <ErrorBoundary>
-              <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="text-gray-400 animate-pulse">Cargando...</div></div>}>
-                {renderTab()}
-              </Suspense>
+              {renderTab()}
             </ErrorBoundary>
           </main>
         </div>
       ) : (
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
           <ErrorBoundary>
-            <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="text-gray-400 animate-pulse">Cargando...</div></div>}>
-              {renderTab()}
-            </Suspense>
+            {renderTab()}
           </ErrorBoundary>
         </main>
       )}

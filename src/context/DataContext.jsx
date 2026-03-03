@@ -175,30 +175,12 @@ export function DataProvider({ children }) {
     cargarDatosDesdeSupabase()
   }, [])
 
-  // Helper: mapear movimientos de Supabase a formato interno
-  const mapearMovimientos = (movs) => movs.map(m => ({
-    fecha: new Date(m.fecha),
-    cuenta: m.cuenta,
-    grupo: m.grupo,
-    subcuenta: m.subcuenta,
-    debe: parseFloat(m.debe) || 0,
-    haber: parseFloat(m.haber) || 0,
-    neto: parseFloat(m.neto) || 0,
-    codProcedencia: m.cod_procedencia || '',
-    descripcion: m.descripcion || '',
-    documento: m.documento || '',
-    mes: m.mes
-  }))
-
-  // Años recientes: solo estos se cargan al inicio (el resto bajo demanda)
-  const AÑOS_RECIENTES = 2025
-
   // Funcion para cargar datos desde Supabase
   const cargarDatosDesdeSupabase = async () => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Cargando datos...' })
 
     try {
-      // FASE 1: Rol de usuario (bloquea UI para evitar flash de pestañas)
+      // Cargar rol de usuario PRIMERO (evita flash de pestañas incorrectas)
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
@@ -209,14 +191,8 @@ export function DataProvider({ children }) {
         console.warn('No se pudo cargar rol de usuario:', e)
       }
 
-      // FASE 2: Años + datos independientes en paralelo
-      const [añosResult, archivosResult, proveedoresResult] = await Promise.all([
-        db.movimientos.getYears(),
-        db.archivosCargados.getAll(),
-        db.proveedores.getAll()
-      ])
-
-      const { data: años, error: errorAños } = añosResult
+      // Obtener anos disponibles
+      const { data: años, error: errorAños } = await db.movimientos.getYears()
       if (errorAños) throw errorAños
 
       if (años.length === 0) {
@@ -224,10 +200,11 @@ export function DataProvider({ children }) {
         return
       }
 
-      // Procesar archivos cargados
+      // Cargar archivos cargados
+      const { data: archivosData } = await db.archivosCargados.getAll()
       const archivosCargados = {}
-      if (archivosResult.data) {
-        archivosResult.data.forEach(a => {
+      if (archivosData) {
+        archivosData.forEach(a => {
           archivosCargados[a.año] = {
             nombre: a.nombre,
             fecha: a.fecha_carga,
@@ -238,11 +215,38 @@ export function DataProvider({ children }) {
         })
       }
 
-      // Procesar proveedores
+      // Cargar movimientos de todos los anos
+      const todosMovimientos = []
+      for (const año of años) {
+        const { data: movs, error } = await db.movimientos.getByYear(año)
+        if (error) {
+          console.error(`Error cargando movimientos de ${año}:`, error)
+          continue
+        }
+        // Mapear de formato Supabase a formato interno
+        movs.forEach(m => {
+          todosMovimientos.push({
+            fecha: new Date(m.fecha),
+            cuenta: m.cuenta,
+            grupo: m.grupo,
+            subcuenta: m.subcuenta,
+            debe: parseFloat(m.debe) || 0,
+            haber: parseFloat(m.haber) || 0,
+            neto: parseFloat(m.neto) || 0,
+            codProcedencia: m.cod_procedencia || '',
+            descripcion: m.descripcion || '',
+            documento: m.documento || '',
+            mes: m.mes
+          })
+        })
+      }
+
+      // Cargar proveedores y sus cuentas habituales
+      const { data: proveedoresData } = await db.proveedores.getAll()
       const proveedores = {}
       const proveedoresCuentas = {}
-      if (proveedoresResult.data) {
-        proveedoresResult.data.forEach(p => {
+      if (proveedoresData) {
+        proveedoresData.forEach(p => {
           proveedores[p.codigo] = p.nombre
           if (p.cuenta_habitual) {
             proveedoresCuentas[p.codigo] = p.cuenta_habitual
@@ -252,32 +256,11 @@ export function DataProvider({ children }) {
       dispatch({ type: 'LOAD_PROVEEDORES', payload: proveedores })
       dispatch({ type: 'LOAD_PROVEEDORES_CUENTAS', payload: proveedoresCuentas })
 
-      // FASE 3: Movimientos recientes + datos compras EN PARALELO
-      const añosRecientes = años.filter(a => a >= AÑOS_RECIENTES)
-      const añoActual = años[0] || new Date().getFullYear()
-
-      const [movsResults, presupuestosResult, albResult, pedResult, mapeoResult, planResult] = await Promise.all([
-        // Movimientos: cargar años recientes en paralelo entre sí
-        Promise.all(añosRecientes.map(año => db.movimientos.getByYear(año))),
-        // Datos de compras y config en paralelo
-        db.presupuestos.getByYear(añoActual),
-        db.albaranesFacturas.getByYear(añoActual),
-        db.pedidosCompra.getByYear(añoActual),
-        db.mapeoGrupoCuenta.getAll(),
-        db.planCuentas.getAll()
-      ])
-
-      // Procesar movimientos
-      const todosMovimientos = []
-      movsResults.forEach(({ data: movs, error }) => {
-        if (error) { console.error('Error cargando movimientos:', error); return }
-        todosMovimientos.push(...mapearMovimientos(movs))
-      })
-
-      // Validación
+      // Calcular validacion
       const totalDebe = todosMovimientos.reduce((sum, m) => sum + m.debe, 0)
       const totalHaber = todosMovimientos.reduce((sum, m) => sum + m.haber, 0)
       const diferencia = totalDebe - totalHaber
+      const cuadrado = Math.abs(diferencia) < 0.01
 
       dispatch({
         type: 'LOAD_MOVIMIENTOS',
@@ -286,7 +269,7 @@ export function DataProvider({ children }) {
           años,
           archivosCargados,
           validacion: {
-            cuadrado: Math.abs(diferencia) < 0.01,
+            cuadrado,
             diferencia,
             totalDebe,
             totalHaber,
@@ -296,42 +279,56 @@ export function DataProvider({ children }) {
         }
       })
 
-      console.log(`Cargados ${todosMovimientos.length} movimientos (años ${añosRecientes.join(', ')}) desde Supabase`)
+      console.log(`Cargados ${todosMovimientos.length} movimientos desde Supabase`)
 
-      // Procesar mapeo (antes de albaranes para poder aplicar fallback)
-      let mapeoActual = {}
-      if (mapeoResult.data && mapeoResult.data.length > 0) {
-        dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: mapeoResult.data })
-        mapeoResult.data.forEach(m => { if (m.cuenta) mapeoActual[m.grupo_contable] = m.cuenta })
-      } else {
-        const defaultRows = Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).map(([grupo, cuenta]) => ({
-          grupo_contable: grupo, cuenta, descripcion: ''
-        }))
-        await db.mapeoGrupoCuenta.upsert(defaultRows)
-        dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: defaultRows })
-        Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).forEach(([g, c]) => { mapeoActual[g] = c })
+      // Cargar presupuestos del año actual
+      const añoActual = años[0] || new Date().getFullYear()
+      const { data: presupuestosData } = await db.presupuestos.getByYear(añoActual)
+      if (presupuestosData) {
+        dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestosData })
       }
 
-      // Procesar datos de compras
-      if (presupuestosResult.data) dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestosResult.data })
+      // Cargar mapeo, albaranes (con fallback mapeo), pedidos, plan de cuentas
+      try {
+        // Mapeo primero (necesario para fallback de albaranes)
+        let mapeoActual = {}
+        const { data: mapeoData } = await db.mapeoGrupoCuenta.getAll()
+        if (mapeoData && mapeoData.length > 0) {
+          dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: mapeoData })
+          mapeoData.forEach(m => { if (m.cuenta) mapeoActual[m.grupo_contable] = m.cuenta })
+        } else {
+          const defaultRows = Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).map(([grupo, cuenta]) => ({
+            grupo_contable: grupo, cuenta, descripcion: ''
+          }))
+          await db.mapeoGrupoCuenta.upsert(defaultRows)
+          dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: defaultRows })
+          Object.entries(MAPEO_GRUPO_CUENTA_DEFAULT).forEach(([g, c]) => { mapeoActual[g] = c })
+        }
 
-      // Albaranes: aplicar mapeo si cuenta_mapeada está vacía
-      if (albResult.data) {
-        const albConMapeo = albResult.data.map(a => {
-          if (!a.cuenta_mapeada && a.grupo_contable_prod && mapeoActual[a.grupo_contable_prod]) {
-            return { ...a, cuenta_mapeada: mapeoActual[a.grupo_contable_prod] }
-          }
-          return a
-        })
-        dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albConMapeo })
-      }
+        // Albaranes: aplicar mapeo si cuenta_mapeada está vacía
+        const { data: albData } = await db.albaranesFacturas.getByYear(añoActual)
+        if (albData) {
+          const albConMapeo = albData.map(a => {
+            if (!a.cuenta_mapeada && a.grupo_contable_prod && mapeoActual[a.grupo_contable_prod]) {
+              return { ...a, cuenta_mapeada: mapeoActual[a.grupo_contable_prod] }
+            }
+            return a
+          })
+          dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albConMapeo })
+        }
 
-      if (pedResult.data) dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: pedResult.data })
+        const { data: pedData } = await db.pedidosCompra.getByYear(añoActual)
+        if (pedData) dispatch({ type: 'LOAD_PEDIDOS_COMPRA', payload: pedData })
 
-      if (planResult.data && planResult.data.length > 0) {
-        const planMap = {}
-        planResult.data.forEach(p => { planMap[p.cuenta] = p.nombre })
-        dispatch({ type: 'LOAD_PLAN_CUENTAS', payload: planMap })
+        // Plan de cuentas
+        const { data: planData } = await db.planCuentas.getAll()
+        if (planData && planData.length > 0) {
+          const planMap = {}
+          planData.forEach(p => { planMap[p.cuenta] = p.nombre })
+          dispatch({ type: 'LOAD_PLAN_CUENTAS', payload: planMap })
+        }
+      } catch (e) {
+        console.warn('Error cargando datos compras:', e)
       }
     } catch (error) {
       console.error('Error cargando datos desde Supabase:', error)
@@ -348,7 +345,6 @@ export function DataProvider({ children }) {
 
       db.albaranesFacturas.getByYear(state.añoActual).then(({ data }) => {
         if (data) {
-          // Aplicar mapeo si cuenta_mapeada está vacía
           const mapeo = {}
           state.mapeoGrupoCuenta.forEach(m => { if (m.cuenta) mapeo[m.grupo_contable] = m.cuenta })
           const albConMapeo = data.map(a => {
@@ -853,17 +849,15 @@ export function DataProvider({ children }) {
     }
   }
 
-  // Helper: parsear Excel detectando fila de cabeceras automáticamente
-  // Busca en TODAS las hojas del libro la que tenga las cabeceras correctas
+  // Helper: parsear Excel detectando fila de cabeceras automáticamente (busca en todas las hojas)
   const parseExcelAutoHeader = (buffer, headerPatterns) => {
     const workbook = XLSX.read(buffer, { type: 'array', cellDates: true })
 
-    // Probar cada hoja hasta encontrar la que tiene las cabeceras
+    // Buscar en TODAS las hojas la que tenga las cabeceras
     for (const sheetName of workbook.SheetNames) {
       const sheet = workbook.Sheets[sheetName]
       const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true })
 
-      // Buscar la fila que contiene las cabeceras reales
       for (let i = 0; i < Math.min(10, aoa.length); i++) {
         const row = (aoa[i] || []).map(c => String(c || '').toLowerCase())
         const matches = headerPatterns.filter(p => row.some(c => c.includes(p.toLowerCase())))
@@ -919,21 +913,16 @@ export function DataProvider({ children }) {
       // Helper: parsear fecha (puede ser serial Excel o string)
       const parseFecha = (v) => {
         if (!v) return null
-        if (typeof v === 'number') {
-          // Serial Excel: días desde 1900-01-01 (con bug Lotus 1-2-3)
-          return new Date((v - 25569) * 86400000)
-        }
+        if (typeof v === 'number') return new Date((v - 25569) * 86400000)
         return new Date(v)
       }
 
       const rows = []
       json.forEach(row => {
         const esperado = parseFloat(row[COL_esperado]) || 0
-        if (esperado === 0) return // Solo descartar filas sin importe
+        if (esperado === 0) return
 
         const grupoContable = String(row[COL_grupo] || '').trim()
-
-        // Ignorar ACTV. FIJO
         if (grupoContable === 'ACTV. FIJO' || grupoContable === 'ACTIVO FIJO') return
 
         const cuentaMapeada = mapeo[grupoContable] || ''
