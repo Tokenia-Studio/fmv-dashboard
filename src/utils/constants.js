@@ -101,7 +101,7 @@ export const TABS = [
   // { id: 'gestionDocumental', label: 'Gest. Documental', icon: '📄' }, // APARCADO 25/02/2026
   { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
   { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' },
-  // { id: 'planificacionProduccion', label: 'Planif. Producción', icon: '📋' }, // OCULTA temporalmente 03/03/2026
+  { id: 'planificacionProduccion', label: 'Planif. Producción', icon: '📋' },
   { id: 'cargar', label: 'Cargar', icon: '📤' },
   { id: 'usuarios', label: 'Usuarios', icon: '👤' }
 ]
