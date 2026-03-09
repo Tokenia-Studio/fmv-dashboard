@@ -265,10 +265,10 @@ export default function UploadTab() {
                 accept=".xlsx,.xls"
                 onChange={async (e) => {
                   if (!e.target.files[0]) return
-                  setMensaje({ tipo: 'loading', texto: 'Procesando pedidos...' })
-                  const result = await cargarPedidos(e.target.files[0], añoCompras, mesCompras)
+                  setMensaje({ tipo: 'loading', texto: 'Procesando pedidos acumulado...' })
+                  const result = await cargarPedidos(e.target.files[0], añoCompras)
                   if (result.success) {
-                    setMensaje({ tipo: 'success', texto: `Cargados ${result.count} pedidos de compra` })
+                    setMensaje({ tipo: 'success', texto: `Cargados ${result.count} pedidos pendientes` })
                   } else {
                     setMensaje({ tipo: 'error', texto: result.error })
                   }
@@ -277,8 +277,8 @@ export default function UploadTab() {
                 className="hidden"
               />
               <div className="text-3xl mb-2">&#128203;</div>
-              <p className="font-medium text-gray-700 text-sm">Pedidos de Compra</p>
-              <p className="text-xs text-gray-400 mt-1">Excel (.xlsx/.xls)</p>
+              <p className="font-medium text-gray-700 text-sm">Pedidos Acumulado Anual</p>
+              <p className="text-xs text-gray-400 mt-1">Líns. compra pendientes del año (.xlsx)</p>
             </div>
           </div>
         </div>

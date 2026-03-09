@@ -963,8 +963,8 @@ export function DataProvider({ children }) {
   }
 
   // Cargar pedidos de compra desde Excel
-  const cargarPedidos = async (file, año, mes) => {
-    dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando pedidos...' })
+  const cargarPedidos = async (file, año) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando pedidos acumulado...' })
 
     try {
       const buffer = await file.arrayBuffer()
@@ -993,20 +993,21 @@ export function DataProvider({ children }) {
       const COL_importe = findCol(['importe linea', 'importe línea', 'importe'])
       const COL_fechaRec = findCol(['fecha recepcion', 'fecha recepción', 'fecha recepcion esperada'])
 
+      const mesActual = new Date().getMonth() + 1
       const rows = []
       json.forEach(row => {
         const tipo = String(row[COL_tipo] || '').trim()
         const no = String(row[COL_no] || '').trim()
 
-        // Ignorar líneas de activo fijo (No empieza por "AF")
-        if (no.startsWith('AF')) return
+        // Ignorar líneas de activo fijo
+        if (tipo.toLowerCase() === 'activo fijo' || no.startsWith('AF')) return
 
         let cuenta = ''
         const codProv = String(row[COL_codProv] || '').trim()
         if (tipo === 'Cuenta' || tipo === 'cuenta') {
           cuenta = no // Direct 9-digit account
         } else {
-          // Tipo "Producto" or other -> usar cuenta habitual del proveedor, o 600000000 como fallback
+          // Tipo "Artículo" u otro -> usar cuenta habitual del proveedor, o 600000000 como fallback
           cuenta = state.proveedoresCuentas[codProv] || '600000000'
         }
 
@@ -1021,7 +1022,7 @@ export function DataProvider({ children }) {
         const importe = parseFloat(row[COL_importe]) || 0
         if (importe === 0) return
 
-        // Parse fecha recepcion for month filtering
+        // Parse fecha recepción esperada
         let fechaRec = null
         const fechaRaw = row[COL_fechaRec]
         if (fechaRaw instanceof Date) {
@@ -1032,30 +1033,34 @@ export function DataProvider({ children }) {
           fechaRec = new Date(fechaRaw)
         }
 
-        // Only include pedidos for specified month
+        // Asignar mes: si fecha recepción > mes actual → mes de la fecha; si no → mes actual
+        let mesAsignado = mesActual
         if (fechaRec && !isNaN(fechaRec.getTime())) {
           const mesRec = fechaRec.getMonth() + 1
           const añoRec = fechaRec.getFullYear()
-          if (mesRec !== mes || añoRec !== año) return
+          if (añoRec === año && mesRec > mesActual) {
+            mesAsignado = mesRec
+          }
+          // Si es de otro año, se asigna al mes actual
         }
 
         rows.push({
           año,
-          mes,
+          mes: mesAsignado,
           no_documento: String(row[COL_doc] || ''),
           cod_proveedor: codProv,
           tipo,
           cuenta,
           descripcion: row[COL_desc] || '',
           cantidad: parseFloat(row[COL_cant]) || 0,
-          cantidad_pendiente: parseFloat(row[COL_cantPte]) || 0,
+          cantidad_pendiente: cantPte,
           importe,
           fecha_recepcion: fechaRec ? fechaRec.toISOString().substring(0, 10) : null
         })
       })
 
       dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando pedidos...' })
-      const { error } = await db.pedidosCompra.upsert(rows, año, mes)
+      const { error } = await db.pedidosCompra.upsert(rows, año)
       if (error) throw new Error(`Error guardando pedidos: ${error.message}`)
 
       const { data: pedData } = await db.pedidosCompra.getByYear(año)

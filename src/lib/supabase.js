@@ -314,8 +314,8 @@ export const db = {
 
   // --- PEDIDOS DE COMPRA ---
   pedidosCompra: {
-    upsert: async (rows, año, mes) => {
-      await supabase.from('pedidos_compra').delete().eq('año', año).eq('mes', mes)
+    upsert: async (rows, año) => {
+      await supabase.from('pedidos_compra').delete().eq('año', año)
       if (rows.length === 0) return { data: null, error: null }
       const BATCH = 500
       for (let i = 0; i < rows.length; i += BATCH) {

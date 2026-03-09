@@ -115,7 +115,7 @@ export const NAVIGATION_SECTIONS = {
 
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'presupuestoCompras', 'seguimientoEstructuras', 'planificacionProduccion', 'cargar', 'usuarios'],
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'seguimientoEstructuras', 'planificacionProduccion', 'cargar', 'usuarios'],
   compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
 }
 
