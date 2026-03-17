@@ -909,7 +909,7 @@ export function DataProvider({ children }) {
       const COL_codProv = findCol(['cod. procedencia', 'procedencia mov', 'proveedor', 'cod proveedor', 'código proveedor'])
       const COL_esperado = findCol(['importe coste (esperado)', 'importe coste esperado', 'coste esperado'])
       const COL_fecha = findCol(['fecha registro', 'fecha'])
-      const COL_nMovProd = findCol(['mov. producto', 'mov producto', 'nº mov. producto', 'n mov producto'])
+      const COL_nMovProd = findCol(['nº mov. producto', 'n mov. producto', 'nº mov producto', 'n mov producto'])
 
       // Helper: parsear fecha (puede ser serial Excel o string)
       const parseFecha = (v) => {
