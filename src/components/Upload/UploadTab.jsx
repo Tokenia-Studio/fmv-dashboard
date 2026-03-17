@@ -240,7 +240,7 @@ export default function UploadTab() {
                   setMensaje({ tipo: 'loading', texto: 'Procesando albaranes acumulado...' })
                   const result = await cargarAlbaranes(e.target.files[0], añoCompras)
                   if (result.success) {
-                    setMensaje({ tipo: 'success', texto: `Cargados ${result.count} albaranes pendientes` })
+                    setMensaje({ tipo: 'success', texto: result.message || `Cargados ${result.count} albaranes pendientes` })
                   } else {
                     setMensaje({ tipo: 'error', texto: result.error })
                   }

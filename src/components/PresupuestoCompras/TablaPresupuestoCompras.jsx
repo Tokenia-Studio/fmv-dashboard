@@ -40,21 +40,33 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
 
   // Exportar albaranes pendientes a Excel
   const exportarAlbaranesFiltrados = (filtro, nombreArchivo) => {
-    const albFiltrados = (albaranesFacturas || []).filter(a => a.es_pendiente).filter(filtro).map(a => ({
-      Mes: a.mes,
-      Tipo: a.tipo_documento || '',
-      Cuenta: a.cuenta_mapeada || '',
-      Descripcion: a.descripcion || '',
-      Importe: a.importe || 0,
-      'Grupo Contable': a.grupo_contable_prod || '',
-      Proveedor: proveedores[a.cod_proveedor] || a.cod_proveedor || ''
-    }))
+    const albFiltrados = (albaranesFacturas || []).filter(a => a.es_pendiente).filter(filtro)
+      .sort((a, b) => (a.fecha || '').localeCompare(b.fecha || ''))
+      .map(a => ({
+        Fecha: a.fecha || '',
+        'No Documento': a.no_documento || '',
+        Tipo: a.tipo_documento || '',
+        Cuenta: a.cuenta_mapeada || '',
+        Descripcion: a.descripcion || '',
+        Importe: a.importe || 0,
+        'Grupo Contable': a.grupo_contable_prod || '',
+        'Cod Proveedor': a.cod_proveedor || '',
+        Proveedor: proveedores[a.cod_proveedor] || a.cod_proveedor || ''
+      }))
     if (albFiltrados.length === 0) {
       alert('No hay albaranes pendientes para exportar')
       return
     }
+    // Añadir fila de total al final
+    const totalImporte = albFiltrados.reduce((sum, r) => sum + (r.Importe || 0), 0)
+    albFiltrados.push({
+      Fecha: '', 'No Documento': '', Tipo: '', Cuenta: '',
+      Descripcion: `TOTAL (${albFiltrados.length} líneas)`,
+      Importe: totalImporte,
+      'Grupo Contable': '', 'Cod Proveedor': '', Proveedor: ''
+    })
     const ws = XLSX.utils.json_to_sheet(albFiltrados)
-    ws['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 15 }, { wch: 40 }, { wch: 12 }, { wch: 15 }, { wch: 30 }]
+    ws['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 40 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 30 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Albaranes Ptes')
     XLSX.writeFile(wb, `${nombreArchivo}.xlsx`)
@@ -144,8 +156,9 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
   const exportarAlbaranesSubcuenta = (subcuenta, esMes) => {
     const filtro = (a) => {
       const c = a.cuenta_mapeada || ''
-      const match = c.length === 9 ? c === subcuenta : c.substring(0, 3) === subcuenta.substring(0, 3)
-      if (!match) return false
+      // Derivar subcuenta igual que getSubcuentas9: si no es 9 dígitos → cuenta3+'000000'
+      const derivedSub = c.length === 9 ? c : c.substring(0, 3) + '000000'
+      if (derivedSub !== subcuenta) return false
       return esMes ? a.mes === mesSeleccionado : a.mes <= mesSeleccionado
     }
     const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`
@@ -175,8 +188,9 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
   const exportarPedidosSubcuenta = (subcuenta, esMes) => {
     const filtro = (p) => {
       const c = p.cuenta || ''
-      const match = c.length === 9 ? c === subcuenta : c.substring(0, 3) === subcuenta.substring(0, 3)
-      if (!match) return false
+      // Derivar subcuenta igual que getSubcuentas9: si no es 9 dígitos → cuenta3+'000000'
+      const derivedSub = c.length === 9 ? c : c.substring(0, 3) + '000000'
+      if (derivedSub !== subcuenta) return false
       return esMes ? p.mes === mesSeleccionado : p.mes <= mesSeleccionado
     }
     const periodo = esMes ? MONTHS_SHORT[mesSeleccionado - 1] : `Ene-${MONTHS_SHORT[mesSeleccionado - 1]}`

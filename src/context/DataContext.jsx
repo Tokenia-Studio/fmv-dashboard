@@ -909,6 +909,7 @@ export function DataProvider({ children }) {
       const COL_codProv = findCol(['cod. procedencia', 'procedencia mov', 'proveedor', 'cod proveedor', 'código proveedor'])
       const COL_esperado = findCol(['importe coste (esperado)', 'importe coste esperado', 'coste esperado'])
       const COL_fecha = findCol(['fecha registro', 'fecha'])
+      const COL_nMovProd = findCol(['mov. producto', 'mov producto', 'nº mov. producto', 'n mov producto'])
 
       // Helper: parsear fecha (puede ser serial Excel o string)
       const parseFecha = (v) => {
@@ -917,7 +918,8 @@ export function DataProvider({ children }) {
         return new Date(v)
       }
 
-      const rows = []
+      // Paso 1: Parsear todas las líneas con nMovProducto temporal
+      const rawRows = []
       json.forEach(row => {
         const esperado = parseFloat(row[COL_esperado]) || 0
         if (esperado === 0) return
@@ -931,7 +933,10 @@ export function DataProvider({ children }) {
         const fecha = parseFecha(row[COL_fecha])
         const mes = fecha ? (fecha.getMonth() + 1) : 1
 
-        rows.push({
+        // Leer nº mov. producto para cruce albarán↔factura
+        const nMovProd = COL_nMovProd ? String(row[COL_nMovProd] || '').trim() : ''
+
+        rawRows.push({
           año,
           mes,
           fecha: fecha ? fecha.toISOString().substring(0, 10) : null,
@@ -942,9 +947,41 @@ export function DataProvider({ children }) {
           grupo_contable_prod: grupoContable,
           cuenta_mapeada: cuentaMapeada,
           cod_proveedor: String(row[COL_codProv] || ''),
-          es_pendiente: true
+          _nMovProd: nMovProd
         })
       })
+
+      // Paso 2: Cruce albarán↔factura por nº mov. producto
+      // Recoger todos los nMovProducto que aparecen en facturas
+      const nMovProductoFacturas = new Set()
+      rawRows.forEach(r => {
+        if ((r.tipo_documento || '').toLowerCase().includes('factura') && r._nMovProd && r._nMovProd !== '0') {
+          nMovProductoFacturas.add(r._nMovProd)
+        }
+      })
+
+      // Determinar es_pendiente:
+      // - Facturas → nunca pendientes (son la liquidación)
+      // - Albaranes con nMovProducto en una factura → no pendientes (ya facturados)
+      // - Albaranes sin factura asociada → pendientes (verdaderamente pendientes)
+      const rows = rawRows.map(r => {
+        const esFactura = (r.tipo_documento || '').toLowerCase().includes('factura')
+        let esPendiente
+        if (esFactura) {
+          esPendiente = false
+        } else if (r._nMovProd && r._nMovProd !== '0' && nMovProductoFacturas.has(r._nMovProd)) {
+          esPendiente = false
+        } else {
+          esPendiente = true
+        }
+        // Quitar _nMovProd (campo temporal, no existe en Supabase)
+        const { _nMovProd, ...row } = r
+        return { ...row, es_pendiente: esPendiente }
+      })
+
+      const pendientes = rows.filter(r => r.es_pendiente).length
+      const facturados = rows.filter(r => !r.es_pendiente).length
+      console.log(`Cruce albarán↔factura: ${pendientes} pendientes, ${facturados} facturados/cancelados (${nMovProductoFacturas.size} mov. producto cruzados)`)
 
       dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando albaranes...' })
       const { error } = await db.albaranesFacturas.upsert(rows, año)
@@ -954,7 +991,10 @@ export function DataProvider({ children }) {
       const { data: albData } = await db.albaranesFacturas.getByYear(año)
       dispatch({ type: 'LOAD_ALBARANES_FACTURAS', payload: albData || [] })
       dispatch({ type: 'SET_LOADING', payload: false })
-      return { success: true, count: rows.length }
+      const msg = COL_nMovProd
+        ? `${rows.length} líneas (${pendientes} pendientes, ${facturados} ya facturados)`
+        : `${rows.length} líneas (sin columna Nº mov. producto para cruce)`
+      return { success: true, count: rows.length, message: msg }
     } catch (error) {
       console.error('Error cargando albaranes:', error)
       dispatch({ type: 'SET_ERROR', payload: error.message })
