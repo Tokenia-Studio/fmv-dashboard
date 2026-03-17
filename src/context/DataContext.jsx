@@ -979,9 +979,28 @@ export function DataProvider({ children }) {
         return { ...row, es_pendiente: esPendiente }
       })
 
+      // Paso 3: Documentos que netean ~0 → no son pendientes
+      // (ej: albaranes con líneas +/- que se cancelan entre sí dentro del mismo documento)
+      const docTotals = {}
+      rows.forEach((r, i) => {
+        if (!r.es_pendiente) return
+        const doc = r.no_documento || ''
+        if (!doc) return
+        if (!docTotals[doc]) docTotals[doc] = { total: 0, indices: [] }
+        docTotals[doc].total += r.importe || 0
+        docTotals[doc].indices.push(i)
+      })
+      let docsCancelados = 0
+      Object.entries(docTotals).forEach(([doc, info]) => {
+        if (Math.abs(info.total) < 0.01 && info.indices.length > 1) {
+          info.indices.forEach(i => { rows[i].es_pendiente = false })
+          docsCancelados++
+        }
+      })
+
       const pendientes = rows.filter(r => r.es_pendiente).length
       const facturados = rows.filter(r => !r.es_pendiente).length
-      console.log(`Cruce albarán↔factura: ${pendientes} pendientes, ${facturados} facturados/cancelados (${nMovProductoFacturas.size} mov. producto cruzados)`)
+      console.log(`Cruce: ${pendientes} pendientes, ${facturados} no pendientes (${nMovProductoFacturas.size} cruzados por mov.producto, ${docsCancelados} docs neteados a 0)`)
 
       dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando albaranes...' })
       const { error } = await db.albaranesFacturas.upsert(rows, año)
