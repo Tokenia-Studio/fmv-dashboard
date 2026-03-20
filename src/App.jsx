@@ -15,7 +15,7 @@ import ProveedoresTab from './components/Proveedores/ProveedoresTab'
 import CashFlowTab from './components/CashFlow/CashFlowTab'
 import PresupuestoTab from './components/Presupuesto/PresupuestoTab'
 import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoComprasTab'
-import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab'
+// import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab' // Movido a app independiente
 import CuentasAnualesTab from './components/CuentasAnuales/CuentasAnualesTab'
 import GestionDocumentalTab from './components/GestionDocumental/GestionDocumentalTab'
 // import PlanificacionProduccionTab from './components/PlanificacionProduccion/PlanificacionProduccionTab' // Movido a app independiente
@@ -143,7 +143,7 @@ function App() {
   // Renderizar pestaña activa
   const renderTab = () => {
     // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)
-    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'seguimientoEstructuras' && tabActiva !== 'presupuestoCompras' && tabActiva !== 'usuarios') {
+    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'presupuestoCompras' && tabActiva !== 'usuarios') {
       return <UploadTab />
     }
 
@@ -166,8 +166,8 @@ function App() {
         return <GestionDocumentalTab />
       case 'presupuestoCompras':
         return <PresupuestoComprasTab />
-      case 'seguimientoEstructuras':
-        return <SeguimientoEstructurasTab />
+      // case 'seguimientoEstructuras': // Movido a app independiente
+      //   return <SeguimientoEstructurasTab />
       // case 'planificacionProduccion': // Movido a app independiente
       //   return <PlanificacionProduccionTab />
       case 'cargar':

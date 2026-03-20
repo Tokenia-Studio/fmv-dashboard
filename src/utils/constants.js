@@ -100,7 +100,7 @@ export const TABS = [
   { id: 'cuentasAnuales', label: 'Cuentas Anuales', icon: '📑' },
   // { id: 'gestionDocumental', label: 'Gest. Documental', icon: '📄' }, // APARCADO 25/02/2026
   { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
-  { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' },
+  // { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' }, // Movido a app independiente FMV Producción
   // { id: 'planificacionProduccion', label: 'Planif. Producción', icon: '📋' }, // Movido a app independiente FMV Producción
   { id: 'cargar', label: 'Cargar', icon: '📤' },
   { id: 'usuarios', label: 'Usuarios', icon: '👤' }
@@ -109,13 +109,13 @@ export const TABS = [
 // Secciones de navegación para sidebar (rol direccion)
 export const NAVIGATION_SECTIONS = {
   finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'presupuestoCompras'] },
-  produccion: { label: 'Producción', icon: '🏭', tabs: ['seguimientoEstructuras'] },
+  // produccion: { label: 'Producción', icon: '🏭', tabs: [] }, // Movido a app independiente FMV Producción
   admin: { label: 'Administración', icon: '⚙️', tabs: ['cargar', 'usuarios'] }
 }
 
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'seguimientoEstructuras', 'cargar', 'usuarios'],
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'cargar', 'usuarios'],
   compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
 }
 
