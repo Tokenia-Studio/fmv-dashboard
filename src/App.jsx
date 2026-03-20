@@ -186,9 +186,14 @@ function App() {
       {/* Loading overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 text-center shadow-2xl min-w-[280px]">
-            <div className="text-4xl mb-4 animate-spin">⚙️</div>
-            <p className="font-medium text-gray-700">
+          <div className="bg-white rounded-xl p-8 text-center shadow-2xl min-w-[320px]">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl mb-4">
+              <span className="text-lg font-bold text-white tracking-tight">FMV</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4 overflow-hidden">
+              <div className="bg-slate-700 h-1.5 rounded-full animate-loading-bar" />
+            </div>
+            <p className="font-medium text-gray-700 text-sm">
               {loadingMessage || 'Procesando...'}
             </p>
           </div>
