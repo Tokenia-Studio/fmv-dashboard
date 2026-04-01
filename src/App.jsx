@@ -140,6 +140,24 @@ function App() {
     return <LoginScreen onLogin={(u) => { setForcePasswordReset(false); setUser(u) }} forceMode={forcePasswordReset ? 'setPassword' : null} />
   }
 
+  // Sin rol asignado en esta app
+  if (userRole === null && !loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md mx-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl mb-4 shadow-lg">
+            <span className="text-2xl font-bold text-white tracking-tight">FMV</span>
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Sin acceso</h2>
+          <p className="text-gray-400 mb-6">Tu cuenta no tiene permisos para acceder al Dashboard Financiero. Contacta con el administrador.</p>
+          <button onClick={handleLogout} className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 text-sm">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // Renderizar pestaña activa
   const renderTab = () => {
     // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)

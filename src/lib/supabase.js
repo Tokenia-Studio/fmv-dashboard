@@ -282,11 +282,12 @@ export const db = {
   userRoles: {
     getByUserId: async (userId) => {
       const { data, error } = await supabase
-        .from('user_roles')
+        .from('app_user_roles')
         .select('role')
         .eq('user_id', userId)
+        .eq('app', 'dashboard')
         .single()
-      return { data: data?.role || 'direccion', error }
+      return { data: data?.role || null, error }
     }
   },
 

@@ -186,7 +186,11 @@ export function DataProvider({ children }) {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           const { data: role } = await db.userRoles.getByUserId(user.id)
-          dispatch({ type: 'SET_USER_ROLE', payload: role || 'direccion' })
+          if (!role) {
+            dispatch({ type: 'SET_USER_ROLE', payload: null })
+            return // No tiene acceso a esta app
+          }
+          dispatch({ type: 'SET_USER_ROLE', payload: role })
         }
       } catch (e) {
         console.warn('No se pudo cargar rol de usuario:', e)

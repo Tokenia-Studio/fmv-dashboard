@@ -24,8 +24,9 @@ export default function GestionUsuarios() {
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('user_roles')
+        .from('app_user_roles')
         .select('*')
+        .eq('app', 'dashboard')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -40,9 +41,10 @@ export default function GestionUsuarios() {
   const cambiarRol = async (userId, nuevoRol) => {
     try {
       const { error } = await supabase
-        .from('user_roles')
+        .from('app_user_roles')
         .update({ role: nuevoRol })
         .eq('user_id', userId)
+        .eq('app', 'dashboard')
 
       if (error) throw error
 
@@ -64,22 +66,14 @@ export default function GestionUsuarios() {
     setMensaje(null)
 
     try {
-      // 1. Crear usuario en Supabase Auth
-      const { data, error } = await auth.signUp(nuevoEmail, nuevoPassword)
+      // Crear usuario + asignar rol via RPC
+      const { data, error } = await supabase.rpc('app_create_user', {
+        p_email: nuevoEmail,
+        p_password: nuevoPassword,
+        p_app: 'dashboard',
+        p_role: nuevoRol
+      })
       if (error) throw error
-
-      if (!data.user) throw new Error('No se pudo crear el usuario')
-
-      // 2. Insertar rol en user_roles
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: data.user.id,
-          email: nuevoEmail,
-          role: nuevoRol
-        })
-
-      if (roleError) throw roleError
 
       setMensaje({ tipo: 'success', texto: `Usuario ${nuevoEmail} creado con rol ${nuevoRol}` })
       setNuevoEmail('')
@@ -100,7 +94,7 @@ export default function GestionUsuarios() {
     if (!confirm(`¿Eliminar completamente al usuario ${email}? Se eliminará la cuenta y su rol.`)) return
 
     try {
-      const { error } = await supabase.rpc('delete_user', { target_user_id: userId })
+      const { error } = await supabase.rpc('app_delete_user', { target_user_id: userId })
 
       if (error) throw error
       setUsuarios(prev => prev.filter(u => u.user_id !== userId))
