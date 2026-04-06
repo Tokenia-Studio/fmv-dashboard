@@ -188,6 +188,7 @@ export function DataProvider({ children }) {
           const { data: role } = await db.userRoles.getByUserId(user.id)
           if (!role) {
             dispatch({ type: 'SET_USER_ROLE', payload: null })
+            dispatch({ type: 'SET_LOADING', payload: false })
             return // No tiene acceso a esta app
           }
           dispatch({ type: 'SET_USER_ROLE', payload: role })
