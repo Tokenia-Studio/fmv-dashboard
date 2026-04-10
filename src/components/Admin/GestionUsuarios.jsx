@@ -1,9 +1,43 @@
 // ============================================
-// GESTION USUARIOS - Solo para rol direccion
+// GESTION USUARIOS - Centralizada para todas las apps
+// Solo para rol direccion
 // ============================================
 
 import React, { useState, useEffect } from 'react'
 import { supabase, auth } from '../../lib/supabase'
+
+// Configuración de apps y roles
+const APPS = {
+  dashboard: {
+    label: 'Dashboard',
+    roles: [
+      { value: 'direccion', label: 'Dirección' },
+      { value: 'compras', label: 'Compras' }
+    ],
+    color: 'blue'
+  },
+  produccion: {
+    label: 'Producción',
+    roles: [
+      { value: 'direccion', label: 'Dirección' },
+      { value: 'planificacion', label: 'Planificación' },
+      { value: 'taller', label: 'Taller' }
+    ],
+    color: 'emerald'
+  }
+}
+
+const APP_BADGE_STYLES = {
+  dashboard: 'bg-blue-50 text-blue-700 border-blue-200',
+  produccion: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+}
+
+const ROLE_BADGE_STYLES = {
+  direccion: 'bg-blue-50 text-blue-700 border-blue-200',
+  compras: 'bg-orange-50 text-orange-700 border-orange-200',
+  planificacion: 'bg-purple-50 text-purple-700 border-purple-200',
+  taller: 'bg-amber-50 text-amber-700 border-amber-200'
+}
 
 export default function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([])
@@ -13,6 +47,7 @@ export default function GestionUsuarios() {
   // Formulario nuevo usuario
   const [nuevoEmail, setNuevoEmail] = useState('')
   const [nuevoPassword, setNuevoPassword] = useState('')
+  const [nuevoApp, setNuevoApp] = useState('dashboard')
   const [nuevoRol, setNuevoRol] = useState('compras')
   const [creando, setCreando] = useState(false)
 
@@ -20,14 +55,21 @@ export default function GestionUsuarios() {
     cargarUsuarios()
   }, [])
 
+  // Al cambiar app, resetear rol al primero disponible
+  useEffect(() => {
+    const roles = APPS[nuevoApp]?.roles
+    if (roles && !roles.find(r => r.value === nuevoRol)) {
+      setNuevoRol(roles[0].value)
+    }
+  }, [nuevoApp])
+
   const cargarUsuarios = async () => {
     setLoading(true)
     try {
       const { data, error } = await supabase
         .from('app_user_roles')
         .select('*')
-        .eq('app', 'dashboard')
-        .order('created_at', { ascending: false })
+        .order('email', { ascending: true })
 
       if (error) throw error
       setUsuarios(data || [])
@@ -38,18 +80,18 @@ export default function GestionUsuarios() {
     setLoading(false)
   }
 
-  const cambiarRol = async (userId, nuevoRol) => {
+  const cambiarRol = async (userId, app, nuevoRol) => {
     try {
       const { error } = await supabase
         .from('app_user_roles')
         .update({ role: nuevoRol })
         .eq('user_id', userId)
-        .eq('app', 'dashboard')
+        .eq('app', app)
 
       if (error) throw error
 
       setUsuarios(prev => prev.map(u =>
-        u.user_id === userId ? { ...u, role: nuevoRol } : u
+        u.user_id === userId && u.app === app ? { ...u, role: nuevoRol } : u
       ))
       setMensaje({ tipo: 'success', texto: 'Rol actualizado' })
     } catch (e) {
@@ -66,19 +108,19 @@ export default function GestionUsuarios() {
     setMensaje(null)
 
     try {
-      // Crear usuario + asignar rol via RPC
       const { data, error } = await supabase.rpc('app_create_user', {
         p_email: nuevoEmail,
         p_password: nuevoPassword,
-        p_app: 'dashboard',
+        p_app: nuevoApp,
         p_role: nuevoRol
       })
       if (error) throw error
 
-      setMensaje({ tipo: 'success', texto: `Usuario ${nuevoEmail} creado con rol ${nuevoRol}` })
+      const appLabel = APPS[nuevoApp]?.label || nuevoApp
+      const rolLabel = APPS[nuevoApp]?.roles.find(r => r.value === nuevoRol)?.label || nuevoRol
+      setMensaje({ tipo: 'success', texto: `Usuario ${nuevoEmail} creado en ${appLabel} con rol ${rolLabel}` })
       setNuevoEmail('')
       setNuevoPassword('')
-      setNuevoRol('compras')
       cargarUsuarios()
     } catch (e) {
       const msg = e.message === 'User already registered'
@@ -90,20 +132,47 @@ export default function GestionUsuarios() {
     setTimeout(() => setMensaje(null), 5000)
   }
 
-  const eliminarUsuario = async (userId, email) => {
-    if (!confirm(`¿Eliminar completamente al usuario ${email}? Se eliminará la cuenta y su rol.`)) return
+  const eliminarAcceso = async (userId, app, email) => {
+    // Contar cuántos accesos tiene este usuario
+    const accesosUsuario = usuarios.filter(u => u.user_id === userId)
 
-    try {
-      const { error } = await supabase.rpc('app_delete_user', { target_user_id: userId })
-
-      if (error) throw error
-      setUsuarios(prev => prev.filter(u => u.user_id !== userId))
-      setMensaje({ tipo: 'success', texto: `Usuario ${email} eliminado completamente` })
-    } catch (e) {
-      setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+    if (accesosUsuario.length === 1) {
+      // Último acceso: eliminar usuario completo
+      if (!confirm(`${email} solo tiene acceso a ${APPS[app]?.label || app}.\n\n¿Eliminar completamente la cuenta?`)) return
+      try {
+        const { error } = await supabase.rpc('app_delete_user', { target_user_id: userId })
+        if (error) throw error
+        setUsuarios(prev => prev.filter(u => u.user_id !== userId))
+        setMensaje({ tipo: 'success', texto: `Usuario ${email} eliminado completamente` })
+      } catch (e) {
+        setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+      }
+    } else {
+      // Tiene más accesos: solo quitar este rol
+      if (!confirm(`¿Quitar acceso de ${email} a ${APPS[app]?.label || app}?`)) return
+      try {
+        const { error } = await supabase
+          .from('app_user_roles')
+          .delete()
+          .eq('user_id', userId)
+          .eq('app', app)
+        if (error) throw error
+        setUsuarios(prev => prev.filter(u => !(u.user_id === userId && u.app === app)))
+        setMensaje({ tipo: 'success', texto: `Acceso de ${email} a ${APPS[app]?.label || app} eliminado` })
+      } catch (e) {
+        setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+      }
     }
     setTimeout(() => setMensaje(null), 3000)
   }
+
+  // Agrupar por email para mostrar cuántas apps tiene cada uno
+  const emailCount = {}
+  usuarios.forEach(u => {
+    emailCount[u.user_id] = (emailCount[u.user_id] || 0) + 1
+  })
+
+  const rolesApp = APPS[nuevoApp]?.roles || []
 
   return (
     <div className="space-y-6">
@@ -117,7 +186,7 @@ export default function GestionUsuarios() {
         </div>
 
         <form onSubmit={crearUsuario} className="p-4">
-          <div className="grid md:grid-cols-4 gap-3 items-end">
+          <div className="grid md:grid-cols-5 gap-3 items-end">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Email</label>
               <input
@@ -142,14 +211,27 @@ export default function GestionUsuarios() {
               />
             </div>
             <div>
+              <label className="block text-xs text-gray-500 mb-1">Aplicación</label>
+              <select
+                value={nuevoApp}
+                onChange={(e) => setNuevoApp(e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              >
+                {Object.entries(APPS).map(([key, cfg]) => (
+                  <option key={key} value={key}>{cfg.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs text-gray-500 mb-1">Rol</label>
               <select
                 value={nuevoRol}
                 onChange={(e) => setNuevoRol(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm"
               >
-                <option value="direccion">Dirección</option>
-                <option value="compras">Compras</option>
+                {rolesApp.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
               </select>
             </div>
             <button
@@ -179,7 +261,7 @@ export default function GestionUsuarios() {
             <span>&#128101;</span>
             <span>Usuarios registrados</span>
           </h3>
-          <span className="text-white/70 text-sm">{usuarios.length} usuarios</span>
+          <span className="text-white/70 text-sm">{usuarios.length} accesos</span>
         </div>
 
         <div className="overflow-x-auto">
@@ -192,42 +274,50 @@ export default function GestionUsuarios() {
               <thead className="table-header">
                 <tr>
                   <th className="p-3 text-left">Email</th>
+                  <th className="p-3 text-left">Aplicación</th>
                   <th className="p-3 text-left">Rol</th>
                   <th className="p-3 text-left">Fecha alta</th>
                   <th className="p-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map(u => (
-                  <tr key={u.user_id} className="border-b hover:bg-gray-50">
-                    <td className="p-3 font-medium">{u.email || u.user_id.substring(0, 8) + '...'}</td>
-                    <td className="p-3">
-                      <select
-                        value={u.role}
-                        onChange={(e) => cambiarRol(u.user_id, e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium border
-                          ${u.role === 'direccion'
-                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                            : 'bg-orange-50 text-orange-700 border-orange-200'}`}
-                      >
-                        <option value="direccion">Dirección</option>
-                        <option value="compras">Compras</option>
-                      </select>
-                    </td>
-                    <td className="p-3 text-gray-500">
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString('es-ES') : '-'}
-                    </td>
-                    <td className="p-3 text-right">
-                      <button
-                        onClick={() => eliminarUsuario(u.user_id, u.email)}
-                        className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
-                        title="Eliminar rol"
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {usuarios.map(u => {
+                  const appCfg = APPS[u.app]
+                  const rolesDisponibles = appCfg?.roles || []
+                  return (
+                    <tr key={`${u.user_id}-${u.app}`} className="border-b hover:bg-gray-50">
+                      <td className="p-3 font-medium">{u.email || u.user_id.substring(0, 8) + '...'}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium border ${APP_BADGE_STYLES[u.app] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                          {appCfg?.label || u.app}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <select
+                          value={u.role}
+                          onChange={(e) => cambiarRol(u.user_id, u.app, e.target.value)}
+                          className={`px-2 py-1 rounded text-xs font-medium border ${ROLE_BADGE_STYLES[u.role] || 'bg-gray-50 text-gray-700 border-gray-200'}`}
+                        >
+                          {rolesDisponibles.map(r => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-3 text-gray-500">
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString('es-ES') : '-'}
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => eliminarAcceso(u.user_id, u.app, u.email)}
+                          className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"
+                          title={emailCount[u.user_id] > 1 ? 'Quitar acceso a esta app' : 'Eliminar usuario'}
+                        >
+                          {emailCount[u.user_id] > 1 ? 'Quitar acceso' : 'Eliminar'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}
