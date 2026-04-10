@@ -108,18 +108,42 @@ export default function GestionUsuarios() {
 
   const cambiarRol = async (userId, app, nuevoRol) => {
     try {
+      const updates = { role: nuevoRol }
+      // Si cambia a no-taller, limpiar taller_asignado
+      if (nuevoRol !== 'taller') updates.taller_asignado = null
+
       const { error } = await supabase
         .from('app_user_roles')
-        .update({ role: nuevoRol })
+        .update(updates)
         .eq('user_id', userId)
         .eq('app', app)
 
       if (error) throw error
 
       setUsuarios(prev => prev.map(u =>
-        u.user_id === userId && u.app === app ? { ...u, role: nuevoRol } : u
+        u.user_id === userId && u.app === app ? { ...u, ...updates } : u
       ))
       setMensaje({ tipo: 'success', texto: 'Rol actualizado' })
+    } catch (e) {
+      setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+    }
+    setTimeout(() => setMensaje(null), 3000)
+  }
+
+  const cambiarTaller = async (userId, taller) => {
+    try {
+      const { error } = await supabase
+        .from('app_user_roles')
+        .update({ taller_asignado: taller || null })
+        .eq('user_id', userId)
+        .eq('app', 'produccion')
+
+      if (error) throw error
+
+      setUsuarios(prev => prev.map(u =>
+        u.user_id === userId && u.app === 'produccion' ? { ...u, taller_asignado: taller || null } : u
+      ))
+      setMensaje({ tipo: 'success', texto: 'Taller actualizado' })
     } catch (e) {
       setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
     }
@@ -368,6 +392,7 @@ export default function GestionUsuarios() {
                   <th className="p-3 text-left">Email</th>
                   <th className="p-3 text-left">Aplicación</th>
                   <th className="p-3 text-left">Rol</th>
+                  <th className="p-3 text-center">Taller</th>
                   <th className="p-3 text-left">Fecha alta</th>
                   <th className="p-3 text-right">Acciones</th>
                 </tr>
@@ -395,6 +420,21 @@ export default function GestionUsuarios() {
                           ))}
                         </select>
                       </td>
+                      <td className="p-3 text-center">
+                        {u.app === 'produccion' && u.role === 'taller' ? (
+                          <select
+                            value={u.taller_asignado || ''}
+                            onChange={(e) => cambiarTaller(u.user_id, e.target.value)}
+                            className="px-2 py-1 rounded text-xs font-medium border bg-gray-50 text-gray-700 border-gray-200"
+                          >
+                            <option value="">Todos</option>
+                            <option value="1">Taller 1</option>
+                            <option value="2">Taller 2</option>
+                          </select>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
+                      </td>
                       <td className="p-3 text-gray-500">
                         {u.created_at ? new Date(u.created_at).toLocaleDateString('es-ES') : '-'}
                       </td>
@@ -412,7 +452,7 @@ export default function GestionUsuarios() {
                 })}
                 {usuariosFiltrados.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="p-6 text-center text-gray-500">
+                    <td colSpan={6} className="p-6 text-center text-gray-500">
                       No hay resultados con los filtros aplicados
                     </td>
                   </tr>
