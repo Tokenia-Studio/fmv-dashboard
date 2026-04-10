@@ -3,8 +3,16 @@
 // Solo para rol direccion
 // ============================================
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import { supabase, auth } from '../../lib/supabase'
+
+// Cliente secundario sin persistencia de sesión (para crear usuarios sin perder la sesión admin)
+const supabaseSignup = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+)
 
 // Configuración de apps y roles
 const APPS = {
@@ -44,6 +52,11 @@ export default function GestionUsuarios() {
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState(null)
 
+  // Filtros
+  const [filtroEmail, setFiltroEmail] = useState('')
+  const [filtroApp, setFiltroApp] = useState('')
+  const [filtroRol, setFiltroRol] = useState('')
+
   // Formulario nuevo usuario
   const [nuevoEmail, setNuevoEmail] = useState('')
   const [nuevoPassword, setNuevoPassword] = useState('')
@@ -66,13 +79,26 @@ export default function GestionUsuarios() {
   const cargarUsuarios = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('app_user_roles')
-        .select('*')
-        .order('email', { ascending: true })
+      // Cargar roles y auth users en paralelo
+      const [rolesRes, authRes] = await Promise.all([
+        supabase.from('app_user_roles').select('*'),
+        supabase.rpc('app_list_auth_users')
+      ])
 
-      if (error) throw error
-      setUsuarios(data || [])
+      if (rolesRes.error) throw rolesRes.error
+      if (authRes.error) throw authRes.error
+
+      // Mapa de emails desde auth.users
+      const emailMap = {}
+      ;(authRes.data || []).forEach(au => { emailMap[au.id] = au.email })
+
+      // Enriquecer roles con email real y filtrar los que no tienen email
+      const enriquecidos = (rolesRes.data || [])
+        .map(r => ({ ...r, email: r.email || emailMap[r.user_id] || null }))
+        .filter(r => r.email)
+        .sort((a, b) => (a.email || '').localeCompare(b.email || ''))
+
+      setUsuarios(enriquecidos)
     } catch (e) {
       console.error('Error cargando usuarios:', e)
       setMensaje({ tipo: 'error', texto: 'Error cargando usuarios: ' + e.message })
@@ -108,13 +134,24 @@ export default function GestionUsuarios() {
     setMensaje(null)
 
     try {
-      const { data, error } = await supabase.rpc('app_create_user', {
-        p_email: nuevoEmail,
-        p_password: nuevoPassword,
-        p_app: nuevoApp,
-        p_role: nuevoRol
+      // 1. Crear usuario via GoTrue (API oficial) con cliente sin sesión
+      const { data: signUpData, error: signUpError } = await supabaseSignup.auth.signUp({
+        email: nuevoEmail,
+        password: nuevoPassword
       })
-      if (error) throw error
+      if (signUpError) throw signUpError
+      if (!signUpData.user) throw new Error('No se pudo crear el usuario')
+
+      // 2. Asignar rol en app_user_roles
+      const { error: roleError } = await supabase
+        .from('app_user_roles')
+        .upsert({
+          user_id: signUpData.user.id,
+          app: nuevoApp,
+          role: nuevoRol,
+          email: nuevoEmail.toLowerCase()
+        }, { onConflict: 'user_id,app' })
+      if (roleError) throw roleError
 
       const appLabel = APPS[nuevoApp]?.label || nuevoApp
       const rolLabel = APPS[nuevoApp]?.roles.find(r => r.value === nuevoRol)?.label || nuevoRol
@@ -166,11 +203,22 @@ export default function GestionUsuarios() {
     setTimeout(() => setMensaje(null), 3000)
   }
 
+  // Filtrar usuarios
+  const usuariosFiltrados = usuarios.filter(u => {
+    if (filtroEmail && !u.email?.toLowerCase().includes(filtroEmail.toLowerCase())) return false
+    if (filtroApp && u.app !== filtroApp) return false
+    if (filtroRol && u.role !== filtroRol) return false
+    return true
+  })
+
   // Agrupar por email para mostrar cuántas apps tiene cada uno
   const emailCount = {}
   usuarios.forEach(u => {
     emailCount[u.user_id] = (emailCount[u.user_id] || 0) + 1
   })
+
+  // Roles únicos disponibles en la lista filtrada (para el filtro de rol)
+  const rolesUnicos = [...new Set(usuarios.map(u => u.role))].sort()
 
   const rolesApp = APPS[nuevoApp]?.roles || []
 
@@ -261,8 +309,52 @@ export default function GestionUsuarios() {
             <span>&#128101;</span>
             <span>Usuarios registrados</span>
           </h3>
-          <span className="text-white/70 text-sm">{usuarios.length} accesos</span>
+          <span className="text-white/70 text-sm">
+            {usuariosFiltrados.length === usuarios.length
+              ? `${usuarios.length} accesos`
+              : `${usuariosFiltrados.length} de ${usuarios.length} accesos`}
+          </span>
         </div>
+
+        {/* Filtros: botones app + buscar email */}
+        {!loading && usuarios.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-3 border-b bg-gray-50">
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+              <button
+                onClick={() => setFiltroApp('')}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${filtroApp === '' ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+              >
+                Todas
+              </button>
+              {Object.entries(APPS).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  onClick={() => setFiltroApp(filtroApp === key ? '' : key)}
+                  className={`px-3 py-1.5 text-xs font-medium border-l transition-colors ${filtroApp === key
+                    ? (key === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white')
+                    : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+                >
+                  {cfg.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={filtroEmail}
+              onChange={e => setFiltroEmail(e.target.value)}
+              placeholder="Buscar email..."
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-blue-400 w-48"
+            />
+            {filtroRol && (
+              <button
+                onClick={() => setFiltroRol('')}
+                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg bg-white"
+              >
+                Rol: {Object.values(APPS).flatMap(a => a.roles).find(r => r.value === filtroRol)?.label || filtroRol} &times;
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="overflow-x-auto">
           {loading ? (
@@ -281,12 +373,12 @@ export default function GestionUsuarios() {
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map(u => {
+                {usuariosFiltrados.map(u => {
                   const appCfg = APPS[u.app]
                   const rolesDisponibles = appCfg?.roles || []
                   return (
                     <tr key={`${u.user_id}-${u.app}`} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{u.email || u.user_id.substring(0, 8) + '...'}</td>
+                      <td className="p-3 font-medium">{u.email}</td>
                       <td className="p-3">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium border ${APP_BADGE_STYLES[u.app] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>
                           {appCfg?.label || u.app}
@@ -318,6 +410,13 @@ export default function GestionUsuarios() {
                     </tr>
                   )
                 })}
+                {usuariosFiltrados.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-6 text-center text-gray-500">
+                      No hay resultados con los filtros aplicados
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
