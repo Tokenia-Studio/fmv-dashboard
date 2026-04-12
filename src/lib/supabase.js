@@ -465,6 +465,32 @@ export const db = {
     }
   },
 
+  // --- TRABAJADORES MENSUALES ---
+  trabajadores: {
+    upsert: async (rows) => {
+      // rows = [{año, mes, trabajadores}, ...]
+      const { data, error } = await supabase
+        .from('trabajadores_mensuales')
+        .upsert(rows, { onConflict: 'año,mes' })
+      return { data, error }
+    },
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('trabajadores_mensuales')
+        .select('*')
+        .order('año', { ascending: false })
+        .order('mes', { ascending: true })
+      return { data, error }
+    },
+    deleteByYear: async (año) => {
+      const { error } = await supabase
+        .from('trabajadores_mensuales')
+        .delete()
+        .eq('año', año)
+      return { error }
+    }
+  },
+
   // --- PLAN DE CUENTAS ---
   planCuentas: {
     getAll: async () => {

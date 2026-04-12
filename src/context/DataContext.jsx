@@ -48,6 +48,9 @@ const initialState = {
   presupuestoVsReal: [],
   cuentasAnuales: { balance: {}, pyg: {} },
 
+  // Trabajadores mensuales
+  trabajadoresMensuales: {},  // { año: { mes: numTrabajadores } }
+
   // Presupuesto Compras
   albaranesFacturas: [],
   pedidosCompra: [],
@@ -158,6 +161,9 @@ function dataReducer(state, action) {
     case 'LOAD_PLAN_CUENTAS':
       return { ...state, planCuentas: action.payload }
 
+    case 'LOAD_TRABAJADORES':
+      return { ...state, trabajadoresMensuales: action.payload }
+
     case 'CLEAR_DATA':
       return { ...initialState }
 
@@ -219,7 +225,8 @@ export function DataProvider({ children }) {
         presupuestosResult,
         mapeoResult,
         pedidosResult,
-        planResult
+        planResult,
+        trabajadoresResult
       ] = await Promise.all([
         // Movimientos de TODOS los años en paralelo (antes era secuencial)
         Promise.all(años.map(año => db.movimientos.getByYear(año).then(({ data, error }) => {
@@ -234,7 +241,8 @@ export function DataProvider({ children }) {
         db.presupuestos.getByYear(añoActual),
         db.mapeoGrupoCuenta.getAll(),
         db.pedidosCompra.getByYear(añoActual),
-        db.planCuentas.getAll()
+        db.planCuentas.getAll(),
+        db.trabajadores.getAll()
       ])
 
       // 4. Procesar resultados
@@ -355,6 +363,16 @@ export function DataProvider({ children }) {
         }
       } catch (e) {
         console.warn('Error cargando datos compras:', e)
+      }
+
+      // 7. Trabajadores mensuales
+      if (trabajadoresResult.data && trabajadoresResult.data.length > 0) {
+        const trabajadoresMap = {}
+        trabajadoresResult.data.forEach(t => {
+          if (!trabajadoresMap[t.año]) trabajadoresMap[t.año] = {}
+          trabajadoresMap[t.año][t.mes] = t.trabajadores
+        })
+        dispatch({ type: 'LOAD_TRABAJADORES', payload: trabajadoresMap })
       }
     } catch (error) {
       console.error('Error cargando datos desde Supabase:', error)
@@ -1237,6 +1255,77 @@ export function DataProvider({ children }) {
     }
   }
 
+  // Cargar trabajadores mensuales desde Excel
+  const cargarTrabajadores = async (file) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando trabajadores...' })
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
+
+      if (data.length < 2) throw new Error('El archivo está vacío o no tiene datos')
+
+      // Row 0 = years as headers, Rows 1-12 = months
+      const headers = data[0]
+      const rows = []
+
+      for (let col = 0; col < headers.length; col++) {
+        const año = parseInt(headers[col])
+        if (isNaN(año) || año < 2000 || año > 2100) continue
+
+        for (let row = 1; row <= 12 && row < data.length; row++) {
+          const val = data[row]?.[col]
+          if (val != null && val !== '' && !isNaN(val)) {
+            rows.push({ año, mes: row, trabajadores: parseInt(val) })
+          }
+        }
+      }
+
+      if (rows.length === 0) throw new Error('No se encontraron datos de trabajadores válidos')
+
+      dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando en Supabase...' })
+
+      const { error } = await db.trabajadores.upsert(rows)
+      if (error) throw new Error(`Error guardando trabajadores: ${error.message}`)
+
+      // Rebuild map
+      const trabajadoresMap = { ...state.trabajadoresMensuales }
+      rows.forEach(r => {
+        if (!trabajadoresMap[r.año]) trabajadoresMap[r.año] = {}
+        trabajadoresMap[r.año][r.mes] = r.trabajadores
+      })
+
+      dispatch({ type: 'LOAD_TRABAJADORES', payload: trabajadoresMap })
+      dispatch({ type: 'SET_LOADING', payload: false })
+
+      return { success: true, count: rows.length }
+    } catch (error) {
+      console.error('Error cargando trabajadores:', error)
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
+  // Guardar/actualizar trabajadores de un mes manualmente
+  const guardarTrabajador = async (año, mes, trabajadores) => {
+    try {
+      const { error } = await db.trabajadores.upsert([{ año, mes, trabajadores }])
+      if (error) throw new Error(error.message)
+
+      const trabajadoresMap = { ...state.trabajadoresMensuales }
+      if (!trabajadoresMap[año]) trabajadoresMap[año] = {}
+      trabajadoresMap[año][mes] = trabajadores
+
+      dispatch({ type: 'LOAD_TRABAJADORES', payload: trabajadoresMap })
+      return { success: true }
+    } catch (error) {
+      console.error('Error guardando trabajador:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   // Borrar albaranes de un año/mes
   const borrarAlbaranes = async (año, mes) => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando albaranes...' })
@@ -1317,6 +1406,8 @@ export function DataProvider({ children }) {
     guardarMapeo,
     guardarMapeoProveedorCuenta,
     cargarPlanCuentas,
+    cargarTrabajadores,
+    guardarTrabajador,
     exportarExcel,
     exportarMovimientos,
     limpiarDatos,

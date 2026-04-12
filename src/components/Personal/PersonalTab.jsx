@@ -1,0 +1,660 @@
+// ============================================
+// PERSONAL TAB - Ratios de personal y productividad
+// ============================================
+
+import React, { useState, useCallback, useMemo } from 'react'
+import {
+  BarChart, Bar, LineChart, Line, ComposedChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
+} from 'recharts'
+import { useData } from '../../context/DataContext'
+import { calcularPyG } from '../../utils/calculations'
+import KPICard from '../UI/KPICard'
+import { formatCurrency, formatPercent, formatCompact, mesKeyToNombre, formatNumber } from '../../utils/formatters'
+import { MONTHS_SHORT, CHART_COLORS, ACCOUNT_GROUPS_3 } from '../../utils/constants'
+
+// Subcuentas del grupo 64
+const PERSONAL_SUBCUENTAS = {
+  '640': { name: 'Sueldos y salarios', color: '#8b5cf6' },
+  '641': { name: 'Indemnizaciones', color: '#ef4444' },
+  '642': { name: 'Seg. Social empresa', color: '#3b82f6' },
+  '643': { name: 'Retribuc. largo plazo', color: '#f59e0b' },
+  '644': { name: 'Retribuc. instrumentos', color: '#10b981' },
+  '645': { name: 'Retribuc. al personal', color: '#ec4899' },
+  '649': { name: 'Otros gastos sociales', color: '#6b7280' }
+}
+
+function PersonalTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
+      <p className="font-semibold text-gray-800 mb-2">{label}</p>
+      <div className="space-y-1">
+        {payload.map((entry, i) => (
+          <div key={i} className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
+              <span className="text-gray-600">{entry.name}</span>
+            </div>
+            <span className="font-medium" style={{ color: entry.color }}>
+              {typeof entry.value === 'number'
+                ? entry.name.includes('%') || entry.name.includes('Ratio')
+                  ? formatPercent(entry.value)
+                  : entry.name.includes('Trab') || entry.name.includes('Plantilla')
+                    ? entry.value
+                    : formatCurrency(entry.value)
+                : entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function PersonalTab() {
+  const {
+    pyg, totalesPyG, movimientos, añoActual,
+    trabajadoresMensuales, cargarTrabajadores, guardarTrabajador
+  } = useData()
+
+  const [editMes, setEditMes] = useState(null)
+  const [editValue, setEditValue] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [mensaje, setMensaje] = useState(null)
+  const [dragActive, setDragActive] = useState(false)
+
+  const mesesConDatos = pyg.filter(m => m.ventas !== 0 || m.resultado !== 0)
+  const trabajadoresAño = trabajadoresMensuales[añoActual] || {}
+  const trabajadoresAñoAnterior = trabajadoresMensuales[añoActual - 1] || {}
+  const tieneTrabajadores = Object.keys(trabajadoresAño).length > 0
+
+  // Desglose subcuentas 64x por mes
+  const desglose64 = useMemo(() => {
+    const result = {}
+    for (let m = 1; m <= 12; m++) {
+      result[m] = {}
+      Object.keys(PERSONAL_SUBCUENTAS).forEach(sc => { result[m][sc] = 0 })
+    }
+    movimientos.forEach(mov => {
+      if (!mov.mes.startsWith(String(añoActual))) return
+      const sc3 = mov.cuenta?.substring(0, 3)
+      if (!PERSONAL_SUBCUENTAS[sc3]) return
+      const mesNum = parseInt(mov.mes.split('-')[1])
+      const neto = mov.debe - mov.haber
+      result[mesNum][sc3] = (result[mesNum][sc3] || 0) + neto
+    })
+    return result
+  }, [movimientos, añoActual])
+
+  // Datos mensuales combinados
+  const datosMensuales = useMemo(() => {
+    return MONTHS_SHORT.map((mes, idx) => {
+      const mesNum = idx + 1
+      const pygMes = mesesConDatos.find(d => parseInt(d.mes.split('-')[1]) === mesNum)
+      const numTrab = trabajadoresAño[mesNum]
+      const numTrabAnt = trabajadoresAñoAnterior[mesNum]
+      const ventas = pygMes?.ventas || 0
+      const personal = pygMes?.personal || 0
+      const ebitda = pygMes?.ebitda || 0
+      const margenBruto = pygMes?.margenBruto || 0
+
+      return {
+        mes,
+        mesNum,
+        ventas,
+        personal,
+        ebitda,
+        margenBruto,
+        trabajadores: numTrab || null,
+        trabajadoresAnt: numTrabAnt || null,
+        // Ratios (solo si hay trabajadores)
+        personalSobreVentas: ventas ? (personal / ventas) * 100 : null,
+        costeMedioEmpleado: numTrab ? personal / numTrab : null,
+        ventasPorEmpleado: numTrab ? ventas / numTrab : null,
+        ebitdaPorEmpleado: numTrab ? ebitda / numTrab : null,
+        margenBrutoPorEmpleado: numTrab ? margenBruto / numTrab : null,
+        coberturaLaboral: personal ? ventas / personal : null,
+        // Desglose 64x
+        sueldos: desglose64[mesNum]?.['640'] || 0,
+        segSocial: desglose64[mesNum]?.['642'] || 0,
+        indemnizaciones: desglose64[mesNum]?.['641'] || 0,
+        otrosGastos: (desglose64[mesNum]?.['643'] || 0) + (desglose64[mesNum]?.['644'] || 0) +
+                     (desglose64[mesNum]?.['645'] || 0) + (desglose64[mesNum]?.['649'] || 0)
+      }
+    })
+  }, [mesesConDatos, trabajadoresAño, trabajadoresAñoAnterior, desglose64])
+
+  // Totales anuales
+  const totales = useMemo(() => {
+    const mesesConTrab = datosMensuales.filter(d => d.trabajadores)
+    const plantillaMedia = mesesConTrab.length > 0
+      ? mesesConTrab.reduce((s, d) => s + d.trabajadores, 0) / mesesConTrab.length
+      : 0
+    const totalPersonal = totalesPyG.personal || 0
+    const totalVentas = totalesPyG.ventas || 0
+    const totalEbitda = totalesPyG.ebitda || 0
+    const totalMargenBruto = totalesPyG.margenBruto || 0
+    const totalSueldos = datosMensuales.reduce((s, d) => s + d.sueldos, 0)
+    const totalSegSocial = datosMensuales.reduce((s, d) => s + d.segSocial, 0)
+
+    return {
+      plantillaMedia: Math.round(plantillaMedia * 10) / 10,
+      totalPersonal,
+      totalVentas,
+      personalSobreVentas: totalVentas ? (totalPersonal / totalVentas) * 100 : 0,
+      costeMedioEmpleado: plantillaMedia ? totalPersonal / plantillaMedia : 0,
+      ventasPorEmpleado: plantillaMedia ? totalVentas / plantillaMedia : 0,
+      ebitdaPorEmpleado: plantillaMedia ? totalEbitda / plantillaMedia : 0,
+      margenBrutoPorEmpleado: plantillaMedia ? totalMargenBruto / plantillaMedia : 0,
+      coberturaLaboral: totalPersonal ? totalVentas / totalPersonal : 0,
+      pesoSueldos: totalPersonal ? (totalSueldos / totalPersonal) * 100 : 0,
+      pesoSegSocial: totalPersonal ? (totalSegSocial / totalPersonal) * 100 : 0,
+      totalSueldos,
+      totalSegSocial
+    }
+  }, [datosMensuales, totalesPyG])
+
+  // Comparativa interanual
+  const comparativaAnual = useMemo(() => {
+    const años = Object.keys(trabajadoresMensuales).map(Number).sort()
+    return años.map(año => {
+      const trab = trabajadoresMensuales[año] || {}
+      const mesesConTrab = Object.values(trab)
+      const plantillaMedia = mesesConTrab.length > 0
+        ? mesesConTrab.reduce((s, v) => s + v, 0) / mesesConTrab.length
+        : 0
+
+      const pygAño = calcularPyG(movimientos, año)
+      const totalVentas = pygAño.reduce((s, m) => s + m.ventas, 0)
+      const totalPersonal = pygAño.reduce((s, m) => s + m.personal, 0)
+      const totalEbitda = pygAño.reduce((s, m) => s + m.ebitda, 0)
+
+      return {
+        año: String(año),
+        plantillaMedia: Math.round(plantillaMedia * 10) / 10,
+        totalPersonal,
+        totalVentas,
+        personalSobreVentas: totalVentas ? (totalPersonal / totalVentas) * 100 : 0,
+        costeMedioEmpleado: plantillaMedia ? totalPersonal / plantillaMedia : 0,
+        ventasPorEmpleado: plantillaMedia ? totalVentas / plantillaMedia : 0,
+        ebitdaPorEmpleado: plantillaMedia ? totalEbitda / plantillaMedia : 0,
+        coberturaLaboral: totalPersonal ? totalVentas / totalPersonal : 0
+      }
+    })
+  }, [trabajadoresMensuales, movimientos])
+
+  // Handlers
+  const handleSaveTrabajador = async (mesNum) => {
+    const val = parseInt(editValue)
+    if (isNaN(val) || val < 0) return
+    setSaving(true)
+    const result = await guardarTrabajador(añoActual, mesNum, val)
+    setSaving(false)
+    setEditMes(null)
+    setEditValue('')
+    if (result.success) {
+      setMensaje({ tipo: 'ok', texto: `Trabajadores de ${MONTHS_SHORT[mesNum - 1]} actualizados` })
+    } else {
+      setMensaje({ tipo: 'error', texto: result.error })
+    }
+    setTimeout(() => setMensaje(null), 3000)
+  }
+
+  const handleFile = useCallback(async (file) => {
+    const result = await cargarTrabajadores(file)
+    if (result.success) {
+      setMensaje({ tipo: 'ok', texto: `${result.count} registros cargados correctamente` })
+    } else {
+      setMensaje({ tipo: 'error', texto: result.error })
+    }
+    setTimeout(() => setMensaje(null), 5000)
+  }, [cargarTrabajadores])
+
+  const handleDrop = useCallback(async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+    const file = e.dataTransfer.files[0]
+    if (file) await handleFile(file)
+  }, [handleFile])
+
+  const handleDrag = useCallback((e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover')
+  }, [])
+
+  // --- Color helpers ---
+  const getPersonalColor = (pct) => {
+    if (pct == null) return 'text-gray-400'
+    if (pct > 40) return 'text-red-600 font-bold'
+    if (pct > 35) return 'text-amber-600 font-semibold'
+    return 'text-green-600'
+  }
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+
+  if (mesesConDatos.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-6xl mb-4">👥</div>
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin datos para {añoActual}</h2>
+        <p className="text-gray-500">Carga un diario contable en la pestaña "Cargar"</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+
+      {/* Mensaje */}
+      {mensaje && (
+        <div className={`p-3 rounded-lg text-sm font-medium ${mensaje.tipo === 'ok' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {mensaje.texto}
+        </div>
+      )}
+
+      {/* ========== KPIs ========== */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard
+          titulo="Plantilla Media"
+          valor={totales.plantillaMedia}
+          formato="number"
+          icono="👥"
+          subtitulo={`${Object.keys(trabajadoresAño).length} meses con datos`}
+          colorValor="text-purple-600"
+        />
+        <KPICard
+          titulo="Coste/Empleado"
+          valor={totales.costeMedioEmpleado}
+          icono="💶"
+          subtitulo={tieneTrabajadores ? `${formatPercent(totales.pesoSueldos)} sueldos + ${formatPercent(totales.pesoSegSocial)} SS` : 'Sin datos de plantilla'}
+          colorValor="text-blue-600"
+        />
+        <KPICard
+          titulo="Ventas/Empleado"
+          valor={totales.ventasPorEmpleado}
+          icono="📈"
+          subtitulo={tieneTrabajadores ? `Cobertura: ${totales.coberturaLaboral.toFixed(1)}x` : 'Sin datos de plantilla'}
+          colorValor="text-green-600"
+        />
+        <KPICard
+          titulo="Personal/Ventas"
+          valor={totales.personalSobreVentas}
+          formato="percent"
+          icono="📊"
+          subtitulo={totales.personalSobreVentas > 40 ? 'Por encima del umbral' : totales.personalSobreVentas > 35 ? 'Zona de alerta' : 'Dentro de rango'}
+          colorValor={getPersonalColor(totales.personalSobreVentas)}
+        />
+      </div>
+
+      {/* ========== TABLA RATIOS MENSUALES ========== */}
+      <div className="card overflow-hidden">
+        <div className="card-header flex items-center justify-between">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <span>📊</span>
+            <span>Ratios de Personal por Mes - {añoActual}</span>
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                <th className="px-3 py-2 text-left font-semibold text-gray-600">Mes</th>
+                <th className="px-3 py-2 text-right font-semibold text-gray-600">Trabaj.</th>
+                <th className="px-3 py-2 text-right font-semibold text-purple-600">Gto. Personal</th>
+                <th className="px-3 py-2 text-right font-semibold text-green-600">Ventas</th>
+                <th className="px-3 py-2 text-right font-semibold text-amber-600">Personal/Ventas</th>
+                <th className="px-3 py-2 text-right font-semibold text-blue-600">Coste/Empl.</th>
+                <th className="px-3 py-2 text-right font-semibold text-green-700">Ventas/Empl.</th>
+                <th className="px-3 py-2 text-right font-semibold text-indigo-600">EBITDA/Empl.</th>
+                <th className="px-3 py-2 text-right font-semibold text-gray-600">Cobertura</th>
+              </tr>
+            </thead>
+            <tbody>
+              {datosMensuales.map((d, idx) => {
+                const tieneDatosMes = d.ventas !== 0 || d.personal !== 0
+                if (!tieneDatosMes && !d.trabajadores) return null
+
+                return (
+                  <tr key={d.mes} className="border-b hover:bg-gray-50 transition-colors">
+                    <td className="px-3 py-2 font-medium text-gray-700">{d.mes}</td>
+                    <td className="px-3 py-2 text-right">
+                      {editMes === d.mesNum ? (
+                        <div className="flex items-center gap-1 justify-end">
+                          <input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveTrabajador(d.mesNum)
+                              if (e.key === 'Escape') { setEditMes(null); setEditValue('') }
+                            }}
+                            className="w-14 px-1 py-0.5 border rounded text-center text-xs"
+                            autoFocus
+                            min="0"
+                          />
+                          <button
+                            onClick={() => handleSaveTrabajador(d.mesNum)}
+                            disabled={saving}
+                            className="text-green-600 hover:text-green-800 font-bold"
+                          >
+                            {saving ? '...' : 'OK'}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setEditMes(d.mesNum); setEditValue(d.trabajadores || '') }}
+                          className="text-purple-700 font-semibold hover:bg-purple-50 px-2 py-0.5 rounded cursor-pointer min-w-[2rem]"
+                          title="Click para editar"
+                        >
+                          {d.trabajadores || '-'}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right text-purple-700">{d.personal ? formatCurrency(d.personal) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-green-700">{d.ventas ? formatCurrency(d.ventas) : '-'}</td>
+                    <td className={`px-3 py-2 text-right ${getPersonalColor(d.personalSobreVentas)}`}>
+                      {d.personalSobreVentas != null ? formatPercent(d.personalSobreVentas) : '-'}
+                    </td>
+                    <td className="px-3 py-2 text-right text-blue-700">{d.costeMedioEmpleado ? formatCurrency(d.costeMedioEmpleado) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-green-700">{d.ventasPorEmpleado ? formatCurrency(d.ventasPorEmpleado) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-indigo-700">{d.ebitdaPorEmpleado ? formatCurrency(d.ebitdaPorEmpleado) : '-'}</td>
+                    <td className="px-3 py-2 text-right text-gray-600">{d.coberturaLaboral ? `${d.coberturaLaboral.toFixed(1)}x` : '-'}</td>
+                  </tr>
+                )
+              })}
+
+              {/* Fila de totales */}
+              <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
+                <td className="px-3 py-2 text-gray-800">TOTAL / MEDIA</td>
+                <td className="px-3 py-2 text-right text-purple-700">{totales.plantillaMedia || '-'}</td>
+                <td className="px-3 py-2 text-right text-purple-700">{formatCurrency(totales.totalPersonal)}</td>
+                <td className="px-3 py-2 text-right text-green-700">{formatCurrency(totales.totalVentas)}</td>
+                <td className={`px-3 py-2 text-right ${getPersonalColor(totales.personalSobreVentas)}`}>
+                  {formatPercent(totales.personalSobreVentas)}
+                </td>
+                <td className="px-3 py-2 text-right text-blue-700">{totales.costeMedioEmpleado ? formatCurrency(totales.costeMedioEmpleado) : '-'}</td>
+                <td className="px-3 py-2 text-right text-green-700">{totales.ventasPorEmpleado ? formatCurrency(totales.ventasPorEmpleado) : '-'}</td>
+                <td className="px-3 py-2 text-right text-indigo-700">{totales.ebitdaPorEmpleado ? formatCurrency(totales.ebitdaPorEmpleado) : '-'}</td>
+                <td className="px-3 py-2 text-right text-gray-600">{totales.coberturaLaboral ? `${totales.coberturaLaboral.toFixed(1)}x` : '-'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ========== GRAFICOS ========== */}
+      <div className="card overflow-hidden">
+        <div className="card-header">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <span>📈</span>
+            <span>Evolución Mensual - {añoActual}</span>
+          </h3>
+        </div>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* Gráfico 1: Personal/Ventas % con umbral */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span>📊</span> Personal / Ventas (%)
+            </h4>
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={datosMensuales.filter(d => d.personalSobreVentas != null)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => `${v}%`} domain={[0, 'auto']} />
+                <Tooltip content={<PersonalTooltip />} />
+                <ReferenceLine y={35} stroke="#f59e0b" strokeDasharray="5 5" label={{ value: '35%', fill: '#f59e0b', fontSize: 10 }} />
+                <ReferenceLine y={40} stroke="#ef4444" strokeDasharray="5 5" label={{ value: '40%', fill: '#ef4444', fontSize: 10 }} />
+                <Bar dataKey="personalSobreVentas" name="% Personal/Ventas" fill="#a855f7" radius={[4, 4, 0, 0]} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Gráfico 2: Ventas y Coste por empleado */}
+          {tieneTrabajadores && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span>💶</span> Productividad por Empleado
+              </h4>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={datosMensuales.filter(d => d.trabajadores)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => formatCompact(v).replace(' €', '')} />
+                  <Tooltip content={<PersonalTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="ventasPorEmpleado" name="Ventas/Empl." fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="costeMedioEmpleado" name="Coste/Empl." fill="#a855f7" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="ebitdaPorEmpleado" name="EBITDA/Empl." fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Gráfico 3: Evolución plantilla */}
+          {tieneTrabajadores && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <span>👥</span> Evolución Plantilla
+              </h4>
+              <ResponsiveContainer width="100%" height={220}>
+                <ComposedChart data={datosMensuales.filter(d => d.trabajadores || d.trabajadoresAnt)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} domain={['auto', 'auto']} />
+                  <Tooltip content={<PersonalTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Area dataKey="trabajadores" name={`Plantilla ${añoActual}`} fill="#a855f7" fillOpacity={0.15} stroke="#a855f7" strokeWidth={2} />
+                  <Line dataKey="trabajadoresAnt" name={`Plantilla ${añoActual - 1}`} stroke="#94a3b8" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Gráfico 4: Desglose costes laborales */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <span>📋</span> Desglose Costes Laborales
+            </h4>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={datosMensuales.filter(d => d.sueldos > 0 || d.segSocial > 0)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => formatCompact(v).replace(' €', '')} />
+                <Tooltip content={<PersonalTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Bar dataKey="sueldos" name="Sueldos (640)" fill="#8b5cf6" stackId="a" />
+                <Bar dataKey="segSocial" name="Seg. Social (642)" fill="#3b82f6" stackId="a" />
+                <Bar dataKey="indemnizaciones" name="Indemnizac. (641)" fill="#ef4444" stackId="a" />
+                <Bar dataKey="otrosGastos" name="Otros (643-649)" fill="#6b7280" stackId="a" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* ========== COMPARATIVA INTERANUAL ========== */}
+      {comparativaAnual.length > 1 && (
+        <div className="card overflow-hidden">
+          <div className="card-header">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <span>📅</span>
+              <span>Comparativa Interanual</span>
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Ejercicio</th>
+                  <th className="px-4 py-3 text-right font-semibold text-purple-600">Plantilla Media</th>
+                  <th className="px-4 py-3 text-right font-semibold text-purple-600">Gto. Personal</th>
+                  <th className="px-4 py-3 text-right font-semibold text-green-600">Ventas</th>
+                  <th className="px-4 py-3 text-right font-semibold text-amber-600">Personal/Ventas</th>
+                  <th className="px-4 py-3 text-right font-semibold text-blue-600">Coste/Empl.</th>
+                  <th className="px-4 py-3 text-right font-semibold text-green-700">Ventas/Empl.</th>
+                  <th className="px-4 py-3 text-right font-semibold text-indigo-600">EBITDA/Empl.</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Cobertura</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparativaAnual.map(d => (
+                  <tr key={d.año} className={`border-b hover:bg-gray-50 ${d.año === String(añoActual) ? 'bg-purple-50/50' : ''}`}>
+                    <td className="px-4 py-3 font-bold text-gray-800">{d.año}</td>
+                    <td className="px-4 py-3 text-right text-purple-700 font-semibold">{d.plantillaMedia || '-'}</td>
+                    <td className="px-4 py-3 text-right text-purple-700">{formatCurrency(d.totalPersonal)}</td>
+                    <td className="px-4 py-3 text-right text-green-700">{formatCurrency(d.totalVentas)}</td>
+                    <td className={`px-4 py-3 text-right ${getPersonalColor(d.personalSobreVentas)}`}>
+                      {formatPercent(d.personalSobreVentas)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-blue-700">{d.costeMedioEmpleado ? formatCurrency(d.costeMedioEmpleado) : '-'}</td>
+                    <td className="px-4 py-3 text-right text-green-700">{d.ventasPorEmpleado ? formatCurrency(d.ventasPorEmpleado) : '-'}</td>
+                    <td className="px-4 py-3 text-right text-indigo-700">{d.ebitdaPorEmpleado ? formatCurrency(d.ebitdaPorEmpleado) : '-'}</td>
+                    <td className="px-4 py-3 text-right text-gray-600">{d.coberturaLaboral ? `${d.coberturaLaboral.toFixed(1)}x` : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Gráficos interanuales */}
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Evolución Ventas/Empleado por Ejercicio</h4>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={comparativaAnual}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="año" tick={{ fontSize: 12, fill: '#6b7280' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => formatCompact(v).replace(' €', '')} />
+                  <Tooltip content={<PersonalTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar dataKey="ventasPorEmpleado" name="Ventas/Empl." fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="costeMedioEmpleado" name="Coste/Empl." fill="#a855f7" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Personal/Ventas (%) por Ejercicio</h4>
+              <ResponsiveContainer width="100%" height={200}>
+                <ComposedChart data={comparativaAnual}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="año" tick={{ fontSize: 12, fill: '#6b7280' }} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => `${v}%`} />
+                  <Tooltip content={<PersonalTooltip />} />
+                  <ReferenceLine y={35} stroke="#f59e0b" strokeDasharray="5 5" />
+                  <ReferenceLine y={40} stroke="#ef4444" strokeDasharray="5 5" />
+                  <Bar dataKey="personalSobreVentas" name="% Personal/Ventas" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                  <Line dataKey="plantillaMedia" name="Plantilla Media" stroke="#1a365d" strokeWidth={2} yAxisId={1} dot={{ r: 4 }} />
+                  <YAxis yAxisId={1} orientation="right" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== GUIA DE RATIOS ========== */}
+      <div className="card overflow-hidden">
+        <div className="card-header">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <span>💡</span>
+            <span>Guía de Ratios</span>
+          </h3>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+              <h4 className="font-semibold text-purple-800 mb-1">Personal / Ventas</h4>
+              <p className="text-purple-700">Peso de los costes laborales sobre la facturación. Sector industrial: 25-35% es saludable, &gt;40% alerta.</p>
+            </div>
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+              <h4 className="font-semibold text-blue-800 mb-1">Coste Medio por Empleado</h4>
+              <p className="text-blue-700">Coste laboral total (sueldos + SS + otros) dividido entre plantilla media. Indica el coste real de cada trabajador.</p>
+            </div>
+            <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+              <h4 className="font-semibold text-green-800 mb-1">Ventas por Empleado</h4>
+              <p className="text-green-700">Productividad comercial de la plantilla. Más facturación por empleado = mayor eficiencia operativa.</p>
+            </div>
+            <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
+              <h4 className="font-semibold text-indigo-800 mb-1">EBITDA por Empleado</h4>
+              <p className="text-indigo-700">Rentabilidad operativa por trabajador. Es el ratio clave: mide cuánto beneficio genera cada empleado.</p>
+            </div>
+            <div className="bg-amber-50 rounded-lg p-3 border border-amber-100">
+              <h4 className="font-semibold text-amber-800 mb-1">Cobertura Laboral</h4>
+              <p className="text-amber-700">Ventas / Gasto Personal. Indica cuántos euros de venta genera cada euro invertido en personal. &gt;3x es saludable.</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <h4 className="font-semibold text-gray-800 mb-1">Peso Salarial vs SS</h4>
+              <p className="text-gray-700">Proporción sueldos brutos (640) frente a Seg. Social empresa (642). Habitual: 70-75% sueldos, 25-30% SS.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========== CARGA DE TRABAJADORES ========== */}
+      <div className="card overflow-hidden">
+        <div className="card-header">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <span>📤</span>
+            <span>Cargar Datos de Plantilla</span>
+          </h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <p className="text-sm text-gray-600">
+            Puedes introducir el número de trabajadores de cada mes haciendo <strong>click en la columna "Trabaj."</strong> de la tabla superior,
+            o cargar un Excel con el formato: columnas = años, filas 1-12 = meses (enero a diciembre).
+          </p>
+
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer
+              ${dragActive ? 'border-purple-400 bg-purple-50' : 'border-gray-300 hover:border-purple-300 hover:bg-purple-50/30'}`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+            onClick={() => {
+              const input = document.createElement('input')
+              input.type = 'file'
+              input.accept = '.xlsx,.xls'
+              input.onchange = (e) => {
+                if (e.target.files[0]) handleFile(e.target.files[0])
+              }
+              input.click()
+            }}
+          >
+            <div className="text-3xl mb-2">📋</div>
+            <p className="text-sm font-medium text-gray-700">
+              Arrastra aquí el Excel de trabajadores mensuales
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              o haz click para seleccionar archivo (.xlsx)
+            </p>
+          </div>
+
+          {/* Resumen datos cargados */}
+          {Object.keys(trabajadoresMensuales).length > 0 && (
+            <div className="bg-gray-50 rounded-lg p-3">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Datos cargados</h4>
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(trabajadoresMensuales).sort(([a], [b]) => b - a).map(([año, meses]) => (
+                  <div key={año} className="bg-white rounded px-3 py-1.5 border text-xs">
+                    <span className="font-semibold text-gray-800">{año}</span>
+                    <span className="text-gray-500 ml-1">({Object.keys(meses).length} meses)</span>
+                    <span className="text-purple-600 ml-1">
+                      media: {Math.round(Object.values(meses).reduce((s, v) => s + v, 0) / Object.keys(meses).length)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
