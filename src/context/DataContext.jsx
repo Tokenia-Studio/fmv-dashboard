@@ -51,6 +51,9 @@ const initialState = {
   // Trabajadores mensuales
   trabajadoresMensuales: {},  // { año: { mes: numTrabajadores } }
 
+  // Calendarios laborales (tabla prod_calendario, compartida con FMV Producción)
+  calendariosLaborales: {},  // { año: { anio, horas_dia, horario, festivos, media_jornada, vacaciones_agosto } }
+
   // Presupuesto Compras
   albaranesFacturas: [],
   pedidosCompra: [],
@@ -164,6 +167,9 @@ function dataReducer(state, action) {
     case 'LOAD_TRABAJADORES':
       return { ...state, trabajadoresMensuales: action.payload }
 
+    case 'LOAD_CALENDARIOS':
+      return { ...state, calendariosLaborales: action.payload }
+
     case 'CLEAR_DATA':
       return { ...initialState }
 
@@ -226,7 +232,8 @@ export function DataProvider({ children }) {
         mapeoResult,
         pedidosResult,
         planResult,
-        trabajadoresResult
+        trabajadoresResult,
+        calendariosResult
       ] = await Promise.all([
         // Movimientos de TODOS los años en paralelo (antes era secuencial)
         Promise.all(años.map(año => db.movimientos.getByYear(año).then(({ data, error }) => {
@@ -242,7 +249,8 @@ export function DataProvider({ children }) {
         db.mapeoGrupoCuenta.getAll(),
         db.pedidosCompra.getByYear(añoActual),
         db.planCuentas.getAll(),
-        db.trabajadores.getAll()
+        db.trabajadores.getAll(),
+        supabase.from('prod_calendario').select('*')
       ])
 
       // 4. Procesar resultados
@@ -373,6 +381,15 @@ export function DataProvider({ children }) {
           trabajadoresMap[t.año][t.mes] = t.trabajadores
         })
         dispatch({ type: 'LOAD_TRABAJADORES', payload: trabajadoresMap })
+      }
+
+      // 8. Calendarios laborales (tabla compartida con FMV Producción)
+      if (calendariosResult.data && calendariosResult.data.length > 0) {
+        const calendariosMap = {}
+        calendariosResult.data.forEach(c => {
+          calendariosMap[c.anio] = c
+        })
+        dispatch({ type: 'LOAD_CALENDARIOS', payload: calendariosMap })
       }
     } catch (error) {
       console.error('Error cargando datos desde Supabase:', error)

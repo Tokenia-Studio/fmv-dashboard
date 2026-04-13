@@ -12,6 +12,7 @@ import { calcularPyG } from '../../utils/calculations'
 import KPICard from '../UI/KPICard'
 import { formatCurrency, formatPercent, formatCompact, mesKeyToNombre, formatNumber } from '../../utils/formatters'
 import { MONTHS_SHORT, CHART_COLORS, ACCOUNT_GROUPS_3 } from '../../utils/constants'
+import { calcularHorasLaborables, calcularDiasLaborables } from '../../utils/calendario'
 
 // Subcuentas del grupo 64
 const PERSONAL_SUBCUENTAS = {
@@ -55,7 +56,8 @@ function PersonalTooltip({ active, payload, label }) {
 export default function PersonalTab() {
   const {
     pyg, totalesPyG, movimientos, añoActual,
-    trabajadoresMensuales, cargarTrabajadores, guardarTrabajador
+    trabajadoresMensuales, cargarTrabajadores, guardarTrabajador,
+    calendariosLaborales
   } = useData()
 
   const [editMes, setEditMes] = useState(null)
@@ -183,6 +185,95 @@ export default function PersonalTab() {
       }
     })
   }, [trabajadoresMensuales, movimientos])
+
+  // ============================================
+  // PRODUCTIVIDAD (horas calendario + gastos grupo 60/62)
+  // ============================================
+  const calendarioAño = calendariosLaborales[añoActual] || null
+  const horasLabMes = useMemo(() => calcularHorasLaborables(calendarioAño, añoActual), [calendarioAño, añoActual])
+  const diasLabMes = useMemo(() => calcularDiasLaborables(calendarioAño, añoActual), [calendarioAño, añoActual])
+
+  // Gastos por mes de grupos 60 (proveedores) y 62 (acreedores / servicios exteriores)
+  const gastosPorMes = useMemo(() => {
+    const result = {}
+    for (let m = 1; m <= 12; m++) result[m] = { proveedores: 0, acreedores: 0 }
+    movimientos.forEach(mov => {
+      if (!mov.mes || !mov.mes.startsWith(String(añoActual))) return
+      const g2 = mov.cuenta?.substring(0, 2)
+      if (g2 !== '60' && g2 !== '62') return
+      const mesNum = parseInt(mov.mes.split('-')[1])
+      const neto = (mov.debe || 0) - (mov.haber || 0)
+      if (g2 === '60') result[mesNum].proveedores += neto
+      else result[mesNum].acreedores += neto
+    })
+    return result
+  }, [movimientos, añoActual])
+
+  const productividadMensual = useMemo(() => {
+    return datosMensuales.map(d => {
+      const horas = horasLabMes[d.mesNum] || 0
+      const dias = diasLabMes[d.mesNum] || 0
+      const trab = d.trabajadores || 0
+      const horasTotales = trab * horas
+      const sueldos = d.sueldos || 0
+      const proveedores = gastosPorMes[d.mesNum]?.proveedores || 0
+      const acreedores = gastosPorMes[d.mesNum]?.acreedores || 0
+      const totalGastos = sueldos + proveedores + acreedores
+      const ingresos = d.ventas || 0
+
+      return {
+        ...d,
+        horasLab: horas,
+        diasLab: dias,
+        horasTotales,
+        sueldos,
+        proveedores,
+        acreedores,
+        totalGastos,
+        ingresos,
+        gastosPorTrabajador: trab ? totalGastos / trab : null,
+        gastosHoraManoObra: horasTotales ? sueldos / horasTotales : null,
+        gastosHoraProveedores: horasTotales ? proveedores / horasTotales : null,
+        gastosHoraAcreedores: horasTotales ? acreedores / horasTotales : null,
+        gastosHoraTotal: horasTotales ? totalGastos / horasTotales : null,
+        ingresosHora: horasTotales ? ingresos / horasTotales : null,
+        ingresosPorTrabajador: trab ? ingresos / trab : null,
+        ventasDiaLab: dias ? ingresos / dias : null,
+        pctGastosVentas: ingresos ? (totalGastos / ingresos) * 100 : null
+      }
+    })
+  }, [datosMensuales, horasLabMes, diasLabMes, gastosPorMes])
+
+  // Totales anuales productividad
+  const productividadTotales = useMemo(() => {
+    const mesesConDatosProd = productividadMensual.filter(d => d.ingresos !== 0 || d.totalGastos !== 0)
+    const sum = (key) => mesesConDatosProd.reduce((s, d) => s + (d[key] || 0), 0)
+    const totalHoras = sum('horasTotales')
+    const totalDias = mesesConDatosProd.reduce((s, d) => s + (d.diasLab || 0), 0)
+    const totalIngresos = sum('ingresos')
+    const totalGastos = sum('totalGastos')
+    const totalSueldos = sum('sueldos')
+    const totalProveedores = sum('proveedores')
+    const totalAcreedores = sum('acreedores')
+    const plantillaMediaProd = mesesConDatosProd.filter(d => d.trabajadores).length > 0
+      ? mesesConDatosProd.filter(d => d.trabajadores).reduce((s, d) => s + d.trabajadores, 0) / mesesConDatosProd.filter(d => d.trabajadores).length
+      : 0
+    return {
+      totalHoras,
+      totalDias,
+      totalIngresos,
+      totalGastos,
+      totalSueldos,
+      totalProveedores,
+      totalAcreedores,
+      plantillaMediaProd,
+      gastosHoraTotal: totalHoras ? totalGastos / totalHoras : 0,
+      ingresosHora: totalHoras ? totalIngresos / totalHoras : 0,
+      ingresosPorTrabajador: plantillaMediaProd ? totalIngresos / plantillaMediaProd : 0,
+      ventasDiaLab: totalDias ? totalIngresos / totalDias : 0,
+      pctGastosVentas: totalIngresos ? (totalGastos / totalIngresos) * 100 : 0
+    }
+  }, [productividadMensual])
 
   // Handlers
   const handleSaveTrabajador = async (mesNum) => {
@@ -481,25 +572,26 @@ export default function PersonalTab() {
       {/* ========== COMPARATIVA INTERANUAL ========== */}
       {comparativaAnual.length > 1 && (
         <div className="card overflow-hidden">
-          <div className="card-header">
+          <div className="card-header flex items-center justify-between">
             <h3 className="font-bold text-white flex items-center gap-2">
               <span>📅</span>
               <span>Comparativa Interanual</span>
             </h3>
+            <span className="text-xs text-white/80 italic">Pasa el ratón sobre cada columna para ver su significado</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b">
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Ejercicio</th>
-                  <th className="px-4 py-3 text-right font-semibold text-purple-600">Plantilla Media</th>
-                  <th className="px-4 py-3 text-right font-semibold text-purple-600">Gto. Personal</th>
-                  <th className="px-4 py-3 text-right font-semibold text-green-600">Ventas</th>
-                  <th className="px-4 py-3 text-right font-semibold text-amber-600">Personal/Ventas</th>
-                  <th className="px-4 py-3 text-right font-semibold text-blue-600">Coste/Empl.</th>
-                  <th className="px-4 py-3 text-right font-semibold text-green-700">Ventas/Empl.</th>
-                  <th className="px-4 py-3 text-right font-semibold text-indigo-600">EBITDA/Empl.</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Cobertura</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 cursor-help" title="Año natural al que corresponden los datos. La fila resaltada es el ejercicio actual.">Ejercicio</th>
+                  <th className="px-4 py-3 text-right font-semibold text-purple-600 cursor-help" title="Promedio de trabajadores en plantilla durante el ejercicio (media de los 12 meses registrados en la tabla de trabajadores mensuales).">Plantilla Media</th>
+                  <th className="px-4 py-3 text-right font-semibold text-purple-600 cursor-help" title="Gasto total de personal del ejercicio: suma de cuentas 640 (sueldos) + 641 (indemnizaciones) + 642 (Seguridad Social) + 643-649 (otros gastos sociales).">Gto. Personal</th>
+                  <th className="px-4 py-3 text-right font-semibold text-green-600 cursor-help" title="Importe neto de la cifra de negocios del ejercicio (cuenta 700/705). Es la base sobre la que se calculan los ratios de productividad.">Ventas</th>
+                  <th className="px-4 py-3 text-right font-semibold text-amber-600 cursor-help" title="Peso del gasto de personal sobre ventas (Gto. Personal ÷ Ventas). Indica cuánto de cada euro vendido se destina a personal. Referencia sector metal: <35% óptimo, 35-45% aceptable, >45% tensionado.">Personal/Ventas</th>
+                  <th className="px-4 py-3 text-right font-semibold text-blue-600 cursor-help" title="Coste medio anual por empleado (Gto. Personal ÷ Plantilla Media). Incluye salario bruto, Seguridad Social a cargo de la empresa, indemnizaciones y otros gastos sociales.">Coste/Empl.</th>
+                  <th className="px-4 py-3 text-right font-semibold text-green-700 cursor-help" title="Productividad por empleado: facturación generada por cada trabajador (Ventas ÷ Plantilla Media). A mayor valor, mayor productividad.">Ventas/Empl.</th>
+                  <th className="px-4 py-3 text-right font-semibold text-indigo-600 cursor-help" title="Beneficio operativo (EBITDA) generado por cada empleado (EBITDA ÷ Plantilla Media). Mide la capacidad de cada trabajador para generar resultado antes de amortizaciones, intereses e impuestos.">EBITDA/Empl.</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-600 cursor-help" title="Cobertura laboral: cuántas veces las ventas cubren el gasto de personal (Ventas ÷ Gto. Personal). Valores >2x indican margen holgado; <1,5x indica tensión estructural.">Cobertura</th>
                 </tr>
               </thead>
               <tbody>
@@ -557,6 +649,168 @@ export default function PersonalTab() {
           </div>
         </div>
       )}
+
+      {/* ========== PRODUCTIVIDAD (horas calendario + gastos) ========== */}
+      <div className="card overflow-hidden">
+        <div className="card-header flex items-center justify-between">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <span>⚙️</span>
+            <span>Productividad y Costes por Hora — {añoActual}</span>
+          </h3>
+          <span className="text-xs text-white/80 italic">
+            {calendarioAño
+              ? `Calendario laboral: ${calendarioAño.horas_dia}h/día · total ${Object.values(horasLabMes).reduce((s, h) => s + h, 0)}h`
+              : 'Sin calendario laboral configurado para este año (revisa FMV Producción → Admin → Calendario)'}
+          </span>
+        </div>
+
+        {/* KPIs resumen productividad */}
+        <div className="p-4 grid grid-cols-2 md:grid-cols-5 gap-3 border-b">
+          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+            <div className="text-[10px] font-semibold text-blue-700 uppercase">Gastos/Hora</div>
+            <div className="text-xl font-bold text-blue-700">{formatCurrency(productividadTotales.gastosHoraTotal)}</div>
+            <div className="text-[10px] text-blue-600 mt-1">Total coste por hora trabajada</div>
+          </div>
+          <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+            <div className="text-[10px] font-semibold text-green-700 uppercase">Ingresos/Hora</div>
+            <div className="text-xl font-bold text-green-700">{formatCurrency(productividadTotales.ingresosHora)}</div>
+            <div className="text-[10px] text-green-600 mt-1">Facturación por hora trabajada</div>
+          </div>
+          <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Ingresos/Trabajador</div>
+            <div className="text-xl font-bold text-emerald-700">{formatCurrency(productividadTotales.ingresosPorTrabajador)}</div>
+            <div className="text-[10px] text-emerald-600 mt-1">Facturación media anual por empleado</div>
+          </div>
+          <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
+            <div className="text-[10px] font-semibold text-indigo-700 uppercase">Ventas/Día Lab.</div>
+            <div className="text-xl font-bold text-indigo-700">{formatCurrency(productividadTotales.ventasDiaLab)}</div>
+            <div className="text-[10px] text-indigo-600 mt-1">Facturación media por día laborable</div>
+          </div>
+          <div className={`rounded-lg p-3 border ${productividadTotales.pctGastosVentas > 95 ? 'bg-red-50 border-red-100' : productividadTotales.pctGastosVentas > 85 ? 'bg-amber-50 border-amber-100' : 'bg-green-50 border-green-100'}`}>
+            <div className="text-[10px] font-semibold uppercase text-gray-700">% Gastos/Ventas</div>
+            <div className={`text-xl font-bold ${productividadTotales.pctGastosVentas > 95 ? 'text-red-700' : productividadTotales.pctGastosVentas > 85 ? 'text-amber-700' : 'text-green-700'}`}>
+              {formatPercent(productividadTotales.pctGastosVentas)}
+            </div>
+            <div className="text-[10px] text-gray-600 mt-1">Peso de gastos operativos sobre ventas</div>
+          </div>
+        </div>
+
+        {/* Tabla mensual productividad */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="bg-gray-50 border-b">
+                <th className="px-2 py-2 text-left font-semibold text-gray-600">Mes</th>
+                <th className="px-2 py-2 text-right font-semibold text-purple-600 cursor-help" title="Nº de trabajadores en plantilla ese mes. Editable en la tabla de Ratios de Personal de arriba.">Trab.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Horas laborables del mes por persona, calculadas desde el calendario laboral (tabla prod_calendario compartida con FMV Producción). Descuenta fines de semana, festivos y vacaciones de agosto.">Horas Lab.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Días laborables equivalentes del mes (Horas Lab. ÷ horas/día del calendario). Un día de media jornada cuenta como 0,5.">Días Lab.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-700 cursor-help" title="Horas totales trabajadas por la plantilla (Trabajadores × Horas Lab.). Base para calcular los costes e ingresos por hora.">Horas Tot.</th>
+                <th className="px-2 py-2 text-right font-semibold text-purple-700 cursor-help" title="Sueldos y salarios (cuenta 640) del mes. No incluye SS ni indemnizaciones.">Sueldos</th>
+                <th className="px-2 py-2 text-right font-semibold text-rose-700 cursor-help" title="Gastos de grupo 60 del mes (compras de materia prima, subcontrataciones, envases, etc.). Son costes directos dentro del margen bruto.">Proveed.</th>
+                <th className="px-2 py-2 text-right font-semibold text-orange-700 cursor-help" title="Servicios exteriores (grupo 62): arrendamientos, reparaciones, suministros, etc. Son gastos por debajo del margen bruto.">Acreed.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-800 cursor-help" title="Suma de Sueldos + Proveedores + Acreedores del mes.">Total Gtos.</th>
+                <th className="px-2 py-2 text-right font-semibold text-green-700 cursor-help" title="Importe neto de la cifra de negocios del mes (ventas).">Ingresos</th>
+                <th className="px-2 py-2 text-right font-semibold text-blue-600 cursor-help" title="Total Gastos ÷ Trabajadores. Coste total promedio por empleado en el mes.">Gtos./Trab.</th>
+                <th className="px-2 py-2 text-right font-semibold text-blue-700 cursor-help" title="Coste por hora trabajada — solo mano de obra (Sueldos ÷ Horas Totales).">Gtos./h M.O.</th>
+                <th className="px-2 py-2 text-right font-semibold text-rose-700 cursor-help" title="Coste por hora trabajada — solo proveedores grupo 60 (Proveedores ÷ Horas Totales).">Gtos./h Prov.</th>
+                <th className="px-2 py-2 text-right font-semibold text-orange-700 cursor-help" title="Coste por hora trabajada — solo acreedores / servicios exteriores (Acreedores ÷ Horas Totales).">Gtos./h Acr.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-900 cursor-help" title="Coste total por hora trabajada (Total Gastos ÷ Horas Totales).">Gtos./h Tot.</th>
+                <th className="px-2 py-2 text-right font-semibold text-green-700 cursor-help" title="Facturación por hora trabajada (Ingresos ÷ Horas Totales). Comparar con Gtos./h Tot. para ver el margen por hora.">Ingr./Hora</th>
+                <th className="px-2 py-2 text-right font-semibold text-emerald-700 cursor-help" title="Facturación mensual por empleado (Ingresos ÷ Trabajadores).">Ingr./Trab.</th>
+                <th className="px-2 py-2 text-right font-semibold text-indigo-700 cursor-help" title="Facturación media por día laborable del mes (Ingresos ÷ Días Lab.).">Vtas./Día</th>
+                <th className="px-2 py-2 text-right font-semibold text-amber-700 cursor-help" title="Peso de los gastos operativos (640 + 60 + 62) sobre las ventas. >95% indica margen muy ajustado.">% G/V</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productividadMensual.map(d => {
+                const tieneDatos = d.ingresos !== 0 || d.totalGastos !== 0
+                if (!tieneDatos) return null
+                return (
+                  <tr key={d.mes} className="border-b hover:bg-gray-50 transition-colors">
+                    <td className="px-2 py-2 font-medium text-gray-700">{d.mes}</td>
+                    <td className="px-2 py-2 text-right text-purple-700">{d.trabajadores || '-'}</td>
+                    <td className="px-2 py-2 text-right text-gray-600">{d.horasLab || '-'}</td>
+                    <td className="px-2 py-2 text-right text-gray-600">{d.diasLab || '-'}</td>
+                    <td className="px-2 py-2 text-right text-gray-800 font-medium">{d.horasTotales ? formatNumber(d.horasTotales, 0) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-purple-700">{formatCurrency(d.sueldos)}</td>
+                    <td className="px-2 py-2 text-right text-rose-700">{formatCurrency(d.proveedores)}</td>
+                    <td className="px-2 py-2 text-right text-orange-700">{formatCurrency(d.acreedores)}</td>
+                    <td className="px-2 py-2 text-right text-gray-900 font-semibold">{formatCurrency(d.totalGastos)}</td>
+                    <td className="px-2 py-2 text-right text-green-700 font-semibold">{formatCurrency(d.ingresos)}</td>
+                    <td className="px-2 py-2 text-right text-blue-700">{d.gastosPorTrabajador != null ? formatCurrency(d.gastosPorTrabajador) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-blue-700">{d.gastosHoraManoObra != null ? formatCurrency(d.gastosHoraManoObra) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-rose-700">{d.gastosHoraProveedores != null ? formatCurrency(d.gastosHoraProveedores) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-orange-700">{d.gastosHoraAcreedores != null ? formatCurrency(d.gastosHoraAcreedores) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-gray-900 font-semibold">{d.gastosHoraTotal != null ? formatCurrency(d.gastosHoraTotal) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-green-700 font-semibold">{d.ingresosHora != null ? formatCurrency(d.ingresosHora) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-emerald-700">{d.ingresosPorTrabajador != null ? formatCurrency(d.ingresosPorTrabajador) : '-'}</td>
+                    <td className="px-2 py-2 text-right text-indigo-700">{d.ventasDiaLab != null ? formatCurrency(d.ventasDiaLab) : '-'}</td>
+                    <td className={`px-2 py-2 text-right font-semibold ${d.pctGastosVentas == null ? 'text-gray-400' : d.pctGastosVentas > 95 ? 'text-red-600' : d.pctGastosVentas > 85 ? 'text-amber-600' : 'text-green-600'}`}>
+                      {d.pctGastosVentas != null ? formatPercent(d.pctGastosVentas) : '-'}
+                    </td>
+                  </tr>
+                )
+              })}
+              {/* Fila total */}
+              <tr className="bg-purple-50 border-t-2 border-purple-300 font-bold">
+                <td className="px-2 py-2 text-gray-800">TOTAL</td>
+                <td className="px-2 py-2 text-right text-purple-700">{productividadTotales.plantillaMediaProd ? Math.round(productividadTotales.plantillaMediaProd * 10) / 10 : '-'}</td>
+                <td className="px-2 py-2 text-right text-gray-700">{Object.values(horasLabMes).reduce((s, h) => s + h, 0)}</td>
+                <td className="px-2 py-2 text-right text-gray-700">{productividadTotales.totalDias ? productividadTotales.totalDias.toFixed(0) : '-'}</td>
+                <td className="px-2 py-2 text-right text-gray-800">{productividadTotales.totalHoras ? formatNumber(productividadTotales.totalHoras, 0) : '-'}</td>
+                <td className="px-2 py-2 text-right text-purple-700">{formatCurrency(productividadTotales.totalSueldos)}</td>
+                <td className="px-2 py-2 text-right text-rose-700">{formatCurrency(productividadTotales.totalProveedores)}</td>
+                <td className="px-2 py-2 text-right text-orange-700">{formatCurrency(productividadTotales.totalAcreedores)}</td>
+                <td className="px-2 py-2 text-right text-gray-900">{formatCurrency(productividadTotales.totalGastos)}</td>
+                <td className="px-2 py-2 text-right text-green-700">{formatCurrency(productividadTotales.totalIngresos)}</td>
+                <td className="px-2 py-2 text-right text-blue-700">{productividadTotales.plantillaMediaProd ? formatCurrency(productividadTotales.totalGastos / productividadTotales.plantillaMediaProd) : '-'}</td>
+                <td className="px-2 py-2 text-right text-blue-700">{productividadTotales.totalHoras ? formatCurrency(productividadTotales.totalSueldos / productividadTotales.totalHoras) : '-'}</td>
+                <td className="px-2 py-2 text-right text-rose-700">{productividadTotales.totalHoras ? formatCurrency(productividadTotales.totalProveedores / productividadTotales.totalHoras) : '-'}</td>
+                <td className="px-2 py-2 text-right text-orange-700">{productividadTotales.totalHoras ? formatCurrency(productividadTotales.totalAcreedores / productividadTotales.totalHoras) : '-'}</td>
+                <td className="px-2 py-2 text-right text-gray-900">{formatCurrency(productividadTotales.gastosHoraTotal)}</td>
+                <td className="px-2 py-2 text-right text-green-700">{formatCurrency(productividadTotales.ingresosHora)}</td>
+                <td className="px-2 py-2 text-right text-emerald-700">{formatCurrency(productividadTotales.ingresosPorTrabajador)}</td>
+                <td className="px-2 py-2 text-right text-indigo-700">{formatCurrency(productividadTotales.ventasDiaLab)}</td>
+                <td className={`px-2 py-2 text-right ${productividadTotales.pctGastosVentas > 95 ? 'text-red-700' : productividadTotales.pctGastosVentas > 85 ? 'text-amber-700' : 'text-green-700'}`}>
+                  {formatPercent(productividadTotales.pctGastosVentas)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Gráfico Ingresos/Hora vs Gastos/Hora */}
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Ingresos vs Gastos por hora</h4>
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={productividadMensual.filter(d => d.horasTotales > 0)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => `${v} €`} />
+                <Tooltip content={<PersonalTooltip />} />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Bar dataKey="gastosHoraTotal" name="Gastos/Hora" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Line type="monotone" dataKey="ingresosHora" name="Ingresos/Hora" stroke="#22c55e" strokeWidth={3} dot={{ r: 4 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">% Gastos sobre Ventas</h4>
+            <ResponsiveContainer width="100%" height={220}>
+              <ComposedChart data={productividadMensual.filter(d => d.pctGastosVentas != null)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => `${v}%`} />
+                <Tooltip content={<PersonalTooltip />} />
+                <ReferenceLine y={95} stroke="#ef4444" strokeDasharray="5 5" label={{ value: '95%', fontSize: 10, fill: '#ef4444' }} />
+                <ReferenceLine y={85} stroke="#f59e0b" strokeDasharray="5 5" label={{ value: '85%', fontSize: 10, fill: '#f59e0b' }} />
+                <Bar dataKey="pctGastosVentas" name="% Gastos/Ventas" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
 
       {/* ========== GUIA DE RATIOS ========== */}
       <div className="card overflow-hidden">
