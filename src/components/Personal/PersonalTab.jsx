@@ -13,6 +13,7 @@ import KPICard from '../UI/KPICard'
 import { formatCurrency, formatPercent, formatCompact, mesKeyToNombre, formatNumber } from '../../utils/formatters'
 import { MONTHS_SHORT, CHART_COLORS, ACCOUNT_GROUPS_3 } from '../../utils/constants'
 import { calcularHorasLaborables, calcularDiasLaborables } from '../../utils/calendario'
+import { BENCHMARKS_SECTOR, evaluarBenchmark, posicionEnEscala, rangoSaludableTexto } from '../../utils/benchmarksSector'
 
 // Subcuentas del grupo 64
 const PERSONAL_SUBCUENTAS = {
@@ -275,6 +276,52 @@ export default function PersonalTab() {
     }
   }, [productividadMensual])
 
+  // ============================================
+  // POSICIONAMIENTO SECTOR (benchmarks CNAE 25)
+  // ============================================
+  const posicionamientoSector = useMemo(() => {
+    const totalVentas = totalesPyG.ventas || 0
+    const totalPersonal = totalesPyG.personal || 0
+    const totalEbitda = totalesPyG.ebitda || 0
+    const totalMargenBruto = totalesPyG.margenBruto || 0
+
+    const ventasPorEmpleado = totales.plantillaMedia ? totalVentas / totales.plantillaMedia : 0
+    const ebitdaPorEmpleado = totales.plantillaMedia ? totalEbitda / totales.plantillaMedia : 0
+    const coberturaLaboral = totalPersonal ? totalVentas / totalPersonal : 0
+    const personalSobreVentas = totalVentas ? (totalPersonal / totalVentas) * 100 : 0
+    const margenBrutoPct = totalVentas ? (totalMargenBruto / totalVentas) * 100 : 0
+    const ebitdaPct = totalVentas ? (totalEbitda / totalVentas) * 100 : 0
+
+    // Valores de productividad del bloque anterior
+    const { ingresosHora, gastosHoraTotal, pctGastosVentas, totalProveedores, totalAcreedores } = productividadTotales
+    const pctProveedoresVentas = totalVentas ? (totalProveedores / totalVentas) * 100 : 0
+    const pctAcreedoresVentas = totalVentas ? (totalAcreedores / totalVentas) * 100 : 0
+    const margenHora = productividadTotales.totalHoras ? (productividadTotales.totalIngresos - productividadTotales.totalGastos) / productividadTotales.totalHoras : 0
+    const costeMedioEmpleado = totales.costeMedioEmpleado || 0
+
+    return [
+      // Costes y márgenes
+      { key: 'personalSobreVentas', valor: personalSobreVentas, bench: BENCHMARKS_SECTOR.personalSobreVentas, format: 'percent', grupo: 'Costes' },
+      { key: 'pctGastosVentas', valor: pctGastosVentas, bench: BENCHMARKS_SECTOR.pctGastosVentas, format: 'percent', grupo: 'Costes' },
+      { key: 'pctProveedoresVentas', valor: pctProveedoresVentas, bench: BENCHMARKS_SECTOR.pctProveedoresVentas, format: 'percent', grupo: 'Costes' },
+      { key: 'pctAcreedoresVentas', valor: pctAcreedoresVentas, bench: BENCHMARKS_SECTOR.pctAcreedoresVentas, format: 'percent', grupo: 'Costes' },
+      { key: 'margenBrutoPct', valor: margenBrutoPct, bench: BENCHMARKS_SECTOR.margenBrutoPct, format: 'percent', grupo: 'Costes' },
+      { key: 'ebitdaPct', valor: ebitdaPct, bench: BENCHMARKS_SECTOR.ebitdaPct, format: 'percent', grupo: 'Costes' },
+      // Productividad por hora
+      { key: 'ingresosHora', valor: ingresosHora, bench: BENCHMARKS_SECTOR.ingresosHora, format: 'euro', grupo: 'Hora' },
+      { key: 'gastosHoraTotal', valor: gastosHoraTotal, bench: BENCHMARKS_SECTOR.gastosHoraTotal, format: 'euro', grupo: 'Hora' },
+      { key: 'margenHora', valor: margenHora, bench: BENCHMARKS_SECTOR.margenHora, format: 'euro', grupo: 'Hora' },
+      // Por empleado
+      { key: 'ventasPorEmpleado', valor: ventasPorEmpleado, bench: BENCHMARKS_SECTOR.ventasPorEmpleado, format: 'currency', grupo: 'Empleado' },
+      { key: 'ebitdaPorEmpleado', valor: ebitdaPorEmpleado, bench: BENCHMARKS_SECTOR.ebitdaPorEmpleado, format: 'currency', grupo: 'Empleado' },
+      { key: 'coberturaLaboral', valor: coberturaLaboral, bench: BENCHMARKS_SECTOR.coberturaLaboral, format: 'x', grupo: 'Empleado' }
+    ].map(row => ({
+      ...row,
+      evaluacion: evaluarBenchmark(row.valor, row.bench),
+      posicion: posicionEnEscala(row.valor, row.bench)
+    }))
+  }, [totalesPyG, totales, productividadTotales])
+
   // Handlers
   const handleSaveTrabajador = async (mesNum) => {
     const val = parseInt(editValue)
@@ -322,6 +369,25 @@ export default function PersonalTab() {
     if (pct > 40) return 'text-red-600 font-bold'
     if (pct > 35) return 'text-amber-600 font-semibold'
     return 'text-green-600'
+  }
+
+  // Formateo de valores según tipo para la tarjeta Posicionamiento
+  const formatPosicionValor = (valor, format) => {
+    if (valor == null || isNaN(valor)) return '-'
+    if (format === 'percent') return formatPercent(valor)
+    if (format === 'euro') return `${valor.toFixed(2)} €/h`
+    if (format === 'currency') return formatCurrency(valor)
+    if (format === 'x') return `${valor.toFixed(1)}x`
+    return String(valor)
+  }
+
+  // Mapa color semáforo → clases tailwind
+  const SEMAFORO_CLASES = {
+    emerald: { bg: 'bg-emerald-100', border: 'border-emerald-300', text: 'text-emerald-700', bar: 'bg-emerald-500' },
+    green:   { bg: 'bg-green-100',   border: 'border-green-300',   text: 'text-green-700',   bar: 'bg-green-500' },
+    amber:   { bg: 'bg-amber-100',   border: 'border-amber-300',   text: 'text-amber-700',   bar: 'bg-amber-500' },
+    red:     { bg: 'bg-red-100',     border: 'border-red-300',     text: 'text-red-700',     bar: 'bg-red-500' },
+    gray:    { bg: 'bg-gray-100',    border: 'border-gray-300',    text: 'text-gray-600',    bar: 'bg-gray-400' }
   }
 
   // ==========================================
@@ -782,14 +848,18 @@ export default function PersonalTab() {
         {/* Gráfico Ingresos/Hora vs Gastos/Hora */}
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Ingresos vs Gastos por hora</h4>
-            <ResponsiveContainer width="100%" height={220}>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Ingresos vs Gastos por hora <span className="text-[10px] font-normal text-gray-400">(líneas: umbrales sector metal)</span></h4>
+            <ResponsiveContainer width="100%" height={240}>
               <ComposedChart data={productividadMensual.filter(d => d.horasTotales > 0)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#6b7280' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => `${v} €`} />
+                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={v => `${v}€`} />
                 <Tooltip content={<PersonalTooltip />} />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
+                {/* Umbrales sector: Gastos/h saludable 42-52, tensión >55. Ingresos/h saludable 50-65 */}
+                <ReferenceLine y={55} stroke="#ef4444" strokeDasharray="4 4" label={{ value: 'Gtos. tensión 55€', position: 'insideTopRight', fontSize: 9, fill: '#ef4444' }} />
+                <ReferenceLine y={42} stroke="#10b981" strokeDasharray="4 4" label={{ value: 'Gtos. saludable ≤42€', position: 'insideTopRight', fontSize: 9, fill: '#10b981' }} />
+                <ReferenceLine y={65} stroke="#059669" strokeDasharray="4 4" label={{ value: 'Ingr. excelente ≥65€', position: 'insideBottomRight', fontSize: 9, fill: '#059669' }} />
                 <Bar dataKey="gastosHoraTotal" name="Gastos/Hora" fill="#ef4444" radius={[4, 4, 0, 0]} />
                 <Line type="monotone" dataKey="ingresosHora" name="Ingresos/Hora" stroke="#22c55e" strokeWidth={3} dot={{ r: 4 }} />
               </ComposedChart>
@@ -808,6 +878,82 @@ export default function PersonalTab() {
                 <Bar dataKey="pctGastosVentas" name="% Gastos/Ventas" fill="#f59e0b" radius={[4, 4, 0, 0]} />
               </ComposedChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* ========== POSICIONAMIENTO SECTOR ========== */}
+      <div className="card overflow-hidden">
+        <div className="card-header flex items-center justify-between">
+          <h3 className="font-bold text-white flex items-center gap-2">
+            <span>🎯</span>
+            <span>Posicionamiento Sector — Estructuras Metálicas / MIG-TIG</span>
+          </h3>
+          <span className="text-xs text-white/80 italic cursor-help" title="Fuentes: DBK Informe Sectorial Estructuras Metálicas, Banco de España Central de Balances (panel PYMEs CNAE 25), convenios colectivos del metal. Rangos orientativos para empresas 2-10M €.">
+            CNAE 25.11 / 25.62 · PYMEs 2-10M €
+          </span>
+        </div>
+        <div className="p-4">
+          {['Costes', 'Hora', 'Empleado'].map(grupo => {
+            const GRUPO_TITULOS = {
+              Costes: { titulo: 'Costes y márgenes (% sobre ventas)', icono: '💰' },
+              Hora: { titulo: 'Productividad por hora trabajada', icono: '⏱️' },
+              Empleado: { titulo: 'Productividad por empleado (anual)', icono: '👤' }
+            }
+            const items = posicionamientoSector.filter(r => r.grupo === grupo)
+            return (
+              <div key={grupo} className="mb-5 last:mb-0">
+                <h4 className="text-xs font-bold uppercase text-gray-600 mb-2 flex items-center gap-2">
+                  <span>{GRUPO_TITULOS[grupo].icono}</span>
+                  {GRUPO_TITULOS[grupo].titulo}
+                </h4>
+                <div className="space-y-2">
+                  {items.map(row => {
+                    const clases = SEMAFORO_CLASES[row.evaluacion.color] || SEMAFORO_CLASES.gray
+                    return (
+                      <div key={row.key} className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${clases.bg} ${clases.border}`}>
+                        {/* Label + tooltip */}
+                        <div className="flex-shrink-0 w-44 cursor-help" title={row.bench.descripcion}>
+                          <div className="text-xs font-semibold text-gray-800">{row.bench.label}</div>
+                          <div className="text-[10px] text-gray-500">Saludable: {rangoSaludableTexto(row.bench)}</div>
+                        </div>
+                        {/* Valor FMV */}
+                        <div className="flex-shrink-0 w-24 text-right">
+                          <div className={`text-sm font-bold ${clases.text}`}>{formatPosicionValor(row.valor, row.format)}</div>
+                          <div className="text-[10px] text-gray-500">FMV</div>
+                        </div>
+                        {/* Barra de posición */}
+                        <div className="flex-1 min-w-[100px]">
+                          <div className="relative h-4 rounded-full overflow-hidden bg-gradient-to-r from-red-200 via-amber-200 to-green-200 border border-gray-300">
+                            <div
+                              className="absolute top-0 h-full w-1 bg-gray-900 shadow-md"
+                              style={{ left: `${row.posicion}%` }}
+                              title={`Posición en escala sectorial: ${row.posicion.toFixed(0)}%`}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[9px] text-gray-500 mt-0.5">
+                            <span>Tensión</span>
+                            <span>Saludable</span>
+                            <span>Excelente</span>
+                          </div>
+                        </div>
+                        {/* Pill estado */}
+                        <div className="flex-shrink-0 w-24 text-right">
+                          <span className={`inline-block text-[10px] font-bold px-2 py-1 rounded-full ${clases.bg} ${clases.text} border ${clases.border}`}>
+                            {row.evaluacion.label.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+
+          <div className="mt-4 text-[10px] text-gray-500 italic border-t pt-3">
+            Los rangos son orientativos y pueden variar según subsector (subcontratación pura vs. llave en mano),
+            tamaño de empresa y ubicación geográfica. Úsalos como guía, no como regla estricta.
           </div>
         </div>
       </div>
