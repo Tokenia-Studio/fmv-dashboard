@@ -12,7 +12,7 @@ import { calcularPyG } from '../../utils/calculations'
 import KPICard from '../UI/KPICard'
 import { formatCurrency, formatPercent, formatCompact, mesKeyToNombre, formatNumber } from '../../utils/formatters'
 import { MONTHS_SHORT, CHART_COLORS, ACCOUNT_GROUPS_3 } from '../../utils/constants'
-import { calcularHorasLaborables, calcularDiasLaborables } from '../../utils/calendario'
+import { calcularHorasLaborables, calcularDiasLaborables, obtenerCalendarioParaAño } from '../../utils/calendario'
 import { BENCHMARKS_SECTOR, evaluarBenchmark, posicionEnEscala, rangoSaludableTexto } from '../../utils/benchmarksSector'
 
 // Subcuentas del grupo 64
@@ -190,7 +190,10 @@ export default function PersonalTab() {
   // ============================================
   // PRODUCTIVIDAD (horas calendario + gastos grupo 60/62)
   // ============================================
-  const calendarioAño = calendariosLaborales[añoActual] || null
+  const calendarioAño = useMemo(
+    () => obtenerCalendarioParaAño(calendariosLaborales, añoActual),
+    [calendariosLaborales, añoActual]
+  )
   const horasLabMes = useMemo(() => calcularHorasLaborables(calendarioAño, añoActual), [calendarioAño, añoActual])
   const diasLabMes = useMemo(() => calcularDiasLaborables(calendarioAño, añoActual), [calendarioAño, añoActual])
 
@@ -723,10 +726,10 @@ export default function PersonalTab() {
             <span>⚙️</span>
             <span>Productividad y Costes por Hora — {añoActual}</span>
           </h3>
-          <span className="text-xs text-white/80 italic">
+          <span className="text-xs text-white/80 italic" title={calendarioAño?._estimado ? `No hay calendario propio para ${añoActual}. Se ha estimado reutilizando el calendario de ${calendarioAño._añoBase} con las fechas de festivos ajustadas al año en curso.` : ''}>
             {calendarioAño
-              ? `Calendario laboral: ${calendarioAño.horas_dia}h/día · total ${Object.values(horasLabMes).reduce((s, h) => s + h, 0)}h`
-              : 'Sin calendario laboral configurado para este año (revisa FMV Producción → Admin → Calendario)'}
+              ? `Calendario laboral ${calendarioAño._estimado ? `(estimado desde ${calendarioAño._añoBase})` : ''}: ${calendarioAño.horas_dia}h/día · total ${Object.values(horasLabMes).reduce((s, h) => s + h, 0)}h`
+              : 'Sin calendario laboral configurado (revisa FMV Producción → Admin → Calendario)'}
           </span>
         </div>
 

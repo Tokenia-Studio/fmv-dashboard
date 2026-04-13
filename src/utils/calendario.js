@@ -58,3 +58,35 @@ export function calcularDiasLaborables(calendario, anio) {
 }
 
 export const DEFAULT_CALENDARIO_SHAPE = DEFAULT_CALENDARIO
+
+// Devuelve el calendario para un año, estimando si hace falta.
+// Si no hay registro propio, usa el calendario del año más cercano disponible
+// y cambia el prefijo de año en las fechas de festivos y media jornada.
+// Marca el resultado con `_estimado: true` para que la UI pueda avisar.
+export function obtenerCalendarioParaAño(calendarios, anio) {
+  if (!calendarios || typeof calendarios !== 'object') return null
+  if (calendarios[anio]) return calendarios[anio]
+
+  const añosDisponibles = Object.keys(calendarios).map(Number).filter(a => !isNaN(a))
+  if (añosDisponibles.length === 0) return null
+
+  // Año más cercano al solicitado
+  añosDisponibles.sort((a, b) => Math.abs(a - anio) - Math.abs(b - anio))
+  const añoBase = añosDisponibles[0]
+  const base = calendarios[añoBase]
+  if (!base) return null
+
+  const ajustarFecha = (f) => {
+    if (!f || typeof f !== 'string' || f.length < 10) return f
+    return `${anio}${f.substring(4)}`  // "2026-01-01" -> "2023-01-01"
+  }
+
+  return {
+    ...base,
+    anio,
+    festivos: Array.isArray(base.festivos) ? base.festivos.map(ajustarFecha) : [],
+    media_jornada: Array.isArray(base.media_jornada) ? base.media_jornada.map(ajustarFecha) : [],
+    _estimado: true,
+    _añoBase: añoBase
+  }
+}
