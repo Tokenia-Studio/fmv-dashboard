@@ -7,7 +7,6 @@ export default function Sidebar({ collapsed, onToggle }) {
   const [expandedSections, setExpandedSections] = useState({
     finanzas: true,
     produccion: true,
-    web: true,
     admin: true
   })
 
@@ -83,34 +82,21 @@ export default function Sidebar({ collapsed, onToggle }) {
                 ) : (isExpanded || collapsed) && sectionTabs.map(tabId => {
                   const tab = tabsMap[tabId]
                   if (!tab) return null
-                  const active = !tab.external && tabActiva === tabId
-
-                  const handleClick = () => {
-                    if (tab.external) {
-                      window.open(tab.external, '_blank', 'noopener')
-                    } else {
-                      setTab(tabId)
-                    }
-                  }
+                  const active = tabActiva === tabId
 
                   return (
                     <button
                       key={tabId}
-                      onClick={handleClick}
+                      onClick={() => setTab(tabId)}
                       className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-all
                         ${collapsed ? 'justify-center' : 'pl-8'}
                         ${active
                           ? 'bg-slate-700 text-white border-l-3 border-blue-400'
                           : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}
-                      title={collapsed ? tab.label : (tab.external ? 'Abre en una pestaña nueva' : '')}
+                      title={collapsed ? tab.label : ''}
                     >
                       <span className="text-base">{tab.icon}</span>
-                      {!collapsed && (
-                        <span className="flex items-center gap-1.5">
-                          {tab.label}
-                          {tab.external && <span className="text-[10px] opacity-60">↗</span>}
-                        </span>
-                      )}
+                      {!collapsed && <span>{tab.label}</span>}
                     </button>
                   )
                 })}
