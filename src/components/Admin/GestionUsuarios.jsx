@@ -32,19 +32,35 @@ const APPS = {
       { value: 'taller', label: 'Taller' }
     ],
     color: 'emerald'
+  },
+  web: {
+    label: 'Web',
+    roles: [
+      { value: 'editor', label: 'Editor' }
+    ],
+    color: 'cyan'
   }
 }
 
 const APP_BADGE_STYLES = {
   dashboard: 'bg-blue-50 text-blue-700 border-blue-200',
-  produccion: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  produccion: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  web: 'bg-cyan-50 text-cyan-700 border-cyan-200'
+}
+
+// Botón de filtro activo por app (Tailwind necesita las clases completas para no purgarlas)
+const APP_FILTER_ACTIVE_STYLES = {
+  dashboard: 'bg-blue-600 text-white',
+  produccion: 'bg-emerald-600 text-white',
+  web: 'bg-cyan-600 text-white'
 }
 
 const ROLE_BADGE_STYLES = {
   direccion: 'bg-blue-50 text-blue-700 border-blue-200',
   compras: 'bg-orange-50 text-orange-700 border-orange-200',
   planificacion: 'bg-purple-50 text-purple-700 border-purple-200',
-  taller: 'bg-amber-50 text-amber-700 border-amber-200'
+  taller: 'bg-amber-50 text-amber-700 border-amber-200',
+  editor: 'bg-cyan-50 text-cyan-700 border-cyan-200'
 }
 
 export default function GestionUsuarios() {
@@ -355,7 +371,7 @@ export default function GestionUsuarios() {
                   key={key}
                   onClick={() => setFiltroApp(filtroApp === key ? '' : key)}
                   className={`px-3 py-1.5 text-xs font-medium border-l transition-colors ${filtroApp === key
-                    ? (key === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white')
+                    ? (APP_FILTER_ACTIVE_STYLES[key] || 'bg-gray-700 text-white')
                     : 'bg-white text-gray-600 hover:bg-gray-100'}`}
                 >
                   {cfg.label}
