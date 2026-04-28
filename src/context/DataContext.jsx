@@ -22,6 +22,15 @@ import {
 } from '../utils/calculations'
 import { ACCOUNT_GROUPS_3, MAPEO_GRUPO_CUENTA_DEFAULT, TABS_POR_ROL } from '../utils/constants'
 
+// Snapshots de años cerrados — movimientos agregados por (mes, cuenta).
+// Generar con: npm run snapshot
+// Las pestañas siguen funcionando igual; se sacrifica drill-down al detalle de movimiento.
+import saldos2022 from '../data/saldos_2022.json'
+import saldos2023 from '../data/saldos_2023.json'
+import saldos2024 from '../data/saldos_2024.json'
+const SNAPSHOTS = { 2022: saldos2022, 2023: saldos2023, 2024: saldos2024 }
+const AÑOS_SNAPSHOT = Object.keys(SNAPSHOTS).map(Number)
+
 const DataContext = createContext(null)
 
 // Estado inicial
@@ -222,7 +231,12 @@ export function DataProvider({ children }) {
 
       // 3. Cargar TODO en paralelo: movimientos (por año), archivos, proveedores,
       //    presupuestos, mapeo, pedidos y plan de cuentas
-      dispatch({ type: 'SET_LOADING', payload: true, message: `Cargando ${años.length} ejercicios contables...` })
+      const añosVivos = años.filter(a => !AÑOS_SNAPSHOT.includes(a))
+      const añosCongelados = años.filter(a => AÑOS_SNAPSHOT.includes(a))
+      const msgCarga = añosCongelados.length > 0
+        ? `Cargando ${añosVivos.length} ejercicios vivos (${añosCongelados.length} desde snapshot)...`
+        : `Cargando ${años.length} ejercicios contables...`
+      dispatch({ type: 'SET_LOADING', payload: true, message: msgCarga })
 
       const [
         movimientosPorAño,
@@ -235,14 +249,21 @@ export function DataProvider({ children }) {
         trabajadoresResult,
         calendariosResult
       ] = await Promise.all([
-        // Movimientos de TODOS los años en paralelo (antes era secuencial)
-        Promise.all(años.map(año => db.movimientos.getByYear(año).then(({ data, error }) => {
-          if (error) {
-            console.error(`Error cargando movimientos de ${año}:`, error)
-            return []
+        // Movimientos: años cerrados desde snapshot (instantaneo), año vivo desde Supabase
+        Promise.all(años.map(año => {
+          if (AÑOS_SNAPSHOT.includes(año)) {
+            // Snapshot estatico — sin red. Las funciones de calculo lo tragan
+            // como si fueran movimientos brutos (validado en scripts/validate-snapshot.js)
+            return Promise.resolve(SNAPSHOTS[año].movimientos)
           }
-          return data || []
-        }))),
+          return db.movimientos.getByYear(año).then(({ data, error }) => {
+            if (error) {
+              console.error(`Error cargando movimientos de ${año}:`, error)
+              return []
+            }
+            return data || []
+          })
+        })),
         db.archivosCargados.getAll(),
         db.proveedores.getAll(),
         db.presupuestos.getByYear(añoActual),
