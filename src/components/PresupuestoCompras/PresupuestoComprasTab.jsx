@@ -7,6 +7,7 @@ import { useData } from '../../context/DataContext'
 import TablaPresupuestoCompras from './TablaPresupuestoCompras'
 import ConfigMapeo from './ConfigMapeo'
 import MapeoProveedorCuenta from './MapeoProveedorCuenta'
+import NotasCompras from './NotasCompras'
 
 export default function PresupuestoComprasTab() {
   const { movimientos, presupuestos, añoActual, planCuentas, cargarPlanCuentas, albaranesFacturas, pedidosCompra } = useData()
@@ -109,6 +110,8 @@ export default function PresupuestoComprasTab() {
           </button>
         </div>
       </div>
+
+      <NotasCompras />
 
       <TablaPresupuestoCompras
         mesSeleccionado={mesSeleccionado}

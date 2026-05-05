@@ -491,6 +491,27 @@ export const db = {
     }
   },
 
+  // --- NOTAS COMPRAS (bloc de notas libre, single-row id=1) ---
+  notasCompras: {
+    get: async () => {
+      const { data, error } = await supabase
+        .from('notas_compras')
+        .select('contenido, updated_at')
+        .eq('id', 1)
+        .maybeSingle()
+      return { data, error }
+    },
+    save: async (contenido) => {
+      const { data, error } = await supabase
+        .from('notas_compras')
+        .upsert(
+          { id: 1, contenido, updated_at: new Date().toISOString() },
+          { onConflict: 'id' }
+        )
+      return { data, error }
+    }
+  },
+
   // --- PLAN DE CUENTAS ---
   planCuentas: {
     getAll: async () => {
