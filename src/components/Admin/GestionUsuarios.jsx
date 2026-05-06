@@ -168,40 +168,65 @@ export default function GestionUsuarios() {
 
   const crearUsuario = async (e) => {
     e.preventDefault()
-    if (!nuevoEmail || !nuevoPassword) return
+    if (!nuevoEmail) return
 
     setCreando(true)
     setMensaje(null)
 
     try {
-      // 1. Crear usuario via GoTrue (API oficial) con cliente sin sesión
-      const { data: signUpData, error: signUpError } = await supabaseSignup.auth.signUp({
-        email: nuevoEmail,
-        password: nuevoPassword
-      })
-      if (signUpError) throw signUpError
-      if (!signUpData.user) throw new Error('No se pudo crear el usuario')
+      const emailLower = nuevoEmail.toLowerCase().trim()
 
-      // 2. Asignar rol en app_user_roles
+      // 1. ¿El email ya existe en app_user_roles? (acceso a otra app)
+      //    Reusamos su user_id en vez de hacer signUp — evita FK violation
+      //    cuando Supabase devuelve un id falso por email duplicado.
+      const { data: existing, error: existingError } = await supabase
+        .from('app_user_roles')
+        .select('user_id')
+        .eq('email', emailLower)
+        .limit(1)
+        .maybeSingle()
+      if (existingError) throw existingError
+
+      let userId
+      let yaExistia = false
+
+      if (existing?.user_id) {
+        userId = existing.user_id
+        yaExistia = true
+      } else {
+        if (!nuevoPassword) {
+          throw new Error('Password obligatoria para usuarios nuevos')
+        }
+        const { data: signUpData, error: signUpError } = await supabaseSignup.auth.signUp({
+          email: emailLower,
+          password: nuevoPassword
+        })
+        if (signUpError) throw signUpError
+        if (!signUpData.user) throw new Error('No se pudo crear el usuario')
+        userId = signUpData.user.id
+      }
+
+      // 2. Asignar rol en app_user_roles (alta o ampliación de acceso)
       const { error: roleError } = await supabase
         .from('app_user_roles')
         .upsert({
-          user_id: signUpData.user.id,
+          user_id: userId,
           app: nuevoApp,
           role: nuevoRol,
-          email: nuevoEmail.toLowerCase()
+          email: emailLower
         }, { onConflict: 'user_id,app' })
       if (roleError) throw roleError
 
       const appLabel = APPS[nuevoApp]?.label || nuevoApp
       const rolLabel = APPS[nuevoApp]?.roles.find(r => r.value === nuevoRol)?.label || nuevoRol
-      setMensaje({ tipo: 'success', texto: `Usuario ${nuevoEmail} creado en ${appLabel} con rol ${rolLabel}` })
+      const accion = yaExistia ? 'Acceso añadido a' : `Usuario ${nuevoEmail} creado en`
+      setMensaje({ tipo: 'success', texto: `${accion} ${appLabel} con rol ${rolLabel}` })
       setNuevoEmail('')
       setNuevoPassword('')
       cargarUsuarios()
     } catch (e) {
       const msg = e.message === 'User already registered'
-        ? 'Este email ya está registrado'
+        ? 'Este email ya está registrado en Auth pero no en ninguna app — pide al usuario que vuelva a registrarse o resetea su password desde Supabase'
         : e.message
       setMensaje({ tipo: 'error', texto: msg })
     }
@@ -262,6 +287,12 @@ export default function GestionUsuarios() {
 
   const rolesApp = APPS[nuevoApp]?.roles || []
 
+  // Email del formulario coincide con un usuario ya existente en otra app → no pedir password
+  const emailLowerForm = nuevoEmail.toLowerCase().trim()
+  const usuarioExistente = emailLowerForm
+    ? usuarios.find(u => (u.email || '').toLowerCase() === emailLowerForm)
+    : null
+
   return (
     <div className="space-y-6">
       {/* Crear nuevo usuario */}
@@ -287,15 +318,19 @@ export default function GestionUsuarios() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Contraseña temporal</label>
+              <label className="block text-xs text-gray-500 mb-1">
+                Contraseña temporal
+                {usuarioExistente && <span className="ml-1 text-emerald-600 font-medium">(no necesaria — usuario existente)</span>}
+              </label>
               <input
                 type="text"
-                value={nuevoPassword}
+                value={usuarioExistente ? '' : nuevoPassword}
                 onChange={(e) => setNuevoPassword(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm"
-                placeholder="Min. 6 caracteres"
+                disabled={!!usuarioExistente}
+                className="w-full px-3 py-2 border rounded-lg text-sm disabled:bg-gray-100 disabled:text-gray-400"
+                placeholder={usuarioExistente ? 'Mantiene su password actual' : 'Min. 6 caracteres'}
                 minLength={6}
-                required
+                required={!usuarioExistente}
               />
             </div>
             <div>
@@ -325,9 +360,13 @@ export default function GestionUsuarios() {
             <button
               type="submit"
               disabled={creando}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              className={`px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50 ${
+                usuarioExistente ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
-              {creando ? 'Creando...' : 'Crear usuario'}
+              {creando
+                ? (usuarioExistente ? 'Añadiendo acceso...' : 'Creando...')
+                : (usuarioExistente ? 'Añadir acceso' : 'Crear usuario')}
             </button>
           </div>
         </form>
