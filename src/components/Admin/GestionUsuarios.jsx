@@ -29,7 +29,8 @@ const APPS = {
     roles: [
       { value: 'direccion', label: 'Dirección' },
       { value: 'planificacion', label: 'Planificación' },
-      { value: 'taller', label: 'Taller' }
+      { value: 'taller', label: 'Taller' },
+      { value: 'seccion', label: 'Sección' }
     ],
     color: 'emerald'
   },
@@ -60,13 +61,26 @@ const ROLE_BADGE_STYLES = {
   compras: 'bg-orange-50 text-orange-700 border-orange-200',
   planificacion: 'bg-purple-50 text-purple-700 border-purple-200',
   taller: 'bg-amber-50 text-amber-700 border-amber-200',
+  seccion: 'bg-teal-50 text-teal-700 border-teal-200',
   editor: 'bg-cyan-50 text-cyan-700 border-cyan-200'
 }
+
+// Centros de trabajo (secciones de producción) que un usuario "Sección" puede ver.
+// El código coincide con el centro de trabajo de Producción (→ su fase). Multi-selección.
+const CENTROS_SECCION = [
+  { cod: '015', label: 'Láser' },
+  { cod: '012', label: 'Plegado' },
+  { cod: '003', label: 'Soldadura' },
+  { cod: '025', label: 'Repasado' },
+  { cod: '024', label: 'Montaje' },
+  { cod: '028', label: 'Pintura' }
+]
 
 export default function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState(null)
+  const [openCentros, setOpenCentros] = useState(null) // user_id con el desplegable de centros abierto
 
   // Filtros
   const [filtroEmail, setFiltroEmail] = useState('')
@@ -127,6 +141,8 @@ export default function GestionUsuarios() {
       const updates = { role: nuevoRol }
       // Si cambia a no-taller, limpiar taller_asignado
       if (nuevoRol !== 'taller') updates.taller_asignado = null
+      // Si cambia a no-seccion, limpiar centros_asignados
+      if (nuevoRol !== 'seccion') updates.centros_asignados = null
 
       const { error } = await supabase
         .from('app_user_roles')
@@ -144,6 +160,31 @@ export default function GestionUsuarios() {
       setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
     }
     setTimeout(() => setMensaje(null), 3000)
+  }
+
+  // Multi-selección de centros de trabajo (rol Sección)
+  const toggleCentro = async (userId, cod) => {
+    const fila = usuarios.find(u => u.user_id === userId && u.app === 'produccion')
+    const actuales = fila?.centros_asignados || []
+    const nuevos = actuales.includes(cod)
+      ? actuales.filter(c => c !== cod)
+      : [...actuales, cod]
+    try {
+      const { error } = await supabase
+        .from('app_user_roles')
+        .update({ centros_asignados: nuevos.length ? nuevos : null })
+        .eq('user_id', userId)
+        .eq('app', 'produccion')
+
+      if (error) throw error
+
+      setUsuarios(prev => prev.map(u =>
+        u.user_id === userId && u.app === 'produccion' ? { ...u, centros_asignados: nuevos } : u
+      ))
+    } catch (e) {
+      setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+      setTimeout(() => setMensaje(null), 3000)
+    }
   }
 
   const cambiarTaller = async (userId, taller) => {
@@ -447,7 +488,7 @@ export default function GestionUsuarios() {
                   <th className="p-3 text-left">Email</th>
                   <th className="p-3 text-left">Aplicación</th>
                   <th className="p-3 text-left">Rol</th>
-                  <th className="p-3 text-center">Taller</th>
+                  <th className="p-3 text-center">Taller / Centros</th>
                   <th className="p-3 text-left">Fecha alta</th>
                   <th className="p-3 text-right">Acciones</th>
                 </tr>
@@ -486,6 +527,43 @@ export default function GestionUsuarios() {
                             <option value="1">Taller 1</option>
                             <option value="2">Taller 2</option>
                           </select>
+                        ) : u.app === 'produccion' && u.role === 'seccion' ? (
+                          <div className="relative inline-block text-left">
+                            <button
+                              onClick={() => setOpenCentros(openCentros === u.user_id ? null : u.user_id)}
+                              className="px-2 py-1 rounded text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-teal-400 min-w-[150px] flex items-center justify-between gap-1"
+                            >
+                              <span className="truncate max-w-[180px]">
+                                {(u.centros_asignados || []).length
+                                  ? CENTROS_SECCION.filter(c => u.centros_asignados.includes(c.cod)).map(c => c.label).join(', ')
+                                  : <span className="text-gray-400">Seleccionar centros…</span>}
+                              </span>
+                              <span className="text-gray-400">▾</span>
+                            </button>
+                            {openCentros === u.user_id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setOpenCentros(null)} />
+                                <div className="absolute z-20 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1 text-left">
+                                  {CENTROS_SECCION.map(c => {
+                                    const marcado = (u.centros_asignados || []).includes(c.cod)
+                                    return (
+                                      <button
+                                        key={c.cod}
+                                        onClick={() => toggleCentro(u.user_id, c.cod)}
+                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-xs"
+                                      >
+                                        <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${marcado ? 'bg-teal-600 border-teal-600 text-white' : 'border-gray-300'}`}>
+                                          {marcado && '✓'}
+                                        </span>
+                                        <span className="text-gray-700">{c.label}</span>
+                                        <span className="text-gray-300 ml-auto">{c.cod}</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-gray-300">-</span>
                         )}
