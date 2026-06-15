@@ -126,11 +126,18 @@ export const HELP_CONTENT = {
 
   presupuesto: {
     titulo: 'Presupuesto vs Real',
-    descripcion: 'Comparativa entre el presupuesto aprobado y los datos reales del ejercicio, con análisis de desviaciones.',
+    descripcion: 'Compara el presupuesto del ejercicio con los datos reales de contabilidad, con estructura de PyG analítico y análisis de desviaciones mes a mes y acumulado.',
     secciones: [
       {
         titulo: 'Qué muestra',
-        contenido: 'Para cada partida de PyG: importe presupuestado, importe real, desviación absoluta y porcentual. Permite detectar rápidamente dónde se producen las mayores desviaciones.'
+        contenido: 'Para cada línea del PyG (Ventas, Compras, Margen Bruto, Personal, EBITDA, Resultado…): presupuesto del mes, real del mes, desviación %, y las mismas columnas en acumulado desde enero. Permite ver de un vistazo dónde se cumple el presupuesto y dónde hay desviaciones.',
+        imagenes: [
+          { src: '/ayuda/ppto/img05.png', pie: 'Pantalla Presupuesto vs Real en el Dashboard.' }
+        ]
+      },
+      {
+        titulo: 'Requisito previo',
+        contenido: 'Hay que cargar PRIMERO el diario contable (los datos reales). Si no, verás el mensaje "Sin datos contables" y el módulo no puede comparar nada.'
       },
       {
         titulo: 'Ficheros necesarios',
@@ -143,8 +150,64 @@ export const HELP_CONTENT = {
         }
       },
       {
+        titulo: 'Cómo obtener el fichero en Business Central',
+        contenido: '1) Contabilidad → Presupuestos contables: localiza el presupuesto del ejercicio (p. ej. "GL PPT 26", descripción "Presupuesto gastos e ingresos"). 2) Ábrelo para ver la matriz por meses. 3) Acciones → Exportar a Excel. 4) Ese Excel es el que se carga en el Dashboard.',
+        imagenes: [
+          { src: '/ayuda/ppto/img01.png', pie: '1. Presupuestos contables: elige el presupuesto del año (GL PPT).' },
+          { src: '/ayuda/ppto/img02.png', pie: '2. El presupuesto abierto, con los importes por mes.' },
+          { src: '/ayuda/ppto/img03.png', pie: '3. Acciones → Exportar a Excel.' },
+          { src: '/ayuda/ppto/img04.png', pie: '4. Aspecto del Excel exportado (GL PPT) que se carga en el Dashboard.' }
+        ]
+      },
+      {
+        titulo: 'Cómo cargar el presupuesto',
+        contenido: '1) Abre el bloque "Cargar Presupuesto" (o pulsa "Recargar presupuesto"). 2) Elige el ejercicio en el desplegable "Año". 3) Pulsa "Seleccionar archivo" o "Reemplazar" y elige el Excel. 4) Confirma el ejercicio en el aviso. 5) Espera al mensaje verde "Presupuesto [año] cargado". Importante: el año lo fija el DESPLEGABLE, no el nombre del fichero; y cargar reemplaza por completo el presupuesto anterior de ese año.'
+      },
+      {
+        titulo: 'Protección frente al ejercicio incorrecto',
+        contenido: 'Dos avisos evitan volcar, por ejemplo, 2027 dentro de 2026. (1) Antes de cargar, una confirmación te obliga a aceptar el año. (2) Como el GL PPT lleva el año en las fechas de cabecera, el sistema lo lee y, si no coincide con el desplegable, BLOQUEA la carga y te pide corregir el año. Así el dato del fichero manda y te frena antes de mezclar ejercicios.'
+      },
+      {
+        titulo: 'Columnas de la tabla',
+        tabla: {
+          cabeceras: ['Columna', 'Significado'],
+          filas: [
+            ['Ppto. Mes', 'Presupuesto del mes seleccionado'],
+            ['Real Mes', 'Real (contabilidad) del mes seleccionado'],
+            ['Var.', 'Desviación del mes en % (real vs presupuesto)'],
+            ['Ppto. / Real Acum', 'Acumulado de enero al mes seleccionado'],
+            ['Var. (acum.)', 'Desviación acumulada en %']
+          ]
+        }
+      },
+      {
+        titulo: 'Lectura de las desviaciones (colores)',
+        tabla: {
+          cabeceras: ['Tipo de línea', 'Verde (favorable)', 'Rojo (desfavorable)'],
+          filas: [
+            ['Ingresos', 'Real por encima del presupuesto', 'Real por debajo'],
+            ['Gastos', 'Real por debajo del presupuesto', 'Real por encima']
+          ]
+        }
+      },
+      {
+        titulo: 'Bajar al detalle',
+        contenido: 'Clic en una categoría (▶) despliega sus cuentas de 3 dígitos; clic en una cuenta de 3 dígitos despliega sus subcuentas de 9 dígitos. Además, al pulsar cualquier importe de la columna REAL (aparece subrayado) se descarga un Excel con los movimientos contables que componen esa cifra. El botón "Exportar" descarga toda la tabla.'
+      },
+      {
+        titulo: 'Problemas frecuentes',
+        tabla: {
+          cabeceras: ['Síntoma', 'Solución'],
+          filas: [
+            ['"Sin datos contables"', 'Carga primero el diario contable'],
+            ['"El fichero parece ser del año X…"', 'Ajusta el desplegable al año del fichero y recarga'],
+            ['"No se encontraron datos válidos"', 'Verifica que es el informe GL PPT con cuentas 6XX/7XX']
+          ]
+        }
+      },
+      {
         titulo: 'Notas',
-        contenido: 'El fichero de presupuesto se carga una vez al año. Si se revisa el presupuesto, basta con volver a cargarlo para actualizar las comparativas.'
+        contenido: 'El fichero de presupuesto se carga una vez al año. Solo se procesan cuentas 6XX (gastos) y 7XX (ingresos); los ingresos vienen en negativo y el sistema ajusta el signo automáticamente. Si revisas el presupuesto, basta con volver a cargarlo.'
       }
     ]
   },

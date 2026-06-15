@@ -75,6 +75,21 @@ export default function HelpModal({ tabActiva, onClose }) {
                   </table>
                 </div>
               )}
+
+              {seccion.imagenes && (
+                <div className="mt-3 space-y-3">
+                  {seccion.imagenes.map((img, i) => (
+                    <figure key={i} className="border border-slate-200 rounded-lg overflow-hidden">
+                      <img src={img.src} alt={img.pie || ''} className="w-full" loading="lazy" />
+                      {img.pie && (
+                        <figcaption className="text-xs text-slate-500 px-3 py-2 bg-slate-50">
+                          {img.pie}
+                        </figcaption>
+                      )}
+                    </figure>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

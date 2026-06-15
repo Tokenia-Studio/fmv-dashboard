@@ -26,5 +26,6 @@ npm-debug.log*
 *.jpg
 *.jpeg
 !public/logo_tokenia_firma.png
+!public/ayuda/**/*.png
 
 .vercel
