@@ -18,6 +18,18 @@ export default function CargaPresupuesto() {
     const file = e.target.files[0]
     if (!file) return
 
+    // Protección: confirmar explícitamente el ejercicio antes de cargar/reemplazar,
+    // para evitar volcar el presupuesto en un año equivocado por dejar mal el selector.
+    const okAño = window.confirm(
+      `Vas a cargar el presupuesto en el ejercicio ${añoSeleccionado}.\n\n` +
+      `Si ya existe un presupuesto de ${añoSeleccionado}, se REEMPLAZARÁ por completo.\n\n` +
+      `¿El año ${añoSeleccionado} es correcto?`
+    )
+    if (!okAño) {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     setCargando(true)
     setResultado(null)
 

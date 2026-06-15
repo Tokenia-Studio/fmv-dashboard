@@ -775,6 +775,7 @@ export function DataProvider({ children }) {
       // Detectar formato GL PPT (fechas Excel en cabecera fila 3)
       let esFormatoGLPPT = false
       let indiceMeses = []
+      let añoDetectado = null
 
       if (jsonRaw.length > 4) {
         const cabecera = jsonRaw[3] || []
@@ -782,15 +783,34 @@ export function DataProvider({ children }) {
         const posiblesFechas = cabecera.slice(2).filter(v => typeof v === 'number' && v > 40000 && v < 50000)
         if (posiblesFechas.length >= 12) {
           esFormatoGLPPT = true
-          // Convertir fechas Excel a mes (1-12)
+          // Convertir fechas Excel a mes (1-12) y capturar el año que trae el fichero
+          const añosFichero = []
           indiceMeses = cabecera.slice(2).map(d => {
             if (typeof d === 'number' && d > 40000) {
               const fecha = new Date((d - 25569) * 86400 * 1000)
+              añosFichero.push(fecha.getFullYear())
               return fecha.getMonth() + 1 // 1-12
             }
             return null
           })
-          console.log('Detectado formato GL PPT, meses:', indiceMeses)
+          // Año dominante en la cabecera (el GL PPT trae las fechas reales del ejercicio)
+          if (añosFichero.length) {
+            añoDetectado = añosFichero.slice().sort((a, b) =>
+              añosFichero.filter(y => y === b).length - añosFichero.filter(y => y === a).length
+            )[0]
+          }
+          console.log('Detectado formato GL PPT, meses:', indiceMeses, 'año fichero:', añoDetectado)
+        }
+      }
+
+      // Validación: el GL PPT lleva el año en las fechas de cabecera. Si no coincide
+      // con el año seleccionado en el desplegable, avisamos y NO cargamos (evita meter,
+      // p. ej., el presupuesto de 2027 dentro de 2026 por dejar mal el selector).
+      if (esFormatoGLPPT && añoDetectado && añoDetectado !== año) {
+        dispatch({ type: 'SET_LOADING', payload: false })
+        return {
+          success: false,
+          error: `El fichero parece ser del año ${añoDetectado}, pero has seleccionado ${año}. Cambia el año en el desplegable y vuelve a cargar.`
         }
       }
 
