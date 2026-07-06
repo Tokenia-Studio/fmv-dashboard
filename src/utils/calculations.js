@@ -215,12 +215,27 @@ export function calcularFinanciacion(movimientos, saldos, año) {
       .filter(mov => mov.mes === mesKey && mov.grupo === '66')
       .reduce((sum, mov) => sum + (mov.debe - mov.haber), 0)
 
+    // Flujos de deuda del mes (17x, 52x): haber = entra financiación, debe = se devuelve.
+    // El traspaso L/P→C/P (debe 17 / haber 52) no es flujo real → se descuenta de ambos lados.
+    const flujoDeuda = { debe17: 0, haber17: 0, debe52: 0, haber52: 0 }
+    movimientos.forEach(mov => {
+      if (mov.mes !== mesKey) return
+      const g = mov.cuenta.substring(0, 2)
+      if (g === '17') { flujoDeuda.debe17 += mov.debe; flujoDeuda.haber17 += mov.haber }
+      if (g === '52') { flujoDeuda.debe52 += mov.debe; flujoDeuda.haber52 += mov.haber }
+    })
+    const traspaso = Math.min(flujoDeuda.debe17, flujoDeuda.haber52)
+    const nuevaFinanciacion = flujoDeuda.haber17 + flujoDeuda.haber52 - traspaso
+    const amortizacion = flujoDeuda.debe17 + flujoDeuda.debe52 - traspaso
+
     meses.push({
       mes: mesKey,
       deudaCorto: saldoMes['52'] || 0,
       deudaLargo: saldoMes['17'] || 0,
       deudaTotal: (saldoMes['52'] || 0) + (saldoMes['17'] || 0),
       gastosFinancieros: gastosFinMes,
+      nuevaFinanciacion,
+      amortizacion,
       tesoreria: saldoMes['57'] || 0
     })
   }
@@ -235,6 +250,8 @@ export function calcularFinanciacion(movimientos, saldos, año) {
   // Totales
   const gastosFinYTD = meses.reduce((sum, m) => sum + m.gastosFinancieros, 0)
   const amortizacionYTD = meses.reduce((sum, m) => sum + (m.amortizacionDeuda || 0), 0)
+  const nuevaFinYTD = meses.reduce((sum, m) => sum + m.nuevaFinanciacion, 0)
+  const amortizacionRealYTD = meses.reduce((sum, m) => sum + m.amortizacion, 0)
 
   // Ratios (usando último mes con datos)
   const ultimoMes = [...meses].reverse().find(m => m.deudaTotal > 0 || m.tesoreria > 0) || meses[11]
@@ -261,6 +278,8 @@ export function calcularFinanciacion(movimientos, saldos, año) {
       deudaNeta: ultimoMes.deudaTotal - ultimoMes.tesoreria,
       gastosFinYTD,
       amortizacionYTD,
+      nuevaFinYTD,
+      amortizacionRealYTD,
       tesoreria: ultimoMes.tesoreria
     },
     ratios: {

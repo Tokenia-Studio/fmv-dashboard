@@ -6,6 +6,7 @@ import React from 'react'
 import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
 import EvolucionDeuda from './EvolucionDeuda'
+import FlujosDeuda from './FlujosDeuda'
 import GastosFinancieros from './GastosFinancieros'
 import RatiosPanel from './RatiosPanel'
 import { formatCurrency, formatNumber } from '../../utils/formatters'
@@ -71,6 +72,20 @@ export default function FinanciacionTab() {
           icono="💰"
           colorValor="text-green-600"
         />
+        <KPICard
+          titulo="Financiación Nueva YTD"
+          valor={kpis.nuevaFinYTD}
+          subtitulo="Préstamos recibidos en el año"
+          icono="🏧"
+          colorValor="text-green-600"
+        />
+        <KPICard
+          titulo="Amortizado YTD"
+          valor={kpis.amortizacionRealYTD}
+          subtitulo="Cuotas devueltas en el año"
+          icono="↩️"
+          colorValor="text-red-600"
+        />
       </div>
 
       {/* Panel de Ratios */}
@@ -78,6 +93,9 @@ export default function FinanciacionTab() {
 
       {/* Gráfico evolución deuda */}
       <EvolucionDeuda datos={meses} año={añoActual} />
+
+      {/* Flujos de deuda: nueva financiación vs amortización */}
+      <FlujosDeuda datos={meses} año={añoActual} />
 
       {/* Gráfico gastos financieros */}
       <GastosFinancieros datos={meses} año={añoActual} />
