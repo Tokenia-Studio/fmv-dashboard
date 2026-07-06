@@ -15,6 +15,7 @@ import {
   calcularFinanciacion,
   calcularPagosProveedores,
   calcularCashFlow,
+  calcularPuenteCaja,
   calcularPyG3Digitos,
   calcularPresupuestoVsReal,
   calcularMapeoProveedorCuenta,
@@ -52,6 +53,7 @@ const initialState = {
   financiacion: { meses: [], kpis: {}, ratios: {} },
   pagosProveedores: { top15: [], totalPagos: 0, datosMensuales: [] },
   cashFlow: { meses: [], kpis: {} },
+  puenteCaja: null,
   presupuestos: [],
   pyg3Digitos: {},
   presupuestoVsReal: [],
@@ -139,6 +141,7 @@ function dataReducer(state, action) {
         financiacion: action.payload.financiacion,
         pagosProveedores: action.payload.pagosProveedores,
         cashFlow: action.payload.cashFlow,
+        puenteCaja: action.payload.puenteCaja || state.puenteCaja,
         pyg3Digitos: action.payload.pyg3Digitos || state.pyg3Digitos,
         presupuestoVsReal: action.payload.presupuestoVsReal || state.presupuestoVsReal,
         cuentasAnuales: action.payload.cuentasAnuales || state.cuentasAnuales
@@ -459,6 +462,7 @@ export function DataProvider({ children }) {
       const financiacion = calcularFinanciacion(state.movimientos, saldos, state.añoActual)
       const pagosProveedores = calcularPagosProveedores(state.movimientos, state.proveedores, state.añoActual)
       const cashFlow = calcularCashFlow(state.movimientos, saldos, state.añoActual)
+      const puenteCaja = calcularPuenteCaja(state.movimientos, state.añoActual)
 
       // Calcular PyG a 3 dígitos y comparativa presupuesto vs real
       const pyg3Digitos = calcularPyG3Digitos(state.movimientos, state.añoActual)
@@ -470,7 +474,7 @@ export function DataProvider({ children }) {
 
       dispatch({
         type: 'SET_DATOS_CALCULADOS',
-        payload: { pyg, totalesPyG, serviciosExt, financiacion, pagosProveedores, cashFlow, pyg3Digitos, presupuestoVsReal, cuentasAnuales }
+        payload: { pyg, totalesPyG, serviciosExt, financiacion, pagosProveedores, cashFlow, puenteCaja, pyg3Digitos, presupuestoVsReal, cuentasAnuales }
       })
     } catch (error) {
       console.error('Error en calculos:', error)

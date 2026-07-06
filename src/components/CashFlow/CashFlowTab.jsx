@@ -13,6 +13,7 @@ import { formatCurrency, formatCompact, mesKeyToNombre, getValueClass } from '..
 import { MONTHS_SHORT, CHART_COLORS } from '../../utils/constants'
 import CustomTooltip from '../UI/CustomTooltip'
 import ExportButton from '../UI/ExportButton'
+import PuenteCajaSection from './PuenteCajaSection'
 
 export default function CashFlowTab() {
   const { cashFlow, añoActual, exportarMovimientos } = useData()
@@ -57,6 +58,9 @@ export default function CashFlowTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Puente beneficio → caja */}
+      <PuenteCajaSection />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KPICard
