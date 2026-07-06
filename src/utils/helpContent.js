@@ -60,6 +60,10 @@ export const HELP_CONTENT = {
         contenido: 'Ratios financieros clave (endeudamiento, solvencia, liquidez corriente), composición de la deuda financiera, y evolución de los saldos de balance relacionados.'
       },
       {
+        titulo: 'Préstamos: lo que entra vs lo que se devuelve',
+        contenido: 'Gráfico mensual que separa la financiación nueva recibida (verde) de las cuotas devueltas al banco (rojo), calculado desde los movimientos de las cuentas 17x y 52x. Los traspasos internos de deuda de largo a corto plazo se excluyen porque no son entradas ni salidas reales de dinero. Los KPIs "Financiación Nueva YTD" y "Amortizado YTD" acumulan el año en curso.'
+      },
+      {
         titulo: 'Ficheros necesarios',
         tabla: {
           cabeceras: ['Fichero', 'Origen ERP', 'Periodicidad'],
@@ -102,11 +106,15 @@ export const HELP_CONTENT = {
 
   cashflow: {
     titulo: 'Cash Flow',
-    descripcion: 'Estado de flujos de tesorería: movimientos de cobros, pagos y saldo de caja/bancos.',
+    descripcion: 'Estado de flujos de tesorería: puente beneficio → caja ("¿Dónde va el dinero?"), variación mensual y saldo de bancos.',
     secciones: [
       {
         titulo: 'Qué muestra',
         contenido: 'Evolución mensual de los saldos de tesorería (grupo 57), cobros de clientes, pagos a proveedores y otros movimientos de caja.'
+      },
+      {
+        titulo: '¿Dónde va el dinero? (puente beneficio → caja)',
+        contenido: 'Explica por qué el beneficio del PyG no coincide con lo que varía el banco. El gráfico cascada reparte la variación de tesorería en 9 conceptos: beneficio, amortizaciones (gasto que no sale del banco), clientes (vendido sin cobrar), existencias, proveedores (comprado sin pagar), Hacienda y Seg. Social, inversiones en maquinaria (CAPEX), financiación bancaria y otros. La tabla mensual incluye una fila de verificación: "Δ Tesorería (puente)" debe coincidir al céntimo con "Δ Bancos real (57)". Se puede ver el año completo o un mes concreto, y hacer click en cualquier celda para exportar el detalle a Excel.'
       },
       {
         titulo: 'Ficheros necesarios',
