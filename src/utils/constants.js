@@ -520,3 +520,25 @@ export const ACCOUNT_GROUPS_3 = {
   '698': { name: 'Pérdidas por deterioro créd. cp', type: 'gasto' },
   '699': { name: 'Pérdidas por deterioro exist. cp', type: 'gasto' }
 }
+
+// ============================================
+// CASH FLOW - Puente beneficio → caja
+// ============================================
+// Clasifica TODAS las cuentas no-57 en categorías. Por partida doble,
+// Δ tesorería (57) = −Σ(debe−haber) del resto → el puente cuadra por
+// construcción siempre que ninguna cuenta quede sin bucket (cajón 'otros').
+// El orden importa: se aplica el primer prefijo que coincida (más específico primero).
+export const CASHFLOW_BUCKETS = [
+  { id: 'beneficio', label: 'Beneficio del periodo', descripcion: 'Resultado según PyG (ingresos − gastos)', prefijos: ['6', '7'] },
+  { id: 'amortizaciones', label: 'Amortizaciones (no es caja)', descripcion: 'Gasto contable que no sale del banco', prefijos: ['28', '29'] },
+  { id: 'clientes', label: 'Clientes y deudores', descripcion: 'Vendido pero aún no cobrado', prefijos: ['43', '44'] },
+  { id: 'existencias', label: 'Existencias', descripcion: 'Dinero convertido en material y obra en curso', prefijos: ['3'] },
+  { id: 'proveedores', label: 'Proveedores y acreedores', descripcion: 'Comprado pero aún no pagado', prefijos: ['40', '41'] },
+  { id: 'publicas', label: 'Hacienda y Seg. Social', descripcion: 'Impuestos y cotizaciones pendientes o pagados', prefijos: ['47'] },
+  { id: 'inversiones', label: 'Inversiones (CAPEX)', descripcion: 'Compra de maquinaria, instalaciones y equipos', prefijos: ['2'] },
+  { id: 'financiacion', label: 'Financiación bancaria', descripcion: 'Préstamos recibidos menos cuotas devueltas', prefijos: ['17', '52', '51', '50'] },
+  { id: 'otros', label: 'Socios y otros', descripcion: 'Reservas, dividendos y otras partidas', prefijos: [] } // cajón residual
+]
+
+// Prefijo de cuentas de tesorería (el lado "real" del puente)
+export const CASHFLOW_TESORERIA_PREFIJO = '57'

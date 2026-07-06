@@ -2,7 +2,7 @@
 // CÁLCULOS - FMV Dashboard v2.0
 // ============================================
 
-import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3, ESTRUCTURA_BALANCE, ESTRUCTURA_PYG_CCAA } from './constants'
+import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3, ESTRUCTURA_BALANCE, ESTRUCTURA_PYG_CCAA, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO } from './constants'
 
 /**
  * Agrupa movimientos por mes y categoría para PyG
@@ -948,4 +948,73 @@ export function calcularSubLinea(parentCuentas, childPrefixes) {
     }
   })
   return { total, cuentas }
+}
+
+/**
+ * Puente beneficio → caja (cash flow mensual agregado)
+ *
+ * Clasifica todos los movimientos no-57 en CASHFLOW_BUCKETS. Por partida
+ * doble, la suma de contribuciones = Δ tesorería real (57), de modo que
+ * el puente cuadra al céntimo salvo asientos descuadrados en origen.
+ * Funciona igual con movimientos brutos y con snapshots agregados
+ * (solo usa cuenta / mes / debe / haber).
+ */
+export function calcularPuenteCaja(movimientos, año) {
+  const buckets = CASHFLOW_BUCKETS.map(b => ({
+    id: b.id,
+    label: b.label,
+    descripcion: b.descripcion,
+    meses: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, 0])),
+    total: 0
+  }))
+  const porId = Object.fromEntries(buckets.map(b => [b.id, b]))
+  const residual = porId['otros']
+
+  const deltaReal = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, 0]))
+  const intereses = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [i + 1, 0]))
+
+  movimientos.forEach(mov => {
+    if (!mov.mes?.startsWith(String(año))) return
+    const mes = parseInt(mov.mes.split('-')[1])
+    if (!mes || mes < 1 || mes > 12) return
+    const neto = (mov.debe || 0) - (mov.haber || 0)
+    const cuenta = mov.cuenta || ''
+
+    if (cuenta.startsWith(CASHFLOW_TESORERIA_PREFIJO)) {
+      deltaReal[mes] += neto
+      return
+    }
+
+    // Primer bucket cuyo prefijo coincida (orden de CASHFLOW_BUCKETS)
+    const bucket = CASHFLOW_BUCKETS.find(b => b.prefijos.some(p => cuenta.startsWith(p)))
+    const destino = bucket ? porId[bucket.id] : residual
+
+    // Contribución a caja: una cuenta no-57 que aumenta por debe consume caja
+    destino.meses[mes] += -neto
+    destino.total += -neto
+
+    // Línea informativa: intereses (66x), ya incluidos en 'beneficio'
+    if (cuenta.startsWith('66')) intereses[mes] += neto
+  })
+
+  // Verificación mensual y anual
+  const meses = {}
+  let totalCalc = 0
+  let totalReal = 0
+  for (let m = 1; m <= 12; m++) {
+    const calc = buckets.reduce((s, b) => s + b.meses[m], 0)
+    meses[m] = { deltaCalc: calc, deltaReal: deltaReal[m], intereses: intereses[m] }
+    totalCalc += calc
+    totalReal += deltaReal[m]
+  }
+  const interesesTotal = Object.values(intereses).reduce((s, v) => s + v, 0)
+
+  return {
+    buckets,
+    meses,
+    totalCalc,
+    totalReal,
+    interesesTotal,
+    cuadra: Math.abs(totalCalc - totalReal) < 0.01
+  }
 }
