@@ -542,3 +542,40 @@ export const CASHFLOW_BUCKETS = [
 
 // Prefijo de cuentas de tesorería (el lado "real" del puente)
 export const CASHFLOW_TESORERIA_PREFIJO = '57'
+
+// ============================================
+// FINANCIACIÓN - Equivalencia manual préstamos L/P ↔ C/P
+// ============================================
+// Mapa { cuenta 17x: cuenta 52x }. Completa o corrige la detección
+// automática por asientos de traspaso (la manual tiene prioridad).
+// Necesario porque los traspasos de los dos préstamos Sabadell comparten
+// texto ("Traspaso deuda L/P a C/P Prestamo Sabadell") y la detección
+// automática no puede distinguirlos. Confirmado con plan de cuentas 13/07/2026.
+export const PAREJAS_PRESTAMOS_MANUAL = {
+  '170000001': '520000003', // Prestamo Plegadora Sabadell nº 807791513379
+  '170000002': '520000007', // Prestamo Volkswagen Bank SQ8 nº 01FI30135821
+  '170000003': '520000005', // Prestamo Caixabank 9620,325-305093-81 laser
+  '170000004': '520000004', // Prestamo Sabadell 807858773007
+}
+
+// Opciones de tipo elegibles desde el desplegable de la tabla de préstamos
+export const TIPOS_FINANCIACION_OPCIONES = [
+  'Préstamo bancario',
+  'Confirming proveedores',
+  'Financiación impuestos',
+  'Póliza de crédito',
+  'Empresa del grupo',
+  'Efectos / prov. inmovilizado',
+  'Línea C/P'
+]
+
+// Naturaleza por defecto de las líneas que no son préstamos bancarios
+// clásicos (indicado por Carlos/FMV 13/07/2026). Clave = cuenta contable.
+// Se puede sobrescribir desde el dashboard (tabla tipos_financiacion en Supabase).
+export const TIPOS_FINANCIACION_MANUAL = {
+  '520000001': 'Confirming proveedores', // Caixabank Financiación Nacional
+  '520000002': 'Confirming proveedores', // Santander Financiación Nacional
+  '520000006': 'Financiación impuestos', // Santander financiación impuestos
+  '520100000': 'Póliza de crédito',      // Deutsche Bank
+  '171000002': 'Empresa del grupo',      // Deuda L/P Valdepinto
+}

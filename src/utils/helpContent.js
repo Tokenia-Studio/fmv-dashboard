@@ -61,7 +61,11 @@ export const HELP_CONTENT = {
       },
       {
         titulo: 'Préstamos: lo que entra vs lo que se devuelve',
-        contenido: 'Gráfico mensual que separa la financiación nueva recibida (verde) de las cuotas devueltas al banco (rojo), calculado desde los movimientos de las cuentas 17x y 52x. Los traspasos internos de deuda de largo a corto plazo se excluyen porque no son entradas ni salidas reales de dinero. Los KPIs "Financiación Nueva YTD" y "Amortizado YTD" acumulan el año en curso.'
+        contenido: 'Gráfico y tabla mensual que separan la financiación nueva recibida (verde) de las cuotas devueltas al banco (rojo), calculado desde los movimientos de las cuentas 17x y 52x. Los traspasos internos de deuda de largo a corto plazo se excluyen porque no son entradas ni salidas reales de dinero; el neteo se hace préstamo a préstamo (pareja 17x↔52x). Los KPIs "Financiación Nueva YTD" y "Amortizado YTD" acumulan el año en curso.'
+      },
+      {
+        titulo: 'Deuda viva por préstamo',
+        contenido: 'Resumen de todos los préstamos con su deuda pendiente: el tramo a largo plazo (cuenta 17x) y su tramo a corto plazo (cuenta 52x) se muestran en la misma línea, emparejados mediante los asientos de traspaso L/P→C/P. Las líneas solo de corto plazo (pólizas, confirming) aparecen sin cuenta de largo. Incluye lo amortizado y lo recibido en el año por cada préstamo.'
       },
       {
         titulo: 'Ficheros necesarios',

@@ -7,13 +7,14 @@ import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
 import EvolucionDeuda from './EvolucionDeuda'
 import FlujosDeuda from './FlujosDeuda'
+import DetallePrestamos from './DetallePrestamos'
 import GastosFinancieros from './GastosFinancieros'
 import RatiosPanel from './RatiosPanel'
 import { formatCurrency, formatNumber } from '../../utils/formatters'
 
 export default function FinanciacionTab() {
   const { financiacion, añoActual } = useData()
-  const { kpis, ratios, meses } = financiacion
+  const { kpis, ratios, meses, proyeccion, prestamos } = financiacion
 
   const tieneDeuda = kpis.deudaTotal > 0 || meses.some(m => m.deudaTotal > 0)
 
@@ -91,11 +92,14 @@ export default function FinanciacionTab() {
       {/* Panel de Ratios */}
       <RatiosPanel ratios={ratios} kpis={kpis} />
 
-      {/* Gráfico evolución deuda */}
-      <EvolucionDeuda datos={meses} año={añoActual} />
+      {/* Gráfico evolución deuda (con previsión a cierre) */}
+      <EvolucionDeuda datos={meses} año={añoActual} proyeccion={proyeccion} />
 
       {/* Flujos de deuda: nueva financiación vs amortización */}
-      <FlujosDeuda datos={meses} año={añoActual} />
+      <FlujosDeuda datos={meses} año={añoActual} proyeccion={proyeccion} deudaInicial={financiacion.deudaInicial || 0} />
+
+      {/* Deuda viva por préstamo (17x + 52x emparejadas) */}
+      <DetallePrestamos prestamos={prestamos} año={añoActual} />
 
       {/* Gráfico gastos financieros */}
       <GastosFinancieros datos={meses} año={añoActual} />

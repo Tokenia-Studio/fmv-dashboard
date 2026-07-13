@@ -2,7 +2,7 @@
 // CÁLCULOS - FMV Dashboard v2.0
 // ============================================
 
-import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3, ESTRUCTURA_BALANCE, ESTRUCTURA_PYG_CCAA, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO } from './constants'
+import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3, ESTRUCTURA_BALANCE, ESTRUCTURA_PYG_CCAA, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO, PAREJAS_PRESTAMOS_MANUAL } from './constants'
 
 /**
  * Agrupa movimientos por mes y categoría para PyG
@@ -201,10 +201,72 @@ export function calcularSaldosBalance(movimientos, año) {
 }
 
 /**
+ * Detecta parejas préstamo L/P (17x) ↔ tramo C/P (52x) a través de los
+ * asientos de traspaso, que comparten descripción en el debe de la 17x
+ * y el haber de la 52x. Devuelve { cuentaLP: cuentaCP }.
+ */
+export function detectarParejasTraspaso(movimientos) {
+  const norm = (s) => (s || '').toLowerCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim()
+
+  const links = {} // descNormalizada -> { lp: Set, cp: Set }
+  movimientos.forEach(mov => {
+    const g = mov.cuenta.substring(0, 2)
+    if (g !== '17' && g !== '52') return
+    const desc = mov.descripcion || ''
+    if (!/traspaso/i.test(desc)) return
+    const key = norm(desc)
+    if (!links[key]) links[key] = { lp: new Set(), cp: new Set() }
+    if (g === '17' && mov.debe > 0) links[key].lp.add(mov.cuenta)
+    if (g === '52' && mov.haber > 0) links[key].cp.add(mov.cuenta)
+  })
+
+  const parejas = {}
+  Object.values(links).forEach(({ lp, cp }) => {
+    if (lp.size === 1 && cp.size === 1) parejas[[...lp][0]] = [...cp][0]
+  })
+  return parejas
+}
+
+/**
+ * Traspaso L/P→C/P de un mes: suma por pareja de min(debe 17x, haber 52x).
+ * Netear por pareja evita cruzar cuotas de un préstamo con disposiciones
+ * de otro. Si no se conoce ninguna pareja, cae al neteo global (heurística
+ * anterior). Robusto ante snapshots agregados por (mes, cuenta).
+ */
+function traspasoDelMes(porCuenta, parejas) {
+  const cuentasPareja = Object.entries(parejas)
+  if (cuentasPareja.length === 0) {
+    let debe17 = 0, haber52 = 0
+    Object.entries(porCuenta).forEach(([cuenta, f]) => {
+      const g = cuenta.substring(0, 2)
+      if (g === '17') debe17 += f.debe
+      if (g === '52') haber52 += f.haber
+    })
+    return Math.min(debe17, haber52)
+  }
+  return cuentasPareja.reduce((sum, [lp, cp]) => {
+    const d17 = porCuenta[lp]?.debe || 0
+    const h52 = porCuenta[cp]?.haber || 0
+    return sum + Math.min(d17, h52)
+  }, 0)
+}
+
+/**
  * Calcula datos de financiación
  */
 export function calcularFinanciacion(movimientos, saldos, año) {
   const meses = []
+  const parejas = { ...detectarParejasTraspaso(movimientos), ...PAREJAS_PRESTAMOS_MANUAL }
+
+  // Deuda con la que arranca el año (arrastre de ejercicios anteriores):
+  // sin ella la tabla de flujos no cuadra a ojo (inicial + neto = final)
+  let deudaInicial = 0
+  movimientos.forEach(mov => {
+    if (mov.mes >= `${año}-01`) return
+    const g = mov.cuenta.substring(0, 2)
+    if (g === '17' || g === '52') deudaInicial += mov.haber - mov.debe
+  })
 
   for (let m = 1; m <= 12; m++) {
     const mesKey = `${año}-${String(m).padStart(2, '0')}`
@@ -218,13 +280,18 @@ export function calcularFinanciacion(movimientos, saldos, año) {
     // Flujos de deuda del mes (17x, 52x): haber = entra financiación, debe = se devuelve.
     // El traspaso L/P→C/P (debe 17 / haber 52) no es flujo real → se descuenta de ambos lados.
     const flujoDeuda = { debe17: 0, haber17: 0, debe52: 0, haber52: 0 }
+    const porCuenta = {}
     movimientos.forEach(mov => {
       if (mov.mes !== mesKey) return
       const g = mov.cuenta.substring(0, 2)
+      if (g !== '17' && g !== '52') return
       if (g === '17') { flujoDeuda.debe17 += mov.debe; flujoDeuda.haber17 += mov.haber }
       if (g === '52') { flujoDeuda.debe52 += mov.debe; flujoDeuda.haber52 += mov.haber }
+      if (!porCuenta[mov.cuenta]) porCuenta[mov.cuenta] = { debe: 0, haber: 0 }
+      porCuenta[mov.cuenta].debe += mov.debe
+      porCuenta[mov.cuenta].haber += mov.haber
     })
-    const traspaso = Math.min(flujoDeuda.debe17, flujoDeuda.haber52)
+    const traspaso = traspasoDelMes(porCuenta, parejas)
     const nuevaFinanciacion = flujoDeuda.haber17 + flujoDeuda.haber52 - traspaso
     const amortizacion = flujoDeuda.debe17 + flujoDeuda.debe52 - traspaso
 
@@ -236,6 +303,7 @@ export function calcularFinanciacion(movimientos, saldos, año) {
       gastosFinancieros: gastosFinMes,
       nuevaFinanciacion,
       amortizacion,
+      traspasoLPCP: traspaso,
       tesoreria: saldoMes['57'] || 0
     })
   }
@@ -252,6 +320,43 @@ export function calcularFinanciacion(movimientos, saldos, año) {
   const amortizacionYTD = meses.reduce((sum, m) => sum + (m.amortizacionDeuda || 0), 0)
   const nuevaFinYTD = meses.reduce((sum, m) => sum + m.nuevaFinanciacion, 0)
   const amortizacionRealYTD = meses.reduce((sum, m) => sum + m.amortizacion, 0)
+
+  // Proyección a cierre de año: media mensual de amortización real aplicada
+  // a los meses restantes. La nueva financiación no se proyecta (es una
+  // decisión discrecional, no un calendario contractual como las cuotas).
+  let ultimoMesReal = 0
+  movimientos.forEach(mov => {
+    if (!mov.mes.startsWith(String(año))) return
+    const m = parseInt(mov.mes.substring(5), 10)
+    if (m > ultimoMesReal) ultimoMesReal = m
+  })
+  // BC exporta apuntes con fecha futura (vencimientos, costes esperados):
+  // el último mes real nunca puede pasar del mes en curso
+  const hoy = new Date()
+  if (año === hoy.getFullYear()) {
+    ultimoMesReal = Math.min(ultimoMesReal, hoy.getMonth() + 1)
+  }
+
+  const mediaAmortizacion = ultimoMesReal > 0 ? amortizacionRealYTD / ultimoMesReal : 0
+  let deudaProyectada = ultimoMesReal > 0 ? meses[ultimoMesReal - 1].deudaTotal : 0
+  let amortizacionPrevistaResto = 0
+  for (let i = ultimoMesReal; i < 12; i++) {
+    const amortMes = Math.min(mediaAmortizacion, deudaProyectada)
+    deudaProyectada = Math.max(0, deudaProyectada - amortMes)
+    amortizacionPrevistaResto += amortMes
+    meses[i].proyectado = true
+    meses[i].amortizacionPrevista = amortMes
+    meses[i].deudaTotalPrevista = deudaProyectada
+  }
+
+  const proyeccion = {
+    ultimoMesReal,
+    mesesRestantes: 12 - ultimoMesReal,
+    mediaAmortizacionMensual: mediaAmortizacion,
+    amortizacionPrevistaResto,
+    amortizacionPrevistaAño: amortizacionRealYTD + amortizacionPrevistaResto,
+    deudaEstimadaCierre: deudaProyectada
+  }
 
   // Ratios (usando último mes con datos)
   const ultimoMes = [...meses].reverse().find(m => m.deudaTotal > 0 || m.tesoreria > 0) || meses[11]
@@ -271,6 +376,9 @@ export function calcularFinanciacion(movimientos, saldos, año) {
 
   return {
     meses,
+    proyeccion,
+    deudaInicial,
+    prestamos: calcularDetallePrestamos(movimientos, año),
     kpis: {
       deudaCorto: ultimoMes.deudaCorto,
       deudaLargo: ultimoMes.deudaLargo,
@@ -286,6 +394,140 @@ export function calcularFinanciacion(movimientos, saldos, año) {
       deudaEbitda: ebitdaAnual !== 0 ? ultimoMes.deudaTotal / ebitdaAnual : null,
       coberturaIntereses: gastosFinYTD !== 0 ? ebitdaAnual / gastosFinYTD : null,
       costeMedioDeuda: ultimoMes.deudaTotal !== 0 ? (gastosFinYTD / ultimoMes.deudaTotal) * 100 : null
+    }
+  }
+}
+
+/**
+ * Desglose de deuda viva por préstamo (subcuentas 17x y 52x).
+ *
+ * Saldo vivo = acumulado (haber - debe) de todos los ejercicios cargados
+ * hasta el fin del año indicado. El tramo C/P (52x) se empareja con su
+ * préstamo L/P (17x) a través de los asientos de traspaso L/P→C/P, que
+ * comparten descripción en el debe de la 17x y el haber de la 52x.
+ * Las 52x sin pareja (pólizas, confirming) se listan como líneas propias.
+ */
+export function calcularDetallePrestamos(movimientos, año) {
+  const finAño = `${año}-12`
+  const cuentas = {}
+
+  movimientos.forEach(mov => {
+    const g = mov.cuenta.substring(0, 2)
+    if (g !== '17' && g !== '52') return
+    if (mov.mes > finAño) return
+
+    if (!cuentas[mov.cuenta]) {
+      cuentas[mov.cuenta] = {
+        cuenta: mov.cuenta,
+        grupo: g,
+        saldo: 0,
+        mesesAño: {}, // mesKey -> { debe, haber } solo del año en curso
+        descripciones: {}
+      }
+    }
+    const c = cuentas[mov.cuenta]
+    c.saldo += mov.haber - mov.debe
+
+    const desc = (mov.descripcion || '').trim()
+    if (desc) c.descripciones[desc] = (c.descripciones[desc] || 0) + 1
+
+    if (mov.mes.startsWith(String(año))) {
+      if (!c.mesesAño[mov.mes]) c.mesesAño[mov.mes] = { debe: 0, haber: 0 }
+      c.mesesAño[mov.mes].debe += mov.debe
+      c.mesesAño[mov.mes].haber += mov.haber
+    }
+  })
+
+  // Emparejar L/P ↔ C/P: detección por traspasos + mapeo manual (que manda)
+  const parejaDeLP = { ...detectarParejasTraspaso(movimientos), ...PAREJAS_PRESTAMOS_MANUAL }
+
+  // Flujos del año por préstamo: el traspaso L/P→C/P del mes dentro de la
+  // pareja (min(debe 17x, haber 52x)) no es caja y se netea de ambos lados
+  const flujosAño = (lp, cp) => {
+    let nueva = 0, amortizado = 0, reclasificado = 0
+    for (let m = 1; m <= 12; m++) {
+      const mesKey = `${año}-${String(m).padStart(2, '0')}`
+      const fLP = (lp && lp.mesesAño[mesKey]) || { debe: 0, haber: 0 }
+      const fCP = (cp && cp.mesesAño[mesKey]) || { debe: 0, haber: 0 }
+      const traspaso = lp && cp ? Math.min(fLP.debe, fCP.haber) : 0
+      nueva += fLP.haber + fCP.haber - traspaso
+      amortizado += fLP.debe + fCP.debe - traspaso
+      reclasificado += traspaso
+    }
+    return { nueva, amortizado, reclasificado }
+  }
+
+  // Nombre orientativo: la descripción más repetida, priorizando las que
+  // suenan a producto financiero (el nombre oficial sale del plan de cuentas)
+  const mejorNombre = (c) => {
+    if (!c) return ''
+    const entradas = Object.entries(c.descripciones)
+    if (entradas.length === 0) return ''
+    const financieras = entradas.filter(([d]) =>
+      /prestamo|préstamo|leasing|renting|poliza|póliza|credito|crédito|hipoteca|confirming|banco|bank/i.test(d))
+    const candidatas = financieras.length > 0 ? financieras : entradas
+    let nombre = candidatas.sort((a, b) => b[1] - a[1])[0][0]
+    // Si es el texto de un traspaso, quedarse con el nombre del producto
+    const m = nombre.match(/traspaso.*?((prestamo|préstamo|leasing|renting|poliza|póliza|credito|crédito|hipoteca).*)$/i)
+    if (m) nombre = m[1].trim()
+    return nombre
+  }
+
+  const cpEmparejadas = new Set(Object.values(parejaDeLP))
+  const prestamos = []
+
+  Object.values(cuentas).forEach(c => {
+    if (c.grupo !== '17') return
+    const cp = parejaDeLP[c.cuenta] ? cuentas[parejaDeLP[c.cuenta]] : null
+    const flujos = flujosAño(c, cp)
+    prestamos.push({
+      cuentaLP: c.cuenta,
+      cuentaCP: cp ? cp.cuenta : null,
+      nombre: mejorNombre(c) || mejorNombre(cp),
+      saldoLP: c.saldo,
+      saldoCP: cp ? cp.saldo : 0,
+      saldoTotal: c.saldo + (cp ? cp.saldo : 0),
+      nuevaFinAño: flujos.nueva,
+      amortizadoAño: flujos.amortizado,
+      reclasificadoAño: flujos.reclasificado
+    })
+  })
+
+  Object.values(cuentas).forEach(c => {
+    if (c.grupo !== '52' || cpEmparejadas.has(c.cuenta)) return
+    const flujos = flujosAño(null, c)
+    prestamos.push({
+      cuentaLP: null,
+      cuentaCP: c.cuenta,
+      nombre: mejorNombre(c),
+      saldoLP: 0,
+      saldoCP: c.saldo,
+      saldoTotal: c.saldo,
+      nuevaFinAño: flujos.nueva,
+      amortizadoAño: flujos.amortizado,
+      reclasificadoAño: flujos.reclasificado
+    })
+  })
+
+  // Descartar cuentas muertas: sin saldo vivo ni movimiento en el año
+  const vivos = prestamos.filter(p =>
+    Math.abs(p.saldoTotal) > 0.5 || p.nuevaFinAño > 0.5 || p.amortizadoAño > 0.5)
+  // Préstamos bancarios (con tramo L/P) primero, el resto después
+  vivos.sort((a, b) => {
+    const grupoA = a.cuentaLP ? 0 : 1
+    const grupoB = b.cuentaLP ? 0 : 1
+    return grupoA - grupoB || b.saldoTotal - a.saldoTotal
+  })
+
+  return {
+    prestamos: vivos,
+    totales: {
+      saldoLP: vivos.reduce((s, p) => s + p.saldoLP, 0),
+      saldoCP: vivos.reduce((s, p) => s + p.saldoCP, 0),
+      saldoTotal: vivos.reduce((s, p) => s + p.saldoTotal, 0),
+      nuevaFinAño: vivos.reduce((s, p) => s + p.nuevaFinAño, 0),
+      amortizadoAño: vivos.reduce((s, p) => s + p.amortizadoAño, 0),
+      reclasificadoAño: vivos.reduce((s, p) => s + p.reclasificadoAño, 0)
     }
   }
 }

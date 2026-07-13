@@ -10,9 +10,12 @@ import { formatCurrency, formatCompact, mesKeyToNombre } from '../../utils/forma
 import { CHART_COLORS, MONTHS_SHORT } from '../../utils/constants'
 import CustomTooltip from '../UI/CustomTooltip'
 
-export default function EvolucionDeuda({ datos, año }) {
-  // Preparar datos
-  const datosGrafico = MONTHS_SHORT.map((mesNombre, idx) => {
+export default function EvolucionDeuda({ datos, año, proyeccion }) {
+  const ultimoMesReal = proyeccion?.ultimoMesReal ?? 12
+
+  // Solo meses con datos reales: sin ellos las líneas se quedaban planas
+  // hasta diciembre (saldos propagados) y confundían
+  const datosGrafico = MONTHS_SHORT.slice(0, ultimoMesReal).map((mesNombre, idx) => {
     const mesNum = idx + 1
     const mesKey = `${año}-${String(mesNum).padStart(2, '0')}`
     const datosMes = datos.find(d => d.mes === mesKey) || {}
