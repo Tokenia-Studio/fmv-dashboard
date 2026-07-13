@@ -58,17 +58,22 @@ export default function PersonalTab() {
   const {
     pyg, totalesPyG, movimientos, añoActual,
     trabajadoresMensuales, cargarTrabajadores, guardarTrabajador,
+    horasManuales, guardarHorasMes,
     calendariosLaborales
   } = useData()
 
   const [editMes, setEditMes] = useState(null)
   const [editValue, setEditValue] = useState('')
+  const [editHorasMes, setEditHorasMes] = useState(null)
+  const [editHorasValue, setEditHorasValue] = useState('')
+  const [mesProd, setMesProd] = useState('año') // periodo de las tarjetas de productividad
   const [saving, setSaving] = useState(false)
   const [mensaje, setMensaje] = useState(null)
   const [dragActive, setDragActive] = useState(false)
 
   const mesesConDatos = pyg.filter(m => m.ventas !== 0 || m.resultado !== 0)
   const trabajadoresAño = trabajadoresMensuales[añoActual] || {}
+  const horasManualesAño = horasManuales?.[añoActual] || {}
   const trabajadoresAñoAnterior = trabajadoresMensuales[añoActual - 1] || {}
   const tieneTrabajadores = Object.keys(trabajadoresAño).length > 0
 
@@ -197,46 +202,66 @@ export default function PersonalTab() {
   const horasLabMes = useMemo(() => calcularHorasLaborables(calendarioAño, añoActual), [calendarioAño, añoActual])
   const diasLabMes = useMemo(() => calcularDiasLaborables(calendarioAño, añoActual), [calendarioAño, añoActual])
 
-  // Gastos por mes de grupos 60 (proveedores) y 62 (acreedores / servicios exteriores)
+  // Gastos por mes del grupo 6: 60 (proveedores), 62 (acreedores) y resto
+  // (63 tributos, 65 otros, 66 financieros, 67 pérdidas, 68 amortizaciones,
+  // 69 deterioros). Se excluyen el 64 completo (llega como Personal desde el
+  // PyG) y el 61 (variación de existencias: BC lo usa para capitalizar coste
+  // directo con importes enormes en el haber y no es un gasto operativo).
   const gastosPorMes = useMemo(() => {
     const result = {}
-    for (let m = 1; m <= 12; m++) result[m] = { proveedores: 0, acreedores: 0 }
+    for (let m = 1; m <= 12; m++) result[m] = { proveedores: 0, acreedores: 0, resto: 0 }
     movimientos.forEach(mov => {
       if (!mov.mes || !mov.mes.startsWith(String(añoActual))) return
-      const g2 = mov.cuenta?.substring(0, 2)
-      if (g2 !== '60' && g2 !== '62') return
+      const cuenta = mov.cuenta || ''
+      if (!cuenta.startsWith('6')) return
       const mesNum = parseInt(mov.mes.split('-')[1])
       const neto = (mov.debe || 0) - (mov.haber || 0)
+      const g2 = cuenta.substring(0, 2)
       if (g2 === '60') result[mesNum].proveedores += neto
-      else result[mesNum].acreedores += neto
+      else if (g2 === '62') result[mesNum].acreedores += neto
+      else if (g2 !== '61' && g2 !== '64') result[mesNum].resto += neto
     })
     return result
   }, [movimientos, añoActual])
 
   const productividadMensual = useMemo(() => {
+    // BC exporta apuntes con fecha futura (coste esperado, grupo 61/31):
+    // los meses posteriores al actual se marcan y quedan fuera de tabla y ratios
+    const hoy = new Date()
+    const mesTope = añoActual === hoy.getFullYear() ? hoy.getMonth() + 1 : 12
+
     return datosMensuales.map(d => {
+      const futuro = d.mesNum > mesTope
       const horas = horasLabMes[d.mesNum] || 0
       const dias = diasLabMes[d.mesNum] || 0
       const trab = d.trabajadores || 0
-      const horasTotales = trab * horas
-      const sueldos = d.sueldos || 0
+      // Horas manuales (si se han escrito) mandan sobre el cálculo por calendario
+      const horasManual = horasManualesAño[d.mesNum]
+      const horasTotales = horasManual > 0 ? horasManual : trab * horas
+      // Personal completo (grupo 64: 640+641+642+649), igual que la línea del PyG
+      const personalMes = d.personal || 0
       const proveedores = gastosPorMes[d.mesNum]?.proveedores || 0
       const acreedores = gastosPorMes[d.mesNum]?.acreedores || 0
-      const totalGastos = sueldos + proveedores + acreedores
+      const resto = gastosPorMes[d.mesNum]?.resto || 0
+      const totalGastos = personalMes + proveedores + acreedores + resto
       const ingresos = d.ventas || 0
 
       return {
         ...d,
+        futuro,
         horasLab: horas,
         diasLab: dias,
         horasTotales,
-        sueldos,
+        horasManual: horasManual > 0,
+        personalCompleto: personalMes,
         proveedores,
         acreedores,
+        resto,
         totalGastos,
         ingresos,
         gastosPorTrabajador: trab ? totalGastos / trab : null,
-        gastosHoraManoObra: horasTotales ? sueldos / horasTotales : null,
+        // Coste laboral completo por hora (grupo 64 entero ÷ horas)
+        gastosHoraManoObra: horasTotales ? personalMes / horasTotales : null,
         gastosHoraProveedores: horasTotales ? proveedores / horasTotales : null,
         gastosHoraAcreedores: horasTotales ? acreedores / horasTotales : null,
         gastosHoraTotal: horasTotales ? totalGastos / horasTotales : null,
@@ -246,19 +271,20 @@ export default function PersonalTab() {
         pctGastosVentas: ingresos ? (totalGastos / ingresos) * 100 : null
       }
     })
-  }, [datosMensuales, horasLabMes, diasLabMes, gastosPorMes])
+  }, [datosMensuales, horasLabMes, diasLabMes, gastosPorMes, horasManualesAño, añoActual])
 
   // Totales anuales productividad
   const productividadTotales = useMemo(() => {
-    const mesesConDatosProd = productividadMensual.filter(d => d.ingresos !== 0 || d.totalGastos !== 0)
+    const mesesConDatosProd = productividadMensual.filter(d => !d.futuro && (d.ingresos !== 0 || d.totalGastos !== 0))
     const sum = (key) => mesesConDatosProd.reduce((s, d) => s + (d[key] || 0), 0)
     const totalHoras = sum('horasTotales')
     const totalDias = mesesConDatosProd.reduce((s, d) => s + (d.diasLab || 0), 0)
     const totalIngresos = sum('ingresos')
     const totalGastos = sum('totalGastos')
-    const totalSueldos = sum('sueldos')
+    const totalPersonal = sum('personalCompleto')
     const totalProveedores = sum('proveedores')
     const totalAcreedores = sum('acreedores')
+    const totalResto = sum('resto')
     const plantillaMediaProd = mesesConDatosProd.filter(d => d.trabajadores).length > 0
       ? mesesConDatosProd.filter(d => d.trabajadores).reduce((s, d) => s + d.trabajadores, 0) / mesesConDatosProd.filter(d => d.trabajadores).length
       : 0
@@ -267,9 +293,10 @@ export default function PersonalTab() {
       totalDias,
       totalIngresos,
       totalGastos,
-      totalSueldos,
+      totalPersonal,
       totalProveedores,
       totalAcreedores,
+      totalResto,
       plantillaMediaProd,
       gastosHoraTotal: totalHoras ? totalGastos / totalHoras : 0,
       ingresosHora: totalHoras ? totalIngresos / totalHoras : 0,
@@ -278,6 +305,13 @@ export default function PersonalTab() {
       pctGastosVentas: totalIngresos ? (totalGastos / totalIngresos) * 100 : 0
     }
   }, [productividadMensual])
+
+  // KPIs de las tarjetas de productividad: media del año o un mes concreto
+  // (útil cuando un mes viene incompleto, p.ej. sin nóminas contabilizadas)
+  const mesesProdConDatos = productividadMensual.filter(d => !d.futuro && (d.ingresos !== 0 || d.totalGastos !== 0))
+  const kpisProd = mesProd === 'año'
+    ? productividadTotales
+    : (productividadMensual.find(d => d.mesNum === mesProd) || productividadTotales)
 
   // ============================================
   // POSICIONAMIENTO SECTOR (benchmarks CNAE 25)
@@ -336,6 +370,24 @@ export default function PersonalTab() {
     setEditValue('')
     if (result.success) {
       setMensaje({ tipo: 'ok', texto: `Trabajadores de ${MONTHS_SHORT[mesNum - 1]} actualizados` })
+    } else {
+      setMensaje({ tipo: 'error', texto: result.error })
+    }
+    setTimeout(() => setMensaje(null), 3000)
+  }
+
+  // Guardar horas totales manuales de un mes (vacío = volver al cálculo automático)
+  const handleSaveHoras = async (mesNum) => {
+    const texto = editHorasValue.trim()
+    const val = texto === '' ? null : parseFloat(texto.replace(/\./g, '').replace(',', '.'))
+    if (val !== null && (isNaN(val) || val < 0)) return
+    setSaving(true)
+    const result = await guardarHorasMes(añoActual, mesNum, val)
+    setSaving(false)
+    setEditHorasMes(null)
+    setEditHorasValue('')
+    if (result.success) {
+      setMensaje({ tipo: 'ok', texto: val === null ? `Horas de ${MONTHS_SHORT[mesNum - 1]} vuelven al cálculo automático` : `Horas de ${MONTHS_SHORT[mesNum - 1]} actualizadas` })
     } else {
       setMensaje({ tipo: 'error', texto: result.error })
     }
@@ -726,39 +778,52 @@ export default function PersonalTab() {
             <span>⚙️</span>
             <span>Productividad y Costes por Hora — {añoActual}</span>
           </h3>
-          <span className="text-xs text-white/80 italic" title={calendarioAño?._estimado ? `No hay calendario propio para ${añoActual}. Se ha estimado reutilizando el calendario de ${calendarioAño._añoBase} con las fechas de festivos ajustadas al año en curso.` : ''}>
-            {calendarioAño
-              ? `Calendario laboral ${calendarioAño._estimado ? `(estimado desde ${calendarioAño._añoBase})` : ''}: ${calendarioAño.horas_dia}h/día · total ${Object.values(horasLabMes).reduce((s, h) => s + h, 0)}h`
-              : 'Sin calendario laboral configurado (revisa FMV Producción → Admin → Calendario)'}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-white/80 italic" title={calendarioAño?._estimado ? `No hay calendario propio para ${añoActual}. Se ha estimado reutilizando el calendario de ${calendarioAño._añoBase} con las fechas de festivos ajustadas al año en curso.` : ''}>
+              {calendarioAño
+                ? `Calendario laboral ${calendarioAño._estimado ? `(estimado desde ${calendarioAño._añoBase})` : ''}: ${calendarioAño.horas_dia}h/día · total ${Object.values(horasLabMes).reduce((s, h) => s + h, 0)}h`
+                : 'Sin calendario laboral configurado (revisa FMV Producción → Admin → Calendario)'}
+            </span>
+            <select
+              value={mesProd}
+              onChange={(e) => setMesProd(e.target.value === 'año' ? 'año' : parseInt(e.target.value))}
+              className="px-2 py-1 bg-white/20 text-white rounded border border-white/30 text-xs"
+              title="Periodo de cálculo de las tarjetas: media del año o un mes concreto (útil si un mes viene incompleto)"
+            >
+              <option value="año" className="text-gray-800">Media del año</option>
+              {mesesProdConDatos.map(d => (
+                <option key={d.mesNum} value={d.mesNum} className="text-gray-800">{MONTHS_SHORT[d.mesNum - 1]}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* KPIs resumen productividad */}
         <div className="p-4 grid grid-cols-2 md:grid-cols-5 gap-3 border-b">
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-            <div className="text-[10px] font-semibold text-blue-700 uppercase">Gastos/Hora</div>
-            <div className="text-xl font-bold text-blue-700">{formatCurrency(productividadTotales.gastosHoraTotal)}</div>
+            <div className="text-[10px] font-semibold text-blue-700 uppercase">Gastos/Hora{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-xl font-bold text-blue-700">{formatCurrency(kpisProd.gastosHoraTotal)}</div>
             <div className="text-[10px] text-blue-600 mt-1">Total coste por hora trabajada</div>
           </div>
           <div className="bg-green-50 rounded-lg p-3 border border-green-100">
-            <div className="text-[10px] font-semibold text-green-700 uppercase">Ingresos/Hora</div>
-            <div className="text-xl font-bold text-green-700">{formatCurrency(productividadTotales.ingresosHora)}</div>
+            <div className="text-[10px] font-semibold text-green-700 uppercase">Ingresos/Hora{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-xl font-bold text-green-700">{formatCurrency(kpisProd.ingresosHora)}</div>
             <div className="text-[10px] text-green-600 mt-1">Facturación por hora trabajada</div>
           </div>
           <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
-            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Ingresos/Trabajador</div>
-            <div className="text-xl font-bold text-emerald-700">{formatCurrency(productividadTotales.ingresosPorTrabajador)}</div>
-            <div className="text-[10px] text-emerald-600 mt-1">Facturación media anual por empleado</div>
+            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Ingresos/Trabajador{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-xl font-bold text-emerald-700">{formatCurrency(kpisProd.ingresosPorTrabajador)}</div>
+            <div className="text-[10px] text-emerald-600 mt-1">{mesProd === 'año' ? 'Facturación media anual por empleado' : 'Facturación del mes por empleado'}</div>
           </div>
           <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
-            <div className="text-[10px] font-semibold text-indigo-700 uppercase">Ventas/Día Lab.</div>
-            <div className="text-xl font-bold text-indigo-700">{formatCurrency(productividadTotales.ventasDiaLab)}</div>
+            <div className="text-[10px] font-semibold text-indigo-700 uppercase">Ventas/Día Lab.{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-xl font-bold text-indigo-700">{formatCurrency(kpisProd.ventasDiaLab)}</div>
             <div className="text-[10px] text-indigo-600 mt-1">Facturación media por día laborable</div>
           </div>
-          <div className={`rounded-lg p-3 border ${productividadTotales.pctGastosVentas > 95 ? 'bg-red-50 border-red-100' : productividadTotales.pctGastosVentas > 85 ? 'bg-amber-50 border-amber-100' : 'bg-green-50 border-green-100'}`}>
-            <div className="text-[10px] font-semibold uppercase text-gray-700">% Gastos/Ventas</div>
-            <div className={`text-xl font-bold ${productividadTotales.pctGastosVentas > 95 ? 'text-red-700' : productividadTotales.pctGastosVentas > 85 ? 'text-amber-700' : 'text-green-700'}`}>
-              {formatPercent(productividadTotales.pctGastosVentas)}
+          <div className={`rounded-lg p-3 border ${kpisProd.pctGastosVentas > 95 ? 'bg-red-50 border-red-100' : kpisProd.pctGastosVentas > 85 ? 'bg-amber-50 border-amber-100' : 'bg-green-50 border-green-100'}`}>
+            <div className="text-[10px] font-semibold uppercase text-gray-700">% Gastos/Ventas{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className={`text-xl font-bold ${kpisProd.pctGastosVentas > 95 ? 'text-red-700' : kpisProd.pctGastosVentas > 85 ? 'text-amber-700' : 'text-green-700'}`}>
+              {formatPercent(kpisProd.pctGastosVentas)}
             </div>
             <div className="text-[10px] text-gray-600 mt-1">Peso de gastos operativos sobre ventas</div>
           </div>
@@ -773,14 +838,15 @@ export default function PersonalTab() {
                 <th className="px-2 py-2 text-right font-semibold text-purple-600 cursor-help" title="Nº de trabajadores en plantilla ese mes. Editable en la tabla de Ratios de Personal de arriba.">Trab.</th>
                 <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Horas laborables del mes por persona, calculadas desde el calendario laboral (tabla prod_calendario compartida con FMV Producción). Descuenta fines de semana, festivos y vacaciones de agosto.">Horas Lab.</th>
                 <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Días laborables equivalentes del mes (Horas Lab. ÷ horas/día del calendario). Un día de media jornada cuenta como 0,5.">Días Lab.</th>
-                <th className="px-2 py-2 text-right font-semibold text-gray-700 cursor-help" title="Horas totales trabajadas por la plantilla (Trabajadores × Horas Lab.). Base para calcular los costes e ingresos por hora.">Horas Tot.</th>
-                <th className="px-2 py-2 text-right font-semibold text-purple-700 cursor-help" title="Sueldos y salarios (cuenta 640) del mes. No incluye SS ni indemnizaciones.">Sueldos</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-700 cursor-help" title="Horas totales trabajadas por la plantilla. Por defecto se calculan como Trabajadores × Horas Lab., pero puedes escribirlas a mano haciendo clic en la celda (deja la celda vacía para volver al cálculo automático). Base para los costes e ingresos por hora.">Horas Tot. ✎</th>
+                <th className="px-2 py-2 text-right font-semibold text-purple-700 cursor-help" title="Gasto de personal COMPLETO del mes (grupo 64: sueldos 640 + indemnizaciones 641 + Seg. Social empresa 642 + otros gastos sociales 643-649). Coincide con la línea Personal del PyG.">Personal</th>
                 <th className="px-2 py-2 text-right font-semibold text-rose-700 cursor-help" title="Gastos de grupo 60 del mes (compras de materia prima, subcontrataciones, envases, etc.). Son costes directos dentro del margen bruto.">Proveed.</th>
                 <th className="px-2 py-2 text-right font-semibold text-orange-700 cursor-help" title="Servicios exteriores (grupo 62): arrendamientos, reparaciones, suministros, etc. Son gastos por debajo del margen bruto.">Acreed.</th>
-                <th className="px-2 py-2 text-right font-semibold text-gray-800 cursor-help" title="Suma de Sueldos + Proveedores + Acreedores del mes.">Total Gtos.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Resto de gastos del grupo 6: tributos (63), otros gastos de gestión (65), gastos financieros (66), pérdidas (67), amortizaciones (68) y deterioros (69). No incluye la variación de existencias (61), que es un ajuste contable y no un gasto operativo.">Resto Ind.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-800 cursor-help" title="Suma de Personal + Proveedores + Acreedores + Resto: TODOS los gastos del grupo 6 del mes.">Total Gtos.</th>
                 <th className="px-2 py-2 text-right font-semibold text-green-700 cursor-help" title="Importe neto de la cifra de negocios del mes (ventas).">Ingresos</th>
                 <th className="px-2 py-2 text-right font-semibold text-blue-600 cursor-help" title="Total Gastos ÷ Trabajadores. Coste total promedio por empleado en el mes.">Gtos./Trab.</th>
-                <th className="px-2 py-2 text-right font-semibold text-blue-700 cursor-help" title="Coste por hora trabajada — solo mano de obra (Sueldos ÷ Horas Totales).">Gtos./h M.O.</th>
+                <th className="px-2 py-2 text-right font-semibold text-blue-700 cursor-help" title="Coste laboral COMPLETO por hora trabajada (Personal ÷ Horas Totales): sueldos + Seg. Social de empresa + indemnizaciones + otros gastos sociales. Es lo que de verdad cuesta cada hora de plantilla.">Gtos./h Pers.</th>
                 <th className="px-2 py-2 text-right font-semibold text-rose-700 cursor-help" title="Coste por hora trabajada — solo proveedores grupo 60 (Proveedores ÷ Horas Totales).">Gtos./h Prov.</th>
                 <th className="px-2 py-2 text-right font-semibold text-orange-700 cursor-help" title="Coste por hora trabajada — solo acreedores / servicios exteriores (Acreedores ÷ Horas Totales).">Gtos./h Acr.</th>
                 <th className="px-2 py-2 text-right font-semibold text-gray-900 cursor-help" title="Coste total por hora trabajada (Total Gastos ÷ Horas Totales).">Gtos./h Tot.</th>
@@ -792,7 +858,7 @@ export default function PersonalTab() {
             </thead>
             <tbody>
               {productividadMensual.map(d => {
-                const tieneDatos = d.ingresos !== 0 || d.totalGastos !== 0
+                const tieneDatos = !d.futuro && (d.ingresos !== 0 || d.totalGastos !== 0)
                 if (!tieneDatos) return null
                 return (
                   <tr key={d.mes} className="border-b hover:bg-gray-50 transition-colors">
@@ -800,10 +866,38 @@ export default function PersonalTab() {
                     <td className="px-2 py-2 text-right text-purple-700">{d.trabajadores || '-'}</td>
                     <td className="px-2 py-2 text-right text-gray-600">{d.horasLab || '-'}</td>
                     <td className="px-2 py-2 text-right text-gray-600">{d.diasLab || '-'}</td>
-                    <td className="px-2 py-2 text-right text-gray-800 font-medium">{d.horasTotales ? formatNumber(d.horasTotales, 0) : '-'}</td>
-                    <td className="px-2 py-2 text-right text-purple-700">{formatCurrency(d.sueldos)}</td>
+                    <td
+                      className={`px-2 py-2 text-right font-medium cursor-text hover:bg-blue-50 ${d.horasManual ? 'text-blue-700' : 'text-gray-800'}`}
+                      onClick={() => {
+                        if (editHorasMes === d.mesNum) return
+                        setEditHorasMes(d.mesNum)
+                        setEditHorasValue(d.horasManual ? String(d.horasTotales) : '')
+                      }}
+                      title={d.horasManual ? 'Horas escritas a mano (clic para editar; deja vacío para volver al cálculo automático)' : 'Clic para escribir las horas totales a mano'}
+                    >
+                      {editHorasMes === d.mesNum ? (
+                        <input
+                          autoFocus
+                          type="text"
+                          inputMode="decimal"
+                          value={editHorasValue}
+                          disabled={saving}
+                          onChange={(e) => setEditHorasValue(e.target.value)}
+                          onBlur={() => handleSaveHoras(d.mesNum)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveHoras(d.mesNum)
+                            if (e.key === 'Escape') { setEditHorasMes(null); setEditHorasValue('') }
+                          }}
+                          className="w-16 px-1 py-0.5 text-right border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                      ) : (
+                        <>{d.horasTotales ? formatNumber(d.horasTotales, 0) : '-'}{d.horasManual && <span className="ml-0.5 text-[9px] align-super">✎</span>}</>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-right text-purple-700">{formatCurrency(d.personalCompleto)}</td>
                     <td className="px-2 py-2 text-right text-rose-700">{formatCurrency(d.proveedores)}</td>
                     <td className="px-2 py-2 text-right text-orange-700">{formatCurrency(d.acreedores)}</td>
+                    <td className="px-2 py-2 text-right text-gray-600">{formatCurrency(d.resto)}</td>
                     <td className="px-2 py-2 text-right text-gray-900 font-semibold">{formatCurrency(d.totalGastos)}</td>
                     <td className="px-2 py-2 text-right text-green-700 font-semibold">{formatCurrency(d.ingresos)}</td>
                     <td className="px-2 py-2 text-right text-blue-700">{d.gastosPorTrabajador != null ? formatCurrency(d.gastosPorTrabajador) : '-'}</td>
@@ -827,13 +921,14 @@ export default function PersonalTab() {
                 <td className="px-2 py-2 text-right text-gray-700">{Object.values(horasLabMes).reduce((s, h) => s + h, 0)}</td>
                 <td className="px-2 py-2 text-right text-gray-700">{productividadTotales.totalDias ? productividadTotales.totalDias.toFixed(0) : '-'}</td>
                 <td className="px-2 py-2 text-right text-gray-800">{productividadTotales.totalHoras ? formatNumber(productividadTotales.totalHoras, 0) : '-'}</td>
-                <td className="px-2 py-2 text-right text-purple-700">{formatCurrency(productividadTotales.totalSueldos)}</td>
+                <td className="px-2 py-2 text-right text-purple-700">{formatCurrency(productividadTotales.totalPersonal)}</td>
                 <td className="px-2 py-2 text-right text-rose-700">{formatCurrency(productividadTotales.totalProveedores)}</td>
                 <td className="px-2 py-2 text-right text-orange-700">{formatCurrency(productividadTotales.totalAcreedores)}</td>
+                <td className="px-2 py-2 text-right text-gray-600">{formatCurrency(productividadTotales.totalResto)}</td>
                 <td className="px-2 py-2 text-right text-gray-900">{formatCurrency(productividadTotales.totalGastos)}</td>
                 <td className="px-2 py-2 text-right text-green-700">{formatCurrency(productividadTotales.totalIngresos)}</td>
                 <td className="px-2 py-2 text-right text-blue-700">{productividadTotales.plantillaMediaProd ? formatCurrency(productividadTotales.totalGastos / productividadTotales.plantillaMediaProd) : '-'}</td>
-                <td className="px-2 py-2 text-right text-blue-700">{productividadTotales.totalHoras ? formatCurrency(productividadTotales.totalSueldos / productividadTotales.totalHoras) : '-'}</td>
+                <td className="px-2 py-2 text-right text-blue-700">{productividadTotales.totalHoras ? formatCurrency(productividadTotales.totalPersonal / productividadTotales.totalHoras) : '-'}</td>
                 <td className="px-2 py-2 text-right text-rose-700">{productividadTotales.totalHoras ? formatCurrency(productividadTotales.totalProveedores / productividadTotales.totalHoras) : '-'}</td>
                 <td className="px-2 py-2 text-right text-orange-700">{productividadTotales.totalHoras ? formatCurrency(productividadTotales.totalAcreedores / productividadTotales.totalHoras) : '-'}</td>
                 <td className="px-2 py-2 text-right text-gray-900">{formatCurrency(productividadTotales.gastosHoraTotal)}</td>
