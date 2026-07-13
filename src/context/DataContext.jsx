@@ -61,6 +61,7 @@ const initialState = {
 
   // Trabajadores mensuales
   trabajadoresMensuales: {},  // { año: { mes: numTrabajadores } }
+  horasManuales: {},  // { año: { mes: horasTotales } } — override manual de Horas Tot.
 
   // Calendarios laborales (tabla prod_calendario, compartida con FMV Producción)
   calendariosLaborales: {},  // { año: { anio, horas_dia, horario, festivos, media_jornada, vacaciones_agosto } }
@@ -70,6 +71,7 @@ const initialState = {
   pedidosCompra: [],
   mapeoGrupoCuenta: [],
   planCuentas: {},  // { cuenta: nombre }
+  tiposFinanciacion: {},  // { cuenta: tipo } — naturaleza editable de líneas de deuda
 
   // Rol de usuario
   userRole: 'direccion',
@@ -150,6 +152,13 @@ function dataReducer(state, action) {
     case 'LOAD_PRESUPUESTOS':
       return { ...state, presupuestos: action.payload }
 
+    case 'SET_PRESUPUESTO_CELDA': {
+      const { cuenta, mes, importe, año } = action.payload
+      const resto = state.presupuestos.filter(p =>
+        !(String(p.cuenta) === cuenta && p.mes === mes && (p.año == null || p.año === año)))
+      return { ...state, presupuestos: [...resto, { cuenta, mes, importe, año }] }
+    }
+
     case 'SET_ARCHIVOS_CARGADOS':
       return { ...state, archivosCargados: action.payload }
 
@@ -176,8 +185,20 @@ function dataReducer(state, action) {
     case 'LOAD_PLAN_CUENTAS':
       return { ...state, planCuentas: action.payload }
 
+    case 'LOAD_TIPOS_FINANCIACION':
+      return { ...state, tiposFinanciacion: action.payload }
+
+    case 'SET_TIPO_FINANCIACION':
+      return {
+        ...state,
+        tiposFinanciacion: { ...state.tiposFinanciacion, [action.payload.cuenta]: action.payload.tipo }
+      }
+
     case 'LOAD_TRABAJADORES':
       return { ...state, trabajadoresMensuales: action.payload }
+
+    case 'LOAD_HORAS_MANUALES':
+      return { ...state, horasManuales: action.payload }
 
     case 'LOAD_CALENDARIOS':
       return { ...state, calendariosLaborales: action.payload }
@@ -393,18 +414,32 @@ export function DataProvider({ children }) {
           planResult.data.forEach(p => { planMap[p.cuenta] = p.nombre })
           dispatch({ type: 'LOAD_PLAN_CUENTAS', payload: planMap })
         }
+
+        // Tipos de financiación editables (tolera que la tabla aún no exista)
+        const tiposResult = await db.tiposFinanciacion.getAll()
+        if (tiposResult.data && tiposResult.data.length > 0) {
+          const tiposMap = {}
+          tiposResult.data.forEach(t => { tiposMap[t.cuenta] = t.tipo })
+          dispatch({ type: 'LOAD_TIPOS_FINANCIACION', payload: tiposMap })
+        }
       } catch (e) {
         console.warn('Error cargando datos compras:', e)
       }
 
-      // 7. Trabajadores mensuales
+      // 7. Trabajadores mensuales (+ horas totales manuales si existen)
       if (trabajadoresResult.data && trabajadoresResult.data.length > 0) {
         const trabajadoresMap = {}
+        const horasMap = {}
         trabajadoresResult.data.forEach(t => {
           if (!trabajadoresMap[t.año]) trabajadoresMap[t.año] = {}
           trabajadoresMap[t.año][t.mes] = t.trabajadores
+          if (t.horas_totales != null && t.horas_totales > 0) {
+            if (!horasMap[t.año]) horasMap[t.año] = {}
+            horasMap[t.año][t.mes] = parseFloat(t.horas_totales)
+          }
         })
         dispatch({ type: 'LOAD_TRABAJADORES', payload: trabajadoresMap })
+        dispatch({ type: 'LOAD_HORAS_MANUALES', payload: horasMap })
       }
 
       // 8. Calendarios laborales (tabla compartida con FMV Producción)
@@ -920,8 +955,9 @@ export function DataProvider({ children }) {
       // Guardar en Supabase
       dispatch({ type: 'SET_LOADING', payload: true, message: 'Guardando en Supabase...' })
 
-      // Eliminar presupuesto existente del año
-      await db.presupuestos.deleteByYear(año)
+      // Eliminar presupuesto PyG existente del año, conservando el de
+      // inversiones (grupo 2), que se introduce a mano en su pestaña
+      await db.presupuestos.deleteByYearPyG(año)
 
       // Insertar nuevos presupuestos
       const { error } = await db.presupuestos.upsert(presupuestos)
@@ -929,8 +965,10 @@ export function DataProvider({ children }) {
         throw new Error(`Error guardando presupuesto: ${error.message}`)
       }
 
-      // Actualizar estado
-      dispatch({ type: 'LOAD_PRESUPUESTOS', payload: presupuestos })
+      // Actualizar estado (mezclando el ppto de inversiones que ya había)
+      const pptoInversiones = state.presupuestos.filter(p =>
+        String(p.cuenta).startsWith('2') && (p.año == null || p.año === año))
+      dispatch({ type: 'LOAD_PRESUPUESTOS', payload: [...presupuestos, ...pptoInversiones] })
       dispatch({ type: 'SET_LOADING', payload: false })
 
       return { success: true, count: presupuestos.length }
@@ -1252,6 +1290,29 @@ export function DataProvider({ children }) {
     dispatch({ type: 'LOAD_MAPEO_GRUPO_CUENTA', payload: filas })
   }
 
+  // Guardar una celda de presupuesto (cuenta 3 dígitos, mes) — edición manual
+  const guardarPresupuestoCelda = async (cuenta, mes, importe) => {
+    const año = state.añoActual
+    dispatch({ type: 'SET_PRESUPUESTO_CELDA', payload: { cuenta, mes, importe, año } })
+    const { error } = await db.presupuestos.upsert([{ año, mes, cuenta, importe }])
+    if (error) {
+      console.error('Error guardando presupuesto:', error)
+      return { success: false, error: error.message }
+    }
+    return { success: true }
+  }
+
+  // Guardar tipo de una línea de financiación (optimista + persistencia)
+  const guardarTipoFinanciacion = async (cuenta, tipo) => {
+    dispatch({ type: 'SET_TIPO_FINANCIACION', payload: { cuenta, tipo } })
+    const { error } = await db.tiposFinanciacion.save(cuenta, tipo)
+    if (error) {
+      console.error('Error guardando tipo de financiación:', error)
+      return { success: false, error: error.message }
+    }
+    return { success: true }
+  }
+
   // Cargar plan de cuentas desde Excel
   const cargarPlanCuentas = async (file) => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Procesando plan de cuentas...' })
@@ -1388,6 +1449,28 @@ export function DataProvider({ children }) {
     }
   }
 
+  // Guardar/limpiar horas totales manuales de un mes (null = volver al cálculo
+  // automático trabajadores × horas laborables). Requiere columna horas_totales
+  // en trabajadores_mensuales (sql/pendientes_2026-07-13.sql).
+  const guardarHorasMes = async (año, mes, horas) => {
+    try {
+      const trabajadores = state.trabajadoresMensuales[año]?.[mes] ?? 0
+      const { error } = await db.trabajadores.upsert([{ año, mes, trabajadores, horas_totales: horas }])
+      if (error) throw new Error(error.message)
+
+      const horasMap = { ...state.horasManuales }
+      if (!horasMap[año]) horasMap[año] = {}
+      if (horas != null && horas > 0) horasMap[año][mes] = horas
+      else delete horasMap[año][mes]
+
+      dispatch({ type: 'LOAD_HORAS_MANUALES', payload: horasMap })
+      return { success: true }
+    } catch (error) {
+      console.error('Error guardando horas manuales:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   // Borrar albaranes de un año/mes
   const borrarAlbaranes = async (año, mes) => {
     dispatch({ type: 'SET_LOADING', payload: true, message: 'Eliminando albaranes...' })
@@ -1468,8 +1551,11 @@ export function DataProvider({ children }) {
     guardarMapeo,
     guardarMapeoProveedorCuenta,
     cargarPlanCuentas,
+    guardarTipoFinanciacion,
+    guardarPresupuestoCelda,
     cargarTrabajadores,
     guardarTrabajador,
+    guardarHorasMes,
     exportarExcel,
     exportarMovimientos,
     limpiarDatos,

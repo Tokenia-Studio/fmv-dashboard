@@ -11,6 +11,7 @@ import {
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatCompact, mesKeyToNombre } from '../../utils/formatters'
 import { MONTHS_SHORT, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO } from '../../utils/constants'
+import { exportarLibroMovimientos } from '../../utils/exportExcel'
 
 const COLOR_ENTRA = '#22c55e'
 const COLOR_SALE = '#ef4444'
@@ -24,7 +25,7 @@ function bucketDeCuenta(cuenta) {
 }
 
 export default function PuenteCajaSection() {
-  const { puenteCaja, añoActual, exportarMovimientos } = useData()
+  const { puenteCaja, añoActual, movimientos, proveedores } = useData()
   const [periodo, setPeriodo] = useState('año') // 'año' | 1..12
 
   const datosWaterfall = useMemo(() => {
@@ -67,14 +68,19 @@ export default function PuenteCajaSection() {
 
   const descuadre = Math.abs(puenteCaja.totalCalc - puenteCaja.totalReal) >= 0.01
 
-  // Export de los movimientos de un bucket en un periodo
+  // Export de los movimientos de un bucket en un periodo, con formato
+  // español (#.##0,00) y fila TOTAL — misma plantilla que en Financiación
   const exportarBucket = (bucketId, mes) => {
     const mesKey = mes ? `${añoActual}-${String(mes).padStart(2, '0')}` : null
     const nombre = CASHFLOW_BUCKETS.find(b => b.id === bucketId)?.label || bucketId
-    exportarMovimientos(
-      (m) => (mesKey ? m.mes === mesKey : m.mes.startsWith(String(añoActual))) &&
-             bucketDeCuenta(m.cuenta) === bucketId,
-      `Puente_${nombre.replace(/[^a-zA-Z0-9]+/g, '_')}_${mesKey ? mesKeyToNombre(mesKey) : añoActual}`
+    const movsBucket = movimientos.filter(m =>
+      (mesKey ? m.mes === mesKey : m.mes.startsWith(String(añoActual))) &&
+      bucketDeCuenta(m.cuenta) === bucketId
+    )
+    exportarLibroMovimientos(
+      [{ nombre, movimientos: movsBucket }],
+      `Puente_${nombre.replace(/[^a-zA-Z0-9]+/g, '_')}_${mesKey ? mesKeyToNombre(mesKey) : añoActual}`,
+      proveedores
     )
   }
 

@@ -5,15 +5,36 @@
 import React from 'react'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceLine, Cell
+  Tooltip, ResponsiveContainer, ReferenceLine, Cell, LabelList
 } from 'recharts'
 import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
-import { formatCurrency, formatCompact, mesKeyToNombre, getValueClass } from '../../utils/formatters'
+import { formatCompact, mesKeyToNombre } from '../../utils/formatters'
 import { MONTHS_SHORT, CHART_COLORS } from '../../utils/constants'
 import CustomTooltip from '../UI/CustomTooltip'
 import ExportButton from '../UI/ExportButton'
 import PuenteCajaSection from './PuenteCajaSection'
+
+// Etiqueta de valor sobre cada barra de variación: encima si es positiva,
+// debajo si es negativa, con formato español (puntos de miles, coma decimal)
+function VariacionLabel({ x, y, width, height, value }) {
+  if (value == null || value === 0) return null
+  const positivo = value >= 0
+  const etiqueta = (positivo ? '+' : '−') +
+    Math.abs(value).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  return (
+    <text
+      x={x + width / 2}
+      y={positivo ? y - 7 : y + height + 15}
+      textAnchor="middle"
+      fontSize={11}
+      fontWeight={700}
+      fill={positivo ? '#15803d' : '#b91c1c'}
+    >
+      {etiqueta}
+    </text>
+  )
+}
 
 export default function CashFlowTab() {
   const { cashFlow, añoActual, exportarMovimientos } = useData()
@@ -140,8 +161,8 @@ export default function CashFlowTab() {
         </div>
 
         <div className="p-4">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={datosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={datosGrafico} margin={{ top: 26, right: 30, left: 20, bottom: 18 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis
                 dataKey="mes"
@@ -168,6 +189,7 @@ export default function CashFlowTab() {
                     fill={entry['Variación'] >= 0 ? '#22c55e' : '#ef4444'}
                   />
                 ))}
+                <LabelList dataKey="Variación" content={<VariacionLabel />} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -178,40 +200,6 @@ export default function CashFlowTab() {
         </div>
       </div>
 
-      {/* Tabla detalle */}
-      <div className="card overflow-hidden">
-        <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>📋</span>
-            <span>Detalle Mensual</span>
-          </h3>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="table-header">
-              <tr>
-                <th className="p-3 text-left">Mes</th>
-                <th className="p-3 text-right">Saldo Fin Mes</th>
-                <th className="p-3 text-right">Variación</th>
-              </tr>
-            </thead>
-            <tbody>
-              {meses.filter(m => m.saldo !== 0 || m.variacion !== 0).map((mes) => (
-                <tr key={mes.mes} className="table-row">
-                  <td className="p-3 font-medium">{mesKeyToNombre(mes.mes)}</td>
-                  <td className="p-3 text-right font-medium text-gray-800">
-                    {formatCurrency(mes.saldo)}
-                  </td>
-                  <td className={`p-3 text-right font-medium ${getValueClass(mes.variacion)}`}>
-                    {mes.variacion >= 0 ? '+' : ''}{formatCurrency(mes.variacion)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   )
 }

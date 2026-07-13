@@ -265,6 +265,17 @@ export const db = {
       return { error }
     },
 
+    // Eliminar solo el presupuesto PyG de un año (conserva el de
+    // inversiones, grupo 2, que se introduce a mano en el dashboard)
+    deleteByYearPyG: async (año) => {
+      const { error } = await supabase
+        .from('presupuestos')
+        .delete()
+        .eq('año', año)
+        .not('cuenta', 'like', '2%')
+      return { error }
+    },
+
     // Obtener años con presupuesto
     getYears: async () => {
       const { data, error } = await supabase
@@ -507,6 +518,25 @@ export const db = {
         .upsert(
           { id: 1, contenido, updated_at: new Date().toISOString() },
           { onConflict: 'id' }
+        )
+      return { data, error }
+    }
+  },
+
+  // --- TIPOS FINANCIACION (naturaleza editable de cada línea de deuda) ---
+  tiposFinanciacion: {
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('tipos_financiacion')
+        .select('cuenta, tipo')
+      return { data, error }
+    },
+    save: async (cuenta, tipo) => {
+      const { data, error } = await supabase
+        .from('tipos_financiacion')
+        .upsert(
+          { cuenta, tipo, updated_at: new Date().toISOString() },
+          { onConflict: 'cuenta' }
         )
       return { data, error }
     }
