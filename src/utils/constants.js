@@ -101,6 +101,7 @@ export const TABS = [
   // { id: 'gestionDocumental', label: 'Gest. Documental', icon: '📄' }, // APARCADO 25/02/2026
   { id: 'personal', label: 'Personal', icon: '👥' },
   { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
+  { id: 'inversiones', label: 'Ppto Inversiones', icon: '🏗️' }, // Pestaña propia rol compras (direccion la ve dentro de Presupuesto)
   // { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' }, // Movido a app independiente FMV Producción
   // { id: 'planificacionProduccion', label: 'Planif. Producción', icon: '📋' }, // Movido a app independiente FMV Producción
   { id: 'cargar', label: 'Cargar', icon: '📤' },
@@ -117,7 +118,7 @@ export const NAVIGATION_SECTIONS = {
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
   direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', 'cargar', 'usuarios'],
-  compras: ['servicios', 'proveedores', 'presupuestoCompras', 'cargar']
+  compras: ['servicios', 'proveedores', 'presupuestoCompras', 'inversiones', 'cargar']
 }
 
 // Umbrales semáforo para Seguimiento Estructuras (% desviación)
@@ -172,7 +173,9 @@ export const CHART_COLORS = {
   deudaCorto: '#ef4444',
   deudaLargo: '#f97316',
   deudaTotal: '#1a365d',
-  tesoreria: '#22c55e'
+  tesoreria: '#22c55e',
+  confirming: '#f59e0b',
+  finImpuestos: '#8b5cf6'
 }
 
 // Umbrales para indicadores semáforo

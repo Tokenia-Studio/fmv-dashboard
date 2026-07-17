@@ -4,7 +4,7 @@
 
 import React from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import { formatCurrency, formatCompact, mesKeyToNombre } from '../../utils/formatters'
 import { CHART_COLORS, MONTHS_SHORT } from '../../utils/constants'
@@ -26,7 +26,9 @@ export default function EvolucionDeuda({ datos, año, proyeccion }) {
       'Corto Plazo': datosMes.deudaCorto || 0,
       'Largo Plazo': datosMes.deudaLargo || 0,
       'Total': datosMes.deudaTotal || 0,
-      'Tesorería': datosMes.tesoreria || 0
+      'Tesorería': datosMes.tesoreria || 0,
+      'Confirming': datosMes.confirming || 0,
+      'Fin. Impuestos': datosMes.finImpuestos || 0
     }
   })
 
@@ -41,7 +43,7 @@ export default function EvolucionDeuda({ datos, año, proyeccion }) {
 
       <div className="p-4">
         <ResponsiveContainer width="100%" height={350}>
-          <LineChart data={datosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <ComposedChart data={datosGrafico} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
               dataKey="mes"
@@ -55,6 +57,22 @@ export default function EvolucionDeuda({ datos, año, proyeccion }) {
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+
+            {/* Objetivo: llevar estas líneas C/P a 0 — barras para vigilarlas */}
+            <Bar
+              dataKey="Confirming"
+              stackId="vigiladas"
+              fill={CHART_COLORS.confirming}
+              fillOpacity={0.85}
+              maxBarSize={28}
+            />
+            <Bar
+              dataKey="Fin. Impuestos"
+              stackId="vigiladas"
+              fill={CHART_COLORS.finImpuestos}
+              fillOpacity={0.85}
+              maxBarSize={28}
+            />
 
             <Line
               type="monotone"
@@ -85,7 +103,7 @@ export default function EvolucionDeuda({ datos, año, proyeccion }) {
               strokeDasharray="5 5"
               dot={{ r: 3 }}
             />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>

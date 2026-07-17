@@ -2,7 +2,7 @@
 // CÁLCULOS - FMV Dashboard v2.0
 // ============================================
 
-import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3, ESTRUCTURA_BALANCE, ESTRUCTURA_PYG_CCAA, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO, PAREJAS_PRESTAMOS_MANUAL } from './constants'
+import { ACCOUNT_GROUPS, SERVICIOS_SUBCUENTAS, ACCOUNT_GROUPS_3, ESTRUCTURA_BALANCE, ESTRUCTURA_PYG_CCAA, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO, PAREJAS_PRESTAMOS_MANUAL, TIPOS_FINANCIACION_MANUAL } from './constants'
 
 /**
  * Agrupa movimientos por mes y categoría para PyG
@@ -259,13 +259,23 @@ export function calcularFinanciacion(movimientos, saldos, año) {
   const meses = []
   const parejas = { ...detectarParejasTraspaso(movimientos), ...PAREJAS_PRESTAMOS_MANUAL }
 
+  // Cuentas 52x vigiladas por concepto: el objetivo operativo es llevarlas a 0
+  const cuentasConfirming = Object.keys(TIPOS_FINANCIACION_MANUAL)
+    .filter(c => c.startsWith('52') && TIPOS_FINANCIACION_MANUAL[c] === 'Confirming proveedores')
+  const cuentasFinImpuestos = Object.keys(TIPOS_FINANCIACION_MANUAL)
+    .filter(c => c.startsWith('52') && TIPOS_FINANCIACION_MANUAL[c] === 'Financiación impuestos')
+
   // Deuda con la que arranca el año (arrastre de ejercicios anteriores):
   // sin ella la tabla de flujos no cuadra a ojo (inicial + neto = final)
   let deudaInicial = 0
+  let saldoConfirming = 0
+  let saldoFinImpuestos = 0
   movimientos.forEach(mov => {
     if (mov.mes >= `${año}-01`) return
     const g = mov.cuenta.substring(0, 2)
     if (g === '17' || g === '52') deudaInicial += mov.haber - mov.debe
+    if (cuentasConfirming.includes(mov.cuenta)) saldoConfirming += mov.haber - mov.debe
+    if (cuentasFinImpuestos.includes(mov.cuenta)) saldoFinImpuestos += mov.haber - mov.debe
   })
 
   for (let m = 1; m <= 12; m++) {
@@ -287,6 +297,8 @@ export function calcularFinanciacion(movimientos, saldos, año) {
       if (g !== '17' && g !== '52') return
       if (g === '17') { flujoDeuda.debe17 += mov.debe; flujoDeuda.haber17 += mov.haber }
       if (g === '52') { flujoDeuda.debe52 += mov.debe; flujoDeuda.haber52 += mov.haber }
+      if (cuentasConfirming.includes(mov.cuenta)) saldoConfirming += mov.haber - mov.debe
+      if (cuentasFinImpuestos.includes(mov.cuenta)) saldoFinImpuestos += mov.haber - mov.debe
       if (!porCuenta[mov.cuenta]) porCuenta[mov.cuenta] = { debe: 0, haber: 0 }
       porCuenta[mov.cuenta].debe += mov.debe
       porCuenta[mov.cuenta].haber += mov.haber
@@ -304,7 +316,9 @@ export function calcularFinanciacion(movimientos, saldos, año) {
       nuevaFinanciacion,
       amortizacion,
       traspasoLPCP: traspaso,
-      tesoreria: saldoMes['57'] || 0
+      tesoreria: saldoMes['57'] || 0,
+      confirming: saldoConfirming,
+      finImpuestos: saldoFinImpuestos
     })
   }
 
