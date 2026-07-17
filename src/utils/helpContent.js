@@ -274,6 +274,29 @@ export const HELP_CONTENT = {
     ]
   },
 
+  inversiones: {
+    titulo: 'Presupuesto de Inversiones (CAPEX)',
+    descripcion: 'Seguimiento de las inversiones en inmovilizado (grupo 2) frente a un presupuesto anual editable a mano, con desviaciones mes a mes y acumulado.',
+    secciones: [
+      {
+        titulo: 'Qué muestra',
+        contenido: 'Para cada familia de inmovilizado (intangible, material, en curso…): presupuesto del mes, real del mes (altas de inmovilizado según contabilidad), desviación %, y las mismas columnas en acumulado desde enero. Se excluyen amortización acumulada (28x) y deterioros (29x) porque no son inversión.'
+      },
+      {
+        titulo: 'Cómo introducir el presupuesto',
+        contenido: 'El presupuesto se teclea directamente en la tabla: haz clic en una celda de la columna de presupuesto, escribe el importe (formato español, p. ej. "12.500" o "12500,50") y confirma con Enter o saliendo de la celda. Se guarda automáticamente.'
+      },
+      {
+        titulo: 'De dónde sale el real',
+        contenido: 'Del diario contable cargado en "Cargar Datos": altas de cuentas del grupo 2 (debe − haber). No requiere cargar ningún fichero adicional.'
+      },
+      {
+        titulo: 'Bajar al detalle',
+        contenido: 'Clic en una familia despliega sus cuentas de 3 dígitos. Al pulsar un importe de la columna REAL se descarga un Excel con los movimientos contables que componen esa cifra. El botón "Exportar" descarga toda la tabla.'
+      }
+    ]
+  },
+
   cargar: {
     titulo: 'Cargar Datos',
     descripcion: 'Punto central de carga de ficheros Excel. Desde aquí se suben todos los ficheros necesarios para alimentar el dashboard.',

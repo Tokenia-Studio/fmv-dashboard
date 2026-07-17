@@ -15,6 +15,7 @@ import ProveedoresTab from './components/Proveedores/ProveedoresTab'
 import CashFlowTab from './components/CashFlow/CashFlowTab'
 import PresupuestoTab from './components/Presupuesto/PresupuestoTab'
 import PresupuestoComprasTab from './components/PresupuestoCompras/PresupuestoComprasTab'
+import PresupuestoInversionesTab from './components/Presupuesto/PresupuestoInversionesTab'
 // import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab' // Movido a app independiente
 import CuentasAnualesTab from './components/CuentasAnuales/CuentasAnualesTab'
 import PersonalTab from './components/Personal/PersonalTab'
@@ -187,6 +188,8 @@ function App() {
         return <GestionDocumentalTab />
       case 'presupuestoCompras':
         return <PresupuestoComprasTab />
+      case 'inversiones':
+        return <PresupuestoInversionesTab />
       // case 'seguimientoEstructuras': // Movido a app independiente
       //   return <SeguimientoEstructurasTab />
       // case 'planificacionProduccion': // Movido a app independiente
