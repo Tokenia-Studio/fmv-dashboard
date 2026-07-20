@@ -98,26 +98,65 @@ export const db = {
       return { data, error }
     },
 
-    // Obtener movimientos por año (con paginación para cargar todos)
+    // Obtener movimientos por año (paginado, carga todos)
+    //
+    // Paginación por CLAVE (keyset), no por OFFSET: cada página arranca en
+    // `id > último id leído`. Con OFFSET, Postgres tiene que recorrer y
+    // descartar todas las filas anteriores, así que la página 15 costaba
+    // mucho más que la 1 y acababa dando timeout (HTTP 500). Por clave,
+    // todas las páginas cuestan lo mismo. Requiere el índice (año, id)
+    // — ver sql/indice_movimientos_año_id.sql.
+    //
+    // Además cada página se reintenta ante fallos transitorios: antes, una
+    // sola página caída abortaba el año entero y la app calculaba con datos
+    // incompletos sin avisar (2026 salía en blanco y nadie se enteraba).
     getByYear: async (año) => {
       const PAGE_SIZE = 5000
-      let allData = []
-      let from = 0
+      const MAX_INTENTOS = 3
+      const allData = []
+      let ultimoId = null
       let hasMore = true
 
       while (hasMore) {
-        const { data, error } = await supabase
-          .from('movimientos')
-          .select('*')
-          .eq('año', año)
-          .order('id', { ascending: true })
-          .range(from, from + PAGE_SIZE - 1)
+        let data = null
+        let error = null
 
-        if (error) return { data: null, error }
+        for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
+          let query = supabase
+            .from('movimientos')
+            .select('*')
+            .eq('año', año)
+            .order('id', { ascending: true })
+            .limit(PAGE_SIZE)
+
+          if (ultimoId !== null) query = query.gt('id', ultimoId)
+
+          ;({ data, error } = await query)
+
+          if (!error) break
+
+          console.warn(
+            `Movimientos ${año}: página desde id ${ultimoId ?? 'inicio'} falló (intento ${intento}/${MAX_INTENTOS}):`,
+            error.message
+          )
+          if (intento < MAX_INTENTOS) {
+            await new Promise(r => setTimeout(r, 500 * 2 ** (intento - 1))) // 500ms, 1s
+          }
+        }
+
+        // Agotados los reintentos: devolver error para que quien llame NO use datos parciales
+        if (error) {
+          return {
+            data: null,
+            error: new Error(
+              `No se pudieron cargar los movimientos de ${año}: una página falló tras ${MAX_INTENTOS} intentos (${error.message}). Los datos de ${año} estarían incompletos.`
+            )
+          }
+        }
 
         if (data && data.length > 0) {
-          allData = [...allData, ...data]
-          from += PAGE_SIZE
+          allData.push(...data)
+          ultimoId = data[data.length - 1].id
           hasMore = data.length === PAGE_SIZE
         } else {
           hasMore = false
