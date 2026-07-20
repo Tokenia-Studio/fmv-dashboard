@@ -24,6 +24,7 @@ import GestionDocumentalTab from './components/GestionDocumental/GestionDocument
 import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
+import UpdateBanner from './components/UI/UpdateBanner'
 
 // Error Boundary
 class ErrorBoundary extends React.Component {
@@ -251,6 +252,9 @@ function App() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Aviso flotante cuando hay un deploy más nuevo que la pestaña abierta */}
+      <UpdateBanner />
     </div>
   )
 }
