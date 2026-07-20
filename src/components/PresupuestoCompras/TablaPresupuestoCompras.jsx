@@ -12,7 +12,7 @@ import { calcularPresupuestoCompras, calcularResumenInversiones } from '../../ut
 import ExportButton from '../UI/ExportButton'
 
 export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, año }) {
-  const { presupuestos, pyg3Digitos, albaranesFacturas, pedidosCompra, movimientos, planCuentas, proveedores, proveedoresCuentas } = useData()
+  const { presupuestos, pyg3Digitos, albaranesFacturas, pedidosCompra, movimientos, planCuentas, proveedores, proveedoresCuentas, setTab } = useData()
   const [expanded, setExpanded] = useState(new Set())
 
   // Exportar movimientos a Excel
@@ -600,7 +600,13 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
                 <span className="flex items-center gap-1 font-semibold">
                   <span className="mr-1">&#127959;</span>
                   INVERSIONES (CAPEX)
-                  <span className="ml-2 text-xs font-normal text-gray-500">ver desglose en su pesta\u00F1a</span>
+                  <button
+                    onClick={() => setTab('inversiones')}
+                    className="ml-2 text-xs font-normal text-blue-600 hover:text-blue-800 hover:underline"
+                    title="Ir a la pesta\u00F1a Ppto Inversiones"
+                  >
+                    ir a Ppto Inversiones &rarr;
+                  </button>
                 </span>
               </td>
               <td className="p-3 text-right">{formatCurrency(inversiones.presMes)}</td>
