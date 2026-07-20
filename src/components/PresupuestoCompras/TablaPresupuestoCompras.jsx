@@ -542,7 +542,7 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
       'Total Estimado': formatExcelNumber(d.totalEstMes),
       'Desv %': d.desvMes != null ? d.desvMes.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-',
       'Ppto Acum': formatExcelNumber(d.presAcum),
-      'Total Est. Acum': formatExcelNumber(d.totalEstAcum),
+      'Total Estimado Acum': formatExcelNumber(d.totalEstAcum),
       'Desv Acum %': d.desvAcum != null ? d.desvAcum.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '-'
     }))
     const ws = XLSX.utils.json_to_sheet(exportData)
@@ -582,10 +582,10 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
               <th className="p-3 text-right">Real Contable</th>
               <th className="p-3 text-right">Albar. Ptes</th>
               <th className="p-3 text-right">Pedidos Ptes</th>
-              <th className="p-3 text-right">Total Est.</th>
+              <th className="p-3 text-right">Total Estimado</th>
               <th className="p-3 text-right">Desv.</th>
               <th className="p-3 text-right bg-slate-200">Ppto Acum</th>
-              <th className="p-3 text-right bg-slate-200">Total Est. Acum</th>
+              <th className="p-3 text-right bg-slate-200">Total Estimado Acum</th>
               <th className="p-3 text-right bg-slate-200">Desv. Acum</th>
             </tr>
           </thead>
