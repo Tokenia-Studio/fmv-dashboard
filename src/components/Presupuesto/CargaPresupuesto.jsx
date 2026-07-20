@@ -4,6 +4,7 @@
 
 import React, { useRef, useState } from 'react'
 import { useData } from '../../context/DataContext'
+import { exportarPlantillaPresupuesto } from '../../utils/exportPresupuesto'
 
 export default function CargaPresupuesto() {
   const { cargarPresupuesto, presupuestos, añoActual, años } = useData()
@@ -13,6 +14,16 @@ export default function CargaPresupuesto() {
   const [añoSeleccionado, setAñoSeleccionado] = useState(añoActual)
 
   const tienePresupuesto = presupuestos && presupuestos.length > 0
+
+  // Ida y vuelta: descarga la plantilla del ejercicio, se edita fuera y se
+  // vuelve a subir por el mismo botón de carga.
+  const handleDescargarPlantilla = () => {
+    try {
+      exportarPlantillaPresupuesto(presupuestos, añoSeleccionado)
+    } catch (error) {
+      setResultado({ success: false, error: `No se pudo generar la plantilla: ${error.message}` })
+    }
+  }
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0]
@@ -74,6 +85,19 @@ export default function CargaPresupuesto() {
               ))}
             </select>
           </div>
+
+          <button
+            onClick={handleDescargarPlantilla}
+            disabled={cargando}
+            title={`Descarga el presupuesto de ${añoSeleccionado} en Excel para editarlo y volver a subirlo`}
+            className="px-4 py-2 rounded-lg font-medium border border-gray-300 text-gray-700
+                       hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <span>📥</span>
+              Descargar plantilla
+            </span>
+          </button>
 
           <input
             ref={fileInputRef}

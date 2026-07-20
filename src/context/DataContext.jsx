@@ -803,13 +803,39 @@ export function DataProvider({ children }) {
     try {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer, { type: 'array' })
-      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+
+      // Formato plantilla (ida y vuelta): hoja llamada PPTO_<año>. El nombre de
+      // hoja hace de marcador de formato y además transporta el ejercicio.
+      // Se exige ADEMÁS que la cabecera sea la nuestra (A1=Cuenta, B1=Descripción):
+      // así ningún fichero ajeno que por casualidad tenga una hoja con ese nombre
+      // puede colarse por esta rama y saltarse el parser que le toca.
+      const candidataPlantilla = workbook.SheetNames.find(n => /^PPTO_\d{4}$/i.test(n.trim()))
+      const cabeceraPlantilla = candidataPlantilla
+        ? (XLSX.utils.sheet_to_json(workbook.Sheets[candidataPlantilla], { header: 1 })[0] || [])
+        : []
+      const hojaPlantilla = (
+        String(cabeceraPlantilla[0] || '').trim().toLowerCase() === 'cuenta' &&
+        String(cabeceraPlantilla[1] || '').trim().toLowerCase().startsWith('descripci')
+      ) ? candidataPlantilla : null
+
+      const añoPlantilla = hojaPlantilla ? parseInt(hojaPlantilla.trim().substring(5)) : null
+
+      const sheet = workbook.Sheets[hojaPlantilla || workbook.SheetNames[0]]
 
       // Intentar detectar formato GL PPT (con header: 1 para arrays)
       const jsonRaw = XLSX.utils.sheet_to_json(sheet, { header: 1 })
 
       const presupuestos = []
       const presupuestosPorCuentaMes = {} // Para agrupar por cuenta 3 dígitos
+
+      // Misma protección que en GL PPT: el fichero manda sobre el desplegable
+      if (añoPlantilla && añoPlantilla !== año) {
+        dispatch({ type: 'SET_LOADING', payload: false })
+        return {
+          success: false,
+          error: `La plantilla es del año ${añoPlantilla}, pero has seleccionado ${año}. Cambia el año en el desplegable y vuelve a cargar.`
+        }
+      }
 
       // Detectar formato GL PPT (fechas Excel en cabecera fila 3)
       let esFormatoGLPPT = false
@@ -853,7 +879,34 @@ export function DataProvider({ children }) {
         }
       }
 
-      if (esFormatoGLPPT) {
+      if (hojaPlantilla) {
+        // Plantilla generada por el propio dashboard: Cuenta | Descripción | Ene..Dic | Total
+        // Se respeta el desglose tal cual (9 dígitos si así se cargó): NO se trunca.
+        jsonRaw.forEach((row, i) => {
+          if (i === 0) return // cabecera
+
+          const cuenta = String(row[0] ?? '').trim()
+          if (!cuenta) return
+
+          const cuenta3 = cuenta.substring(0, 3)
+          if (!cuenta3.match(/^[67]\d{2}$/) || !ACCOUNT_GROUPS_3[cuenta3]) return
+
+          for (let mes = 1; mes <= 12; mes++) {
+            const importe = parseFloat(row[mes + 1]) || 0 // meses en columnas C..N
+            if (importe === 0) continue
+
+            const key = `${cuenta}-${mes}`
+            if (!presupuestosPorCuentaMes[key]) {
+              presupuestosPorCuentaMes[key] = { año, mes, cuenta, importe: 0 }
+            }
+            presupuestosPorCuentaMes[key].importe += importe
+          }
+        })
+
+        Object.values(presupuestosPorCuentaMes).forEach(p => {
+          if (p.importe !== 0) presupuestos.push(p)
+        })
+      } else if (esFormatoGLPPT) {
         // Procesar formato GL PPT: guardar cuentas a 9 dígitos (máximo desglose)
         jsonRaw.forEach((row, i) => {
           if (i < 4) return // Saltar cabeceras
