@@ -186,16 +186,24 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
     return total
   }
 
-  // Cuentas 3 dígitos con datos (o añadidas a mano), agrupadas por familia
+  // Cuentas de inversión a 3 dígitos que existen en el plan contable de la empresa.
+  // Se pintan SIEMPRE, tengan datos o no: no se puede presupuestar una cuenta que
+  // no aparece, y presupuestar es justamente poner importe donde aún no hay gasto.
+  const cuentas3Plan = useMemo(
+    () => Object.keys(planCuentas).filter(c => c.length === 3 && esCuentaInversion(c)),
+    [planCuentas]
+  )
+
+  // Cuentas 3 dígitos a mostrar: las del plan + las que tengan real o presupuesto
+  // (por si hay apuntes en cuentas no dadas de alta) + las añadidas a mano
   const cuentas3ConDatos = useMemo(() => {
-    const todas = new Set([...Object.keys(realCuenta3), ...Object.keys(presCuenta3)])
-    const conDatos = [...todas].filter(c3 => {
-      const hayReal = realCuenta3[c3] && Object.values(realCuenta3[c3].meses).some(v => Math.abs(v) > 0.005)
-      const hayPres = presCuenta3[c3] && Object.values(presCuenta3[c3].meses).some(v => Math.abs(v) > 0.005)
-      return hayReal || hayPres
-    })
-    return [...new Set([...conDatos, ...cuentasExtra])].sort()
-  }, [realCuenta3, presCuenta3, cuentasExtra])
+    return [...new Set([
+      ...cuentas3Plan,
+      ...Object.keys(realCuenta3),
+      ...Object.keys(presCuenta3),
+      ...cuentasExtra
+    ])].sort()
+  }, [cuentas3Plan, realCuenta3, presCuenta3, cuentasExtra])
 
   const añadirCuenta = () => {
     if (!nuevaCuenta) return

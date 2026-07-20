@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatExcelNumber } from '../../utils/formatters'
 import { MONTHS_SHORT, ACCOUNT_GROUPS_3 } from '../../utils/constants'
-import { calcularPresupuestoCompras } from '../../utils/calculations'
+import { calcularPresupuestoCompras, calcularResumenInversiones } from '../../utils/calculations'
 import ExportButton from '../UI/ExportButton'
 
 export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, año }) {
@@ -514,6 +514,22 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
   const grandDesvMes = calcDesv(grandTotal.totalEstMes, grandTotal.presMes)
   const grandDesvAcum = calcDesv(grandTotal.totalEstAcum, grandTotal.presAcum)
 
+  // Resumen de inversiones (CAPEX, grupo 2) para verlo aquí sin ir a su pestaña.
+  // No lleva albaranes ni pedidos: ni un solo albarán o pedido está mapeado a
+  // grupo 2 — el circuito de compras no se usa para inmovilizado. Esas dos
+  // columnas van con guion, no con 0 €, porque el dato no existe (un 0 diría
+  // "no hay pedidos de inversión pendientes", que sería falso).
+  const inversiones = useMemo(
+    () => calcularResumenInversiones(movimientos, presupuestos, año, mesSeleccionado),
+    [movimientos, presupuestos, año, mesSeleccionado]
+  )
+
+  // Total de lo que vigila compras: gasto (60 + 62) + inversión
+  const vigilaMes = grandTotal.totalEstMes + inversiones.realMes
+  const vigilaPresMes = grandTotal.presMes + inversiones.presMes
+  const vigilaAcum = grandTotal.totalEstAcum + inversiones.realAcum
+  const vigilaPresAcum = grandTotal.presAcum + inversiones.presAcum
+
   // Export
   const exportarExcel = () => {
     const exportData = allCuentas.map(d => ({
@@ -577,12 +593,33 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
             {renderGrupo('60', 'COMPRAS (60)', '\uD83D\uDCE6', grupos['60'] || [])}
             {renderGrupo('62', 'SERVICIOS EXT. (62)', '\uD83D\uDD27', grupos['62'] || [])}
 
-            {/* Grand Total */}
+            {/* Inversiones (CAPEX): resumen de la pesta\u00F1a Ppto Inversiones.
+                Sin desplegable: el desglose est\u00E1 en su propia pesta\u00F1a. */}
+            <tr className="border-t bg-amber-50/60">
+              <td className="p-3">
+                <span className="flex items-center gap-1 font-semibold">
+                  <span className="mr-1">&#127959;</span>
+                  INVERSIONES (CAPEX)
+                  <span className="ml-2 text-xs font-normal text-gray-500">ver desglose en su pesta\u00F1a</span>
+                </span>
+              </td>
+              <td className="p-3 text-right">{formatCurrency(inversiones.presMes)}</td>
+              <td className="p-3 text-right">{formatCurrency(inversiones.realMes)}</td>
+              <td className="p-3 text-right text-gray-400" title="Las inversiones no pasan por el circuito de pedidos y albaranes">&#8212;</td>
+              <td className="p-3 text-right text-gray-400" title="Las inversiones no pasan por el circuito de pedidos y albaranes">&#8212;</td>
+              <td className="p-3 text-right">{formatCurrency(inversiones.realMes)}</td>
+              <td className="p-3 text-right">{formatVar(inversiones.desvMes)}</td>
+              <td className="p-3 text-right bg-slate-50">{formatCurrency(inversiones.presAcum)}</td>
+              <td className="p-3 text-right bg-slate-50">{formatCurrency(inversiones.realAcum)}</td>
+              <td className="p-3 text-right bg-slate-50">{formatVar(inversiones.desvAcum)}</td>
+            </tr>
+
+            {/* Total de gasto (60 + 62), sin inversion: es el subtotal contable */}
             <tr className="total-row text-base font-bold border-t-2">
               <td className="p-3">
                 <span className="flex items-center gap-1">
                   <span className="mr-1">&#128202;</span>
-                  TOTAL
+                  TOTAL GASTO (60 + 62)
                 </span>
               </td>
               <td className="p-3 text-right">{formatCurrency(grandTotal.presMes)}</td>
@@ -591,9 +628,29 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
               <td className="p-3 text-right">{formatCurrency(grandTotal.pedMes)}</td>
               <td className="p-3 text-right">{formatCurrency(grandTotal.totalEstMes)}</td>
               <td className="p-3 text-right">{formatVar(grandDesvMes)}</td>
-              <td className="p-3 text-right bg-slate-50">{formatCurrency(grandTotal.presAcum)}</td>
-              <td className="p-3 text-right bg-slate-50">{formatCurrency(grandTotal.totalEstAcum)}</td>
-              <td className="p-3 text-right bg-slate-50">{formatVar(grandDesvAcum)}</td>
+              <td className="p-3 text-right">{formatCurrency(grandTotal.presAcum)}</td>
+              <td className="p-3 text-right">{formatCurrency(grandTotal.totalEstAcum)}</td>
+              <td className="p-3 text-right">{formatVar(grandDesvAcum)}</td>
+            </tr>
+
+            {/* Total de control: gasto + inversion. No es un total contable
+                (mezcla PyG y balance), es todo lo que vigila compras. */}
+            <tr className="total-row text-base font-bold">
+              <td className="p-3">
+                <span className="flex items-center gap-1">
+                  <span className="mr-1">&#128065;</span>
+                  TOTAL A VIGILAR
+                </span>
+              </td>
+              <td className="p-3 text-right">{formatCurrency(vigilaPresMes)}</td>
+              <td className="p-3 text-right"></td>
+              <td className="p-3 text-right"></td>
+              <td className="p-3 text-right"></td>
+              <td className="p-3 text-right">{formatCurrency(vigilaMes)}</td>
+              <td className="p-3 text-right">{formatVar(calcDesv(vigilaMes, vigilaPresMes))}</td>
+              <td className="p-3 text-right">{formatCurrency(vigilaPresAcum)}</td>
+              <td className="p-3 text-right">{formatCurrency(vigilaAcum)}</td>
+              <td className="p-3 text-right">{formatVar(calcDesv(vigilaAcum, vigilaPresAcum))}</td>
             </tr>
           </tbody>
         </table>

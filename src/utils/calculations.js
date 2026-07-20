@@ -772,6 +772,43 @@ export function calcularPresupuestoVsReal(pyg3Digitos, presupuestos, mesActual) 
  * Calcula Presupuesto Compras: solo grupos 60 y 62
  * Combina: presupuesto + real contable + albaranes pendientes + pedidos pendientes
  */
+// ¿La cuenta es inversión? Grupo 2 sin amortización acumulada (28x) ni deterioros (29x).
+// Mismo criterio que TablaPresupuestoInversiones.
+export const esCuentaInversion = (cuenta) =>
+  String(cuenta).startsWith('2') && !String(cuenta).startsWith('28') && !String(cuenta).startsWith('29')
+
+// Resumen de inversiones (CAPEX) del año: presupuesto y real, del mes y acumulado.
+// Se usa en la pestaña Ppto Compras para dar la foto completa de lo que vigila
+// el rol compras sin tener que ir a la pestaña de Inversiones.
+// Real = altas de inmovilizado (debe − haber), igual que en TablaPresupuestoInversiones.
+// `presupuestos` ya viene filtrado por año desde DataContext (getByYear).
+export function calcularResumenInversiones(movimientos, presupuestos, año, mes) {
+  let presMes = 0, presAcum = 0, realMes = 0, realAcum = 0
+
+  movimientos.forEach(mov => {
+    if (!mov.mes || !mov.mes.startsWith(String(año))) return
+    if (!esCuentaInversion(mov.cuenta)) return
+    const m = parseInt(mov.mes.split('-')[1])
+    const valor = mov.debe - mov.haber
+    if (m === mes) realMes += valor
+    if (m <= mes) realAcum += valor
+  })
+
+  ;(presupuestos || []).forEach(p => {
+    if (!esCuentaInversion(p.cuenta)) return
+    if (p.mes === mes) presMes += p.importe
+    if (p.mes <= mes) presAcum += p.importe
+  })
+
+  const desv = (real, pres) => (!pres ? null : ((real - pres) / Math.abs(pres)) * 100)
+
+  return {
+    presMes, realMes, presAcum, realAcum,
+    desvMes: desv(realMes, presMes),
+    desvAcum: desv(realAcum, presAcum)
+  }
+}
+
 export function calcularPresupuestoCompras(pyg3Digitos, presupuestos, albaranesPtes, pedidosPtes, mes) {
   // Agrupar presupuestos por cuenta
   const presPorCuenta = {}
