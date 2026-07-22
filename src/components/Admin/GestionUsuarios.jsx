@@ -18,6 +18,8 @@ const supabaseSignup = createClient(
 const APPS = {
   dashboard: {
     label: 'Dashboard',
+    // URL de la app: a dónde debe redirigir el correo de confirmación de signup
+    url: 'https://fmv-dashboard-v2.vercel.app',
     roles: [
       { value: 'direccion', label: 'Dirección' },
       { value: 'compras', label: 'Compras' }
@@ -26,6 +28,7 @@ const APPS = {
   },
   produccion: {
     label: 'Producción',
+    url: 'https://fmv-produccion.vercel.app',
     roles: [
       { value: 'direccion', label: 'Dirección' },
       { value: 'planificacion', label: 'Planificación' },
@@ -238,9 +241,14 @@ export default function GestionUsuarios() {
         if (!nuevoPassword) {
           throw new Error('Password obligatoria para usuarios nuevos')
         }
+        // Redirige el correo de confirmación a la app del rol elegido (Producción → app
+        // de producción), no al Site URL por defecto de Supabase (Dashboard). La URL debe
+        // estar en Auth → URL Configuration → Redirect URLs de Supabase o Supabase la ignora.
+        const redirectBase = APPS[nuevoApp]?.url
         const { data: signUpData, error: signUpError } = await supabaseSignup.auth.signUp({
           email: emailLower,
-          password: nuevoPassword
+          password: nuevoPassword,
+          options: redirectBase ? { emailRedirectTo: redirectBase } : undefined
         })
         if (signUpError) throw signUpError
         if (!signUpData.user) throw new Error('No se pudo crear el usuario')
