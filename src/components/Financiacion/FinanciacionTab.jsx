@@ -8,6 +8,7 @@ import KPICard from '../UI/KPICard'
 import EvolucionDeuda from './EvolucionDeuda'
 import FlujosDeuda from './FlujosDeuda'
 import DetallePrestamos from './DetallePrestamos'
+import HorizonteAmortizacion from './HorizonteAmortizacion'
 import GastosFinancieros from './GastosFinancieros'
 import RatiosPanel from './RatiosPanel'
 import { formatCurrency, formatNumber } from '../../utils/formatters'
@@ -100,6 +101,9 @@ export default function FinanciacionTab() {
 
       {/* Deuda viva por préstamo (17x + 52x emparejadas) */}
       <DetallePrestamos prestamos={prestamos} año={añoActual} />
+
+      {/* Cuadros de amortización: deuda viva proyectada hasta la última cuota */}
+      <HorizonteAmortizacion />
 
       {/* Gráfico gastos financieros */}
       <GastosFinancieros datos={meses} año={añoActual} />
