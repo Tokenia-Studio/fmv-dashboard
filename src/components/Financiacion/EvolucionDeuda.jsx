@@ -55,7 +55,10 @@ export default function EvolucionDeuda({ datos, año, proyeccion }) {
               axisLine={{ stroke: '#d1d5db' }}
               tickFormatter={(val) => formatCompact(val).replace(' €', '')}
             />
-            <Tooltip content={<CustomTooltip />} />
+            {/* Sin total: aquí conviven la línea Total con sus componentes
+                (Corto + Largo) y la Tesorería, que es un activo. Sumarlas
+                daba una cifra sin sentido (4,1 M€ en jul-26). */}
+            <Tooltip content={<CustomTooltip mostrarTotal={false} />} />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
 
             {/* Objetivo: llevar estas líneas C/P a 0 — barras para vigilarlas */}

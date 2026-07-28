@@ -5,7 +5,10 @@
 import React from 'react'
 import { formatCurrency, mesKeyToNombre } from '../../utils/formatters'
 
-export default function CustomTooltip({ active, payload, label, formatter }) {
+// mostrarTotal: sumar las series solo tiene sentido cuando son sumables
+// entre sí. En gráficos que mezclan magnitudes (una línea de total junto a
+// sus componentes, o deuda junto a tesorería) el total sale sin significado.
+export default function CustomTooltip({ active, payload, label, formatter, mostrarTotal = true }) {
   if (!active || !payload?.length) return null
 
   return (
@@ -29,7 +32,7 @@ export default function CustomTooltip({ active, payload, label, formatter }) {
           </div>
         ))}
       </div>
-      {payload.length > 1 && (
+      {mostrarTotal && payload.length > 1 && (
         <div className="border-t border-gray-200 mt-2 pt-2 flex justify-between text-sm">
           <span className="text-gray-600 font-medium">Total</span>
           <span className="font-bold text-gray-800">
