@@ -286,9 +286,6 @@ export default function HorizonteAmortizacion() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
           {CUADROS_AMORTIZACION.map((p, i) => {
             const ultima = p.cuotas[p.cuotas.length - 1]
-            // Algún préstamo (el de Volkswagen) cierra con una cuota final
-            // muy superior a la mensual: conviene avisar de ese pago
-            const cuotaFinal = ultima[1] > p.cuotaMensual * 1.5 ? ultima[1] : null
             return (
               <div key={p.id} className="border border-gray-200 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -312,10 +309,11 @@ export default function HorizonteAmortizacion() {
                     <dt className="text-gray-500">Última cuota</dt>
                     <dd className="font-medium text-gray-800">{etiquetaMesLarga(ultima[0])}</dd>
                   </div>
-                  {cuotaFinal && (
+                  {/* Cuota final tipo balloon: no se intuye desde la mensual */}
+                  {p.pagoFinal && (
                     <div className="flex justify-between">
                       <dt className="text-amber-700">Pago final</dt>
-                      <dd className="font-semibold text-amber-700">{formatCurrency(cuotaFinal)}</dd>
+                      <dd className="font-semibold text-amber-700">{formatCurrency(p.pagoFinal)}</dd>
                     </div>
                   )}
                 </dl>

@@ -112,6 +112,7 @@ export const CUADROS_AMORTIZACION = [
     capitalInicial: 102908.76,
     tipoInteres: 7.95,
     tipoDerivado: true,   // deducido del cuadro, no figura en el contrato
+    pagoFinal: 57394.03,   // cuota final tipo balloon
     cuotaMensual: 1490.32,
     pendienteInicio: 91969.57,
     cuotas: [
