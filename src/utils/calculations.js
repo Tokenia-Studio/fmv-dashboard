@@ -1018,9 +1018,21 @@ export function calcularPyGSubcuentas(movimientos, año) {
  * @param {number} año - año actual
  * @returns {{ balance: Object, pyg: Object }}
  */
-export function calcularCuentasAnuales(movimientos, año) {
+// mesHasta (1-12): corte intermedio. Criterio "estándar técnico":
+//  - Balance del año actual: acumulado hasta el mes de corte; la columna del
+//    año anterior queda a CIERRE (31/12), como en unas cuentas intermedias.
+//  - PyG: ambos años cortados al mismo mes (mismo periodo comparativo).
+//  - fp_vii (Resultado del ejercicio) del balance usa su propio acumulador,
+//    NO el PyG mostrado: para el año anterior debe ser el resultado del
+//    ejercicio COMPLETO aunque el PyG comparativo esté cortado.
+export function calcularCuentasAnuales(movimientos, año, mesHasta = 12) {
   const añoAnterior = año - 1
   const años = [año, añoAnterior]
+
+  // ¿Entra este movimiento en el BALANCE del año a? (cierre para años previos,
+  // corte mesHasta solo para el año en curso)
+  const entraEnBalance = (añoMov, mesMov, a) =>
+    añoMov < a || (añoMov === a && (a !== año || mesMov <= mesHasta))
 
   // 1. Calcular saldo (debe-haber) por cuenta 9 dígitos para cada año
   const saldosPorAño = {}
@@ -1030,10 +1042,14 @@ export function calcularCuentasAnuales(movimientos, año) {
   // Necesario porque sin asiento de cierre, el resultado de años anteriores
   // no está en la cuenta 129 y se perdería si solo tomamos el PyG del año
   const resultadoAcumulado = {}
-  años.forEach(a => { resultadoAcumulado[a] = 0 })
+  // Resultado del ejercicio a de cara al balance (año en curso cortado, previos completos)
+  const resultadoEjercicio = {}
+  años.forEach(a => { resultadoAcumulado[a] = 0; resultadoEjercicio[a] = 0 })
 
   movimientos.forEach(mov => {
-    const añoMov = parseInt(mov.mes.split('-')[0])
+    const [añoStr, mesStr] = mov.mes.split('-')
+    const añoMov = parseInt(añoStr)
+    const mesMov = parseInt(mesStr)
     const cuenta = mov.cuenta
     const grupo1 = cuenta.charAt(0)
 
@@ -1041,7 +1057,7 @@ export function calcularCuentasAnuales(movimientos, año) {
     // de CADA año >= añoMov (para no necesitar asiento de apertura)
     if (grupo1 >= '1' && grupo1 <= '5') {
       años.forEach(a => {
-        if (añoMov <= a) {
+        if (entraEnBalance(añoMov, mesMov, a)) {
           if (!saldosPorAño[a][cuenta]) {
             saldosPorAño[a][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
           }
@@ -1053,8 +1069,9 @@ export function calcularCuentasAnuales(movimientos, año) {
         }
       })
     } else if (grupo1 === '6' || grupo1 === '7') {
-      // PyG (grupos 6-7): solo en su año (para la tabla PyG)
-      if (saldosPorAño[añoMov]) {
+      // PyG (grupos 6-7): solo en su año y hasta el mes de corte (mismo periodo
+      // en ambos años, para que la comparativa sea homogénea)
+      if (saldosPorAño[añoMov] && mesMov <= mesHasta) {
         if (!saldosPorAño[añoMov][cuenta]) {
           saldosPorAño[añoMov][cuenta] = { debe: 0, haber: 0, nombre: mov.descripcion || '' }
         }
@@ -1064,10 +1081,14 @@ export function calcularCuentasAnuales(movimientos, año) {
           saldosPorAño[añoMov][cuenta].nombre = mov.descripcion
         }
       }
-      // Acumular resultado para el Balance (haber-debe = beneficio positivo)
+      // Acumular resultado para el Balance (haber-debe = beneficio positivo),
+      // con el mismo criterio de corte que los grupos 1-5 para que cuadre
       años.forEach(a => {
-        if (añoMov <= a) {
+        if (entraEnBalance(añoMov, mesMov, a)) {
           resultadoAcumulado[a] += (mov.haber - mov.debe)
+          if (añoMov === a) {
+            resultadoEjercicio[a] += (mov.haber - mov.debe)
+          }
         }
       })
     }
@@ -1180,8 +1201,11 @@ export function calcularCuentasAnuales(movimientos, año) {
       }
     })
 
-    // fp_vii (Resultado del ejercicio) = solo PyG del año actual
-    const resultadoPyG = pyg[a]?.a5?.total || 0
+    // fp_vii (Resultado del ejercicio): acumulador propio del balance — para el
+    // año en curso coincide con el PyG cortado; para el año anterior es el
+    // resultado del ejercicio COMPLETO (cierre), aunque el PyG comparativo
+    // mostrado esté cortado al mismo periodo
+    const resultadoPyG = resultadoEjercicio[a] || 0
     lineas['fp_vii'] = { total: resultadoPyG, cuentas: {} }
 
     // Inyectar resultado acumulado de ejercicios anteriores en fp_v

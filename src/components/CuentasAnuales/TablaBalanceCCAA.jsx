@@ -6,7 +6,7 @@
 import React, { useState, useMemo } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatCurrency } from '../../utils/formatters'
-import { ESTRUCTURA_BALANCE } from '../../utils/constants'
+import { ESTRUCTURA_BALANCE, MONTHS_SHORT } from '../../utils/constants'
 import { calcularSubLinea } from '../../utils/calculations'
 
 // Componente de ratio con diseño vibrante y año anterior
@@ -70,11 +70,15 @@ function RatioCard({ label, value, valueAnt, formato, ideal, tooltip, color }) {
   )
 }
 
-export default function TablaBalanceCCAA() {
-  const { cuentasAnuales, añoActual, planCuentas } = useData()
+export default function TablaBalanceCCAA({ cuentasAnuales: ccaaProp, mesHasta = 12 }) {
+  const { cuentasAnuales: ccaaCtx, añoActual, planCuentas } = useData()
+  const cuentasAnuales = ccaaProp ?? ccaaCtx
   const [expanded, setExpanded] = useState(new Set())
 
   const añoAnterior = añoActual - 1
+  const corte = mesHasta < 12
+  const cabActual = corte ? `${MONTHS_SHORT[mesHasta - 1]} ${añoActual}` : añoActual
+  const cabAnterior = corte ? `Cierre ${añoAnterior}` : añoAnterior
   const balActual = cuentasAnuales?.balance?.[añoActual] || {}
   const balAnterior = cuentasAnuales?.balance?.[añoAnterior] || {}
 
@@ -406,7 +410,9 @@ export default function TablaBalanceCCAA() {
 
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white">Balance de Situacion {añoActual}</h3>
+          <h3 className="font-bold text-white">
+            Balance de Situacion {añoActual}{corte ? ` — a ${MONTHS_SHORT[mesHasta - 1].toLowerCase()}` : ''}
+          </h3>
           <div className="flex items-center gap-2">
             <button
               onClick={expandAll}
@@ -433,8 +439,8 @@ export default function TablaBalanceCCAA() {
             <thead className="table-header sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="p-3 text-left min-w-[300px]">Concepto</th>
-                <th className="p-3 text-right min-w-[120px]">{añoActual}</th>
-                <th className="p-3 text-right min-w-[120px]">{añoAnterior}</th>
+                <th className="p-3 text-right min-w-[120px]">{cabActual}</th>
+                <th className="p-3 text-right min-w-[120px]">{cabAnterior}</th>
               </tr>
             </thead>
             <tbody>

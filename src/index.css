@@ -115,6 +115,42 @@ body {
   border-left-width: 3px;
 }
 
+/* Impresión: A4 con márgenes de documento; fondo blanco y colores exactos
+   (la pastilla navy del logo debe imprimirse aunque el navegador recorte fondos) */
+/* Márgenes de página a 0: así el navegador no tiene hueco donde pintar sus
+   encabezados/pies (fecha, URL, nº página). El margen real del documento
+   lo pone el padding de .ccaa-print-doc */
+@page {
+  size: A4;
+  margin: 0;
+}
+/* Documento de impresión de CCAA: invisible en pantalla; al imprimir se
+   muestra él solo y se oculta la app entera */
+.ccaa-print-doc {
+  display: none;
+}
+@media print {
+  html, body, #root {
+    background: #fff !important;
+  }
+  body:has(.ccaa-print-doc) #root {
+    display: none !important;
+  }
+  .ccaa-print-doc {
+    display: block;
+    /* Solo laterales y primera/última página; el margen vertical de las
+       páginas intermedias lo ponen los espaciadores de thead/tfoot */
+    padding: 16mm 15mm 6mm;
+  }
+}
+
+/* Solo la pastilla del logo imprime su fondo navy; el resto de fondos
+   se descartan (papel blanco) */
+.print-exact {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 /* Tooltip de Recharts */
 .recharts-tooltip-wrapper {
   z-index: 1000 !important;

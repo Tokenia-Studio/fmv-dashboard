@@ -23,7 +23,7 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
   const showHorizontalTabs = userRole !== 'direccion'
 
   return (
-    <header className="sticky top-0 z-50 shadow-md bg-fmv-900">
+    <header className="sticky top-0 z-50 shadow-md bg-fmv-900 print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-3">
         {/* Fila superior */}
         <div className="flex items-center justify-between flex-wrap gap-3">

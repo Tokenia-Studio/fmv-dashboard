@@ -6,7 +6,7 @@
 import React, { useState, useMemo } from 'react'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, getValueClass } from '../../utils/formatters'
-import { ESTRUCTURA_PYG_CCAA } from '../../utils/constants'
+import { ESTRUCTURA_PYG_CCAA, MONTHS_SHORT } from '../../utils/constants'
 import { calcularSubLinea } from '../../utils/calculations'
 
 // Componente de ratio con diseño vibrante y año anterior
@@ -69,11 +69,16 @@ function RatioCard({ label, value, valueAnt, formato, ideal, tooltip, color }) {
   )
 }
 
-export default function TablaPyGCCAA() {
-  const { cuentasAnuales, añoActual, planCuentas } = useData()
+export default function TablaPyGCCAA({ cuentasAnuales: ccaaProp, mesHasta = 12 }) {
+  const { cuentasAnuales: ccaaCtx, añoActual, planCuentas } = useData()
+  const cuentasAnuales = ccaaProp ?? ccaaCtx
   const [expanded, setExpanded] = useState(new Set())
 
   const añoAnterior = añoActual - 1
+  const corte = mesHasta < 12
+  const periodo = corte ? `ene–${MONTHS_SHORT[mesHasta - 1].toLowerCase()}` : ''
+  const cabActual = corte ? `${periodo} ${añoActual}` : añoActual
+  const cabAnterior = corte ? `${periodo} ${añoAnterior}` : añoAnterior
   const pygActual = cuentasAnuales?.pyg?.[añoActual] || {}
   const pygAnterior = cuentasAnuales?.pyg?.[añoAnterior] || {}
   const balActual = cuentasAnuales?.balance?.[añoActual] || {}
@@ -319,7 +324,9 @@ export default function TablaPyGCCAA() {
 
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white">Cuenta de Perdidas y Ganancias {añoActual}</h3>
+          <h3 className="font-bold text-white">
+            Cuenta de Perdidas y Ganancias {añoActual}{corte ? ` — ${periodo}` : ''}
+          </h3>
           <div className="flex items-center gap-2">
             <button
               onClick={expandAll}
@@ -341,8 +348,8 @@ export default function TablaPyGCCAA() {
             <thead className="table-header sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="p-3 text-left min-w-[350px]">Concepto</th>
-                <th className="p-3 text-right min-w-[120px]">{añoActual}</th>
-                <th className="p-3 text-right min-w-[120px]">{añoAnterior}</th>
+                <th className="p-3 text-right min-w-[120px]">{cabActual}</th>
+                <th className="p-3 text-right min-w-[120px]">{cabAnterior}</th>
               </tr>
             </thead>
             <tbody>

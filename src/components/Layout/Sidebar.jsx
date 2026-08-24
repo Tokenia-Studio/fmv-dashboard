@@ -31,7 +31,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen bg-fmv-900 text-white z-40
+        className={`fixed lg:sticky top-0 left-0 h-screen bg-fmv-900 text-white z-40 print:hidden
           transition-all duration-300 flex flex-col
           ${collapsed ? 'w-16' : 'w-60'}
           ${collapsed ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}`}
