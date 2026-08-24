@@ -86,6 +86,9 @@ const initialState = {
   // UI
   loading: false,
   loadingMessage: '',
+  // true mientras corre una recarga completa desde Supabase (arranque o botón
+  // de recargar): la UI muestra skeleton en vez del overlay bloqueante
+  recargaCompleta: false,
   error: null,
   tabActiva: 'pyg',
   supabaseSync: false // indica si los datos estan sincronizados con Supabase
@@ -98,7 +101,9 @@ function dataReducer(state, action) {
       return {
         ...state,
         loading: action.payload,
-        loadingMessage: action.message || ''
+        loadingMessage: action.message || '',
+        // se activa solo si la acción lo pide; se apaga al terminar la carga
+        recargaCompleta: action.payload ? (action.recargaCompleta ?? state.recargaCompleta) : false
       }
 
     case 'SET_ERROR':
@@ -124,6 +129,7 @@ function dataReducer(state, action) {
         validacion: action.payload.validacion,
         supabaseSync: action.payload.supabaseSync || false,
         loading: false,
+        recargaCompleta: false,
         error: null
       }
     }
@@ -222,7 +228,7 @@ export function DataProvider({ children }) {
 
   // Funcion para cargar datos desde Supabase (optimizado con cargas en paralelo)
   const cargarDatosDesdeSupabase = async () => {
-    dispatch({ type: 'SET_LOADING', payload: true, message: 'Conectando...' })
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Conectando...', recargaCompleta: true })
     const t0 = performance.now()
 
     try {
