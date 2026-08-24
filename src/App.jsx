@@ -25,6 +25,7 @@ import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
 import UpdateBanner from './components/UI/UpdateBanner'
+import UltimaActualizacion from './components/UI/UltimaActualizacion'
 
 // Error Boundary
 class ErrorBoundary extends React.Component {
@@ -252,6 +253,9 @@ function App() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Última actualización de datos: el rol compras no tiene sidebar, se le muestra flotante */}
+      {!useSidebar && <UltimaActualizacion variant="flotante" />}
 
       {/* Aviso flotante cuando hay un deploy más nuevo que la pestaña abierta */}
       <UpdateBanner />

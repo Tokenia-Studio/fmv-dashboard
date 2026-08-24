@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useData } from '../../context/DataContext'
 import { TABS, NAVIGATION_SECTIONS, TABS_POR_ROL } from '../../utils/constants'
+import UltimaActualizacion from '../UI/UltimaActualizacion'
 
 export default function Sidebar({ collapsed, onToggle }) {
   const { tabActiva, setTab, userRole } = useData()
@@ -104,6 +105,9 @@ export default function Sidebar({ collapsed, onToggle }) {
             )
           })}
         </nav>
+
+        {/* Última actualización de datos, fija al pie del menú */}
+        <UltimaActualizacion variant="sidebar" collapsed={collapsed} />
       </aside>
     </>
   )
