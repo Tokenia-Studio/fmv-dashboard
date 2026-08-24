@@ -7,16 +7,16 @@ import { formatCurrency, mesKeyToNombre, getValueClass } from '../../utils/forma
 
 export default function ResumenMensual({ datos, totales }) {
   const columnas = [
-    { key: 'ventas', label: 'Ventas', icon: '💰', color: 'text-green-700' },
-    { key: 'compras', label: 'Compras', icon: '🛒', color: 'text-red-700' },
-    { key: 'varExist', label: 'Var.Exist.', icon: '📦', color: 'text-orange-700' },
-    { key: 'servicios', label: 'Servicios', icon: '🔧', color: 'text-blue-700' },
-    { key: 'personal', label: 'Personal', icon: '👥', color: 'text-purple-700' },
-    { key: 'resto', label: 'Resto', icon: '📑', color: 'text-gray-600', calc: (m) =>
+    { key: 'ventas', label: 'Ventas', color: 'text-green-700' },
+    { key: 'compras', label: 'Compras', color: 'text-red-700' },
+    { key: 'varExist', label: 'Var.Exist.', color: 'text-orange-700' },
+    { key: 'servicios', label: 'Servicios', color: 'text-blue-700' },
+    { key: 'personal', label: 'Personal', color: 'text-purple-700' },
+    { key: 'resto', label: 'Resto', color: 'text-gray-600', calc: (m) =>
       (m.restoGastos || 0) + (m.amortizaciones || 0) + (m.gastosFinancieros || 0) -
       (m.subvenciones || 0) - (m.otrosIngExplot || 0) - (m.ingExcepc || 0) - (m.ingFinancieros || 0) - (m.otrosIngresos || 0)
     },
-    { key: 'resultado', label: 'Resultado', icon: '📈', color: 'text-slate-800', bold: true }
+    { key: 'resultado', label: 'Resultado', color: 'text-slate-800', bold: true }
   ]
 
   const getValor = (mes, col) => {
@@ -32,10 +32,7 @@ export default function ResumenMensual({ datos, totales }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📊</span>
-          <span>Resumen Mensual</span>
-        </h3>
+        <h3 className="font-bold text-white">Resumen Mensual</h3>
       </div>
 
       <div className="overflow-x-auto">
@@ -45,7 +42,6 @@ export default function ResumenMensual({ datos, totales }) {
               <th className="p-3 text-left">Mes</th>
               {columnas.map(col => (
                 <th key={col.key} className={`p-3 text-right ${col.color}`}>
-                  <span className="mr-1">{col.icon}</span>
                   {col.label}
                 </th>
               ))}

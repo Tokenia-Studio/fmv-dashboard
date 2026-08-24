@@ -90,10 +90,7 @@ export default function BarrasApiladas({ datos, subcuentas, año }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📊</span>
-          <span>Servicios Exteriores por Familia</span>
-        </h3>
+        <h3 className="font-bold text-white">Servicios Exteriores por Familia</h3>
         <ExportButton
           onClick={() => exportarMovimientos(
             (m) => m.grupo === '62' && m.mes.startsWith(String(año)),

@@ -3,8 +3,9 @@
 // ============================================
 
 import React from 'react'
+import { Download } from 'lucide-react'
 
-export default function ExportButton({ onClick, label = 'Exportar', icon = '📥', className = '' }) {
+export default function ExportButton({ onClick, label = 'Exportar', icon: Icon = Download, className = '' }) {
   return (
     <button
       onClick={onClick}
@@ -12,7 +13,7 @@ export default function ExportButton({ onClick, label = 'Exportar', icon = '📥
                   bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200
                   transition-colors ${className}`}
     >
-      <span>{icon}</span>
+      <Icon size={15} />
       <span>{label}</span>
     </button>
   )

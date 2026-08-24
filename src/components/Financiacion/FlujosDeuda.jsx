@@ -80,10 +80,7 @@ export default function FlujosDeuda({ datos, año, proyeccion, deudaInicial = 0 
   return (
     <div className="card overflow-hidden">
       <div className="card-header">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>🔁</span>
-          <span>Préstamos: lo que entra vs lo que se devuelve</span>
-        </h3>
+        <h3 className="font-bold text-white">Préstamos: lo que entra vs lo que se devuelve</h3>
       </div>
 
       <div className="p-4">

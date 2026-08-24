@@ -8,20 +8,20 @@ import { formatCurrency, formatPercent, mesKeyToNombre, getValueClass } from '..
 export default function TablaDetallePyG({ datos, totales }) {
   // Estructura del PyG
   const filas = [
-    { id: 'ventas', label: 'VENTAS', icon: '💰', type: 'header', key: 'ventas' },
+    { id: 'ventas', label: 'VENTAS', type: 'header', key: 'ventas' },
     { id: 'compras', label: '(-) Compras', key: 'compras', indent: true, negative: true },
     { id: 'varExist', label: '(±) Var. existencias', key: 'varExist', indent: true },
-    { id: 'margenBruto', label: 'MARGEN BRUTO', icon: '📊', type: 'subtotal', key: 'margenBruto' },
+    { id: 'margenBruto', label: 'MARGEN BRUTO', type: 'subtotal', key: 'margenBruto' },
     { id: 'servicios', label: '(-) Servicios ext.', key: 'servicios', indent: true, negative: true },
     { id: 'personal', label: '(-) Personal', key: 'personal', indent: true, negative: true },
     { id: 'subvenciones', label: '(+) Subvenciones', key: 'subvenciones', indent: true, optional: true },
     { id: 'otrosIngExplot', label: '(+) Otros ing. explot.', key: 'otrosIngExplot', indent: true, optional: true },
-    { id: 'ebitda', label: 'EBITDA', icon: '💹', type: 'subtotal', key: 'ebitda' },
+    { id: 'ebitda', label: 'EBITDA', type: 'subtotal', key: 'ebitda' },
     { id: 'restoGastos', label: '(-) Resto gastos', key: 'restoGastos', indent: true, negative: true },
     { id: 'amortizaciones', label: '(-) Amortizaciones', key: 'amortizaciones', indent: true, negative: true },
     { id: 'gastosFinancieros', label: '(-) Gastos financieros', key: 'gastosFinancieros', indent: true, negative: true },
     { id: 'ingExcepc', label: '(+) Ing. excepcionales', key: 'ingExcepc', indent: true, optional: true },
-    { id: 'resultado', label: 'RESULTADO', icon: '📈', type: 'total', key: 'resultado' }
+    { id: 'resultado', label: 'RESULTADO', type: 'total', key: 'resultado' }
   ]
 
   // Filtrar filas opcionales sin datos
@@ -48,10 +48,7 @@ export default function TablaDetallePyG({ datos, totales }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📋</span>
-          <span>PyG Analítico</span>
-        </h3>
+        <h3 className="font-bold text-white">PyG Analítico</h3>
       </div>
 
       <div className="overflow-x-auto">
@@ -84,7 +81,6 @@ export default function TablaDetallePyG({ datos, totales }) {
                   `}
                 >
                   <td className={`p-3 ${fila.indent ? 'pl-6' : ''} ${isTotal ? 'py-4' : ''}`}>
-                    {fila.icon && <span className="mr-2">{fila.icon}</span>}
                     {fila.label}
                   </td>
 

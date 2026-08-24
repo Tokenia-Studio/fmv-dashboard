@@ -45,28 +45,24 @@ export default function GraficosComparativos() {
   const graficos = [
     {
       titulo: 'Ventas',
-      icon: '💰',
       keyActual: 'ventasActual',
       keyAnterior: 'ventasAnterior',
       color: CHART_COLORS.ventas
     },
     {
       titulo: 'Compras',
-      icon: '🛒',
       keyActual: 'comprasActual',
       keyAnterior: 'comprasAnterior',
       color: CHART_COLORS.compras
     },
     {
       titulo: 'Servicios Ext.',
-      icon: '🔧',
       keyActual: 'serviciosActual',
       keyAnterior: 'serviciosAnterior',
       color: CHART_COLORS.servicios
     },
     {
       titulo: 'Personal',
-      icon: '👥',
       keyActual: 'personalActual',
       keyAnterior: 'personalAnterior',
       color: CHART_COLORS.personal
@@ -76,9 +72,8 @@ export default function GraficosComparativos() {
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📈</span>
-          <span>Evolución Mensual {añoActual} vs {añoAnterior}</span>
+        <h3 className="font-bold text-white">
+          Evolución Mensual {añoActual} vs {añoAnterior}
         </h3>
         {!tieneAnterior && (
           <span className="text-xs bg-yellow-500/20 text-yellow-200 px-2 py-1 rounded">
@@ -91,7 +86,7 @@ export default function GraficosComparativos() {
         {graficos.map(grafico => (
           <div key={grafico.titulo} className="bg-gray-50 rounded-lg p-4">
             <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <span>{grafico.icon}</span>
+              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: grafico.color }} />
               {grafico.titulo}
             </h4>
 

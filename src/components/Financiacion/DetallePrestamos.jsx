@@ -108,10 +108,7 @@ export default function DetallePrestamos({ prestamos, año }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📋</span>
-          <span>Deuda viva por préstamo</span>
-        </h3>
+        <h3 className="font-bold text-white">Deuda viva por préstamo</h3>
       </div>
 
       <div className="p-4">

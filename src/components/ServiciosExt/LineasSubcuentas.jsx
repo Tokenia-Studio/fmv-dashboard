@@ -87,10 +87,7 @@ export default function LineasSubcuentas({ subcuentas, año }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📈</span>
-          <span>Evolución por Subcuenta</span>
-        </h3>
+        <h3 className="font-bold text-white">Evolución por Subcuenta</h3>
       </div>
 
       <div className="p-4">

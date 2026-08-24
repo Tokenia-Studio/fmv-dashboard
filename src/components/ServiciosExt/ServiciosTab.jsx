@@ -3,6 +3,7 @@
 // ============================================
 
 import React from 'react'
+import { Wrench } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
 import BarrasApiladas from './BarrasApiladas'
@@ -19,7 +20,7 @@ export default function ServiciosTab() {
   if (serviciosExt.subcuentas.length === 0) {
     return (
       <div className="text-center py-20">
-        <div className="text-6xl mb-4">🔧</div>
+        <Wrench size={56} className="mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin datos de Servicios Exteriores</h2>
         <p className="text-gray-500">Carga un diario contable con cuentas del grupo 62x</p>
       </div>
@@ -33,7 +34,7 @@ export default function ServiciosTab() {
         <KPICard
           titulo="Total Servicios Ext."
           valor={totalServicios}
-          icono="🔧"
+          icono={Wrench}
           colorValor="text-blue-600"
         />
         {top3.map((sub, idx) => (
@@ -42,7 +43,6 @@ export default function ServiciosTab() {
             titulo={sub.nombre}
             valor={sub.total}
             subtitulo={`${((sub.total / totalServicios) * 100).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% del total`}
-            icono={['🏠', '🔩', '🚚'][idx]}
             colorValor="text-gray-700"
           />
         ))}
@@ -67,10 +67,7 @@ export default function ServiciosTab() {
       {/* Tabla detalle */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>📑</span>
-            <span>Detalle por Subcuenta</span>
-          </h3>
+          <h3 className="font-bold text-white">Detalle por Subcuenta</h3>
         </div>
 
         <div className="overflow-x-auto">

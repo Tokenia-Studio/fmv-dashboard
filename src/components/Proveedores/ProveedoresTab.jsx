@@ -3,6 +3,7 @@
 // ============================================
 
 import React from 'react'
+import { Users, Coins, Calendar, BarChart3 } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
 import TopProveedores from './TopProveedores'
@@ -22,7 +23,7 @@ export default function ProveedoresTab() {
   if (top15.length === 0 && totalPagos === 0) {
     return (
       <div className="text-center py-20">
-        <div className="text-6xl mb-4">👥</div>
+        <Users size={56} className="mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin datos de Gasto por Proveedor</h2>
         <p className="text-gray-500">No se encontraron movimientos de gasto en cuentas 60x/62x</p>
       </div>
@@ -36,26 +37,26 @@ export default function ProveedoresTab() {
         <KPICard
           titulo="Gasto YTD"
           valor={totalPagos}
-          icono="💳"
+          icono={Coins}
           colorValor="text-blue-600"
         />
         <KPICard
           titulo="Gasto Mes Actual"
           valor={mesActual}
-          icono="📅"
+          icono={Calendar}
           colorValor="text-gray-700"
         />
         <KPICard
           titulo="Nº Proveedores"
           valor={numProveedores}
           formato="number"
-          icono="👥"
+          icono={Users}
           colorValor="text-purple-600"
         />
         <KPICard
           titulo="Gasto Medio/Prov."
           valor={numProveedores > 0 ? totalPagos / numProveedores : 0}
-          icono="📊"
+          icono={BarChart3}
           colorValor="text-gray-700"
         />
       </div>

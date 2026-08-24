@@ -3,6 +3,7 @@
 // ============================================
 
 import React, { useState, useCallback, useMemo } from 'react'
+import { Users, Coins, TrendingUp, Percent, Pencil, FileSpreadsheet } from 'lucide-react'
 import {
   BarChart, Bar, LineChart, Line, ComposedChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine
@@ -452,7 +453,7 @@ export default function PersonalTab() {
   if (mesesConDatos.length === 0) {
     return (
       <div className="text-center py-20">
-        <div className="text-6xl mb-4">👥</div>
+        <Users size={56} className="mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin datos para {añoActual}</h2>
         <p className="text-gray-500">Carga un diario contable en la pestaña "Cargar"</p>
       </div>
@@ -475,21 +476,21 @@ export default function PersonalTab() {
           titulo="Plantilla Media"
           valor={totales.plantillaMedia}
           formato="number"
-          icono="👥"
+          icono={Users}
           subtitulo={`${Object.keys(trabajadoresAño).length} meses con datos`}
           colorValor="text-purple-600"
         />
         <KPICard
           titulo="Coste/Empleado"
           valor={totales.costeMedioEmpleado}
-          icono="💶"
+          icono={Coins}
           subtitulo={tieneTrabajadores ? `${formatPercent(totales.pesoSueldos)} sueldos + ${formatPercent(totales.pesoSegSocial)} SS` : 'Sin datos de plantilla'}
           colorValor="text-blue-600"
         />
         <KPICard
           titulo="Ventas/Empleado"
           valor={totales.ventasPorEmpleado}
-          icono="📈"
+          icono={TrendingUp}
           subtitulo={tieneTrabajadores ? `Cobertura: ${totales.coberturaLaboral.toFixed(1)}x` : 'Sin datos de plantilla'}
           colorValor="text-green-600"
         />
@@ -497,7 +498,7 @@ export default function PersonalTab() {
           titulo="Personal/Ventas"
           valor={totales.personalSobreVentas}
           formato="percent"
-          icono="📊"
+          icono={Percent}
           subtitulo={totales.personalSobreVentas > 40 ? 'Por encima del umbral' : totales.personalSobreVentas > 35 ? 'Zona de alerta' : 'Dentro de rango'}
           colorValor={getPersonalColor(totales.personalSobreVentas)}
         />
@@ -506,10 +507,7 @@ export default function PersonalTab() {
       {/* ========== TABLA RATIOS MENSUALES ========== */}
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>📊</span>
-            <span>Ratios de Personal por Mes - {añoActual}</span>
-          </h3>
+          <h3 className="font-bold text-white">Ratios de Personal por Mes - {añoActual}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -602,18 +600,13 @@ export default function PersonalTab() {
       {/* ========== GRAFICOS ========== */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>📈</span>
-            <span>Evolución Mensual - {añoActual}</span>
-          </h3>
+          <h3 className="font-bold text-white">Evolución Mensual - {añoActual}</h3>
         </div>
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
 
           {/* Gráfico 1: Personal/Ventas % con umbral */}
           <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <span>📊</span> Personal / Ventas (%)
-            </h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Personal / Ventas (%)</h4>
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart data={datosMensuales.filter(d => d.personalSobreVentas != null)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -630,9 +623,7 @@ export default function PersonalTab() {
           {/* Gráfico 2: Ventas y Coste por empleado */}
           {tieneTrabajadores && (
             <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <span>💶</span> Productividad por Empleado
-              </h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Productividad por Empleado</h4>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={datosMensuales.filter(d => d.trabajadores)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -651,9 +642,7 @@ export default function PersonalTab() {
           {/* Gráfico 3: Evolución plantilla */}
           {tieneTrabajadores && (
             <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <span>👥</span> Evolución Plantilla
-              </h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">Evolución Plantilla</h4>
               <ResponsiveContainer width="100%" height={220}>
                 <ComposedChart data={datosMensuales.filter(d => d.trabajadores || d.trabajadoresAnt)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -670,9 +659,7 @@ export default function PersonalTab() {
 
           {/* Gráfico 4: Desglose costes laborales */}
           <div className="bg-gray-50 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <span>📋</span> Desglose Costes Laborales
-            </h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Desglose Costes Laborales</h4>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={datosMensuales.filter(d => d.sueldos > 0 || d.segSocial > 0)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -694,10 +681,7 @@ export default function PersonalTab() {
       {comparativaAnual.length > 1 && (
         <div className="card overflow-hidden">
           <div className="card-header flex items-center justify-between">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span>📅</span>
-              <span>Comparativa Interanual</span>
-            </h3>
+            <h3 className="font-bold text-white">Comparativa Interanual</h3>
             <span className="text-xs text-white/80 italic">Pasa el ratón sobre cada columna para ver su significado</span>
           </div>
           <div className="overflow-x-auto">
@@ -774,10 +758,7 @@ export default function PersonalTab() {
       {/* ========== PRODUCTIVIDAD (horas calendario + gastos) ========== */}
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>⚙️</span>
-            <span>Productividad y Costes por Hora — {añoActual}</span>
-          </h3>
+          <h3 className="font-bold text-white">Productividad y Costes por Hora — {añoActual}</h3>
           <div className="flex items-center gap-3">
             <span className="text-xs text-white/80 italic" title={calendarioAño?._estimado ? `No hay calendario propio para ${añoActual}. Se ha estimado reutilizando el calendario de ${calendarioAño._añoBase} con las fechas de festivos ajustadas al año en curso.` : ''}>
               {calendarioAño
@@ -838,7 +819,7 @@ export default function PersonalTab() {
                 <th className="px-2 py-2 text-right font-semibold text-purple-600 cursor-help" title="Nº de trabajadores en plantilla ese mes. Editable en la tabla de Ratios de Personal de arriba.">Trab.</th>
                 <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Horas laborables del mes por persona, calculadas desde el calendario laboral (tabla prod_calendario compartida con FMV Producción). Descuenta fines de semana, festivos y vacaciones de agosto.">Horas Lab.</th>
                 <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Días laborables equivalentes del mes (Horas Lab. ÷ horas/día del calendario). Un día de media jornada cuenta como 0,5.">Días Lab.</th>
-                <th className="px-2 py-2 text-right font-semibold text-gray-700 cursor-help" title="Horas totales trabajadas por la plantilla. Por defecto se calculan como Trabajadores × Horas Lab., pero puedes escribirlas a mano haciendo clic en la celda (deja la celda vacía para volver al cálculo automático). Base para los costes e ingresos por hora.">Horas Tot. ✎</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-700 cursor-help" title="Horas totales trabajadas por la plantilla. Por defecto se calculan como Trabajadores × Horas Lab., pero puedes escribirlas a mano haciendo clic en la celda (deja la celda vacía para volver al cálculo automático). Base para los costes e ingresos por hora.">Horas Tot. <Pencil size={11} className="inline align-text-top" /></th>
                 <th className="px-2 py-2 text-right font-semibold text-purple-700 cursor-help" title="Gasto de personal COMPLETO del mes (grupo 64: sueldos 640 + indemnizaciones 641 + Seg. Social empresa 642 + otros gastos sociales 643-649). Coincide con la línea Personal del PyG.">Personal</th>
                 <th className="px-2 py-2 text-right font-semibold text-rose-700 cursor-help" title="Gastos de grupo 60 del mes (compras de materia prima, subcontrataciones, envases, etc.). Son costes directos dentro del margen bruto.">Proveed.</th>
                 <th className="px-2 py-2 text-right font-semibold text-orange-700 cursor-help" title="Servicios exteriores (grupo 62): arrendamientos, reparaciones, suministros, etc. Son gastos por debajo del margen bruto.">Acreed.</th>
@@ -891,7 +872,7 @@ export default function PersonalTab() {
                           className="w-16 px-1 py-0.5 text-right border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
                         />
                       ) : (
-                        <>{d.horasTotales ? formatNumber(d.horasTotales, 0) : '-'}{d.horasManual && <span className="ml-0.5 text-[9px] align-super">✎</span>}</>
+                        <>{d.horasTotales ? formatNumber(d.horasTotales, 0) : '-'}{d.horasManual && <Pencil size={9} className="inline ml-0.5 align-super" />}</>
                       )}
                     </td>
                     <td className="px-2 py-2 text-right text-purple-700">{formatCurrency(d.personalCompleto)}</td>
@@ -983,10 +964,7 @@ export default function PersonalTab() {
       {/* ========== POSICIONAMIENTO SECTOR ========== */}
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>🎯</span>
-            <span>Posicionamiento Sector — Estructuras Metálicas / MIG-TIG</span>
-          </h3>
+          <h3 className="font-bold text-white">Posicionamiento Sector — Estructuras Metálicas / MIG-TIG</h3>
           <span className="text-xs text-white/80 italic cursor-help" title="Fuentes: DBK Informe Sectorial Estructuras Metálicas, Banco de España Central de Balances (panel PYMEs CNAE 25), convenios colectivos del metal. Rangos orientativos para empresas 2-10M €.">
             CNAE 25.11 / 25.62 · PYMEs 2-10M €
           </span>
@@ -994,17 +972,14 @@ export default function PersonalTab() {
         <div className="p-4">
           {['Costes', 'Hora', 'Empleado'].map(grupo => {
             const GRUPO_TITULOS = {
-              Costes: { titulo: 'Costes y márgenes (% sobre ventas)', icono: '💰' },
-              Hora: { titulo: 'Productividad por hora trabajada', icono: '⏱️' },
-              Empleado: { titulo: 'Productividad por empleado (anual)', icono: '👤' }
+              Costes: { titulo: 'Costes y márgenes (% sobre ventas)' },
+              Hora: { titulo: 'Productividad por hora trabajada' },
+              Empleado: { titulo: 'Productividad por empleado (anual)' }
             }
             const items = posicionamientoSector.filter(r => r.grupo === grupo)
             return (
               <div key={grupo} className="mb-5 last:mb-0">
-                <h4 className="text-xs font-bold uppercase text-gray-600 mb-2 flex items-center gap-2">
-                  <span>{GRUPO_TITULOS[grupo].icono}</span>
-                  {GRUPO_TITULOS[grupo].titulo}
-                </h4>
+                <h4 className="text-xs font-bold uppercase text-gray-600 mb-2">{GRUPO_TITULOS[grupo].titulo}</h4>
                 <div className="space-y-2">
                   {items.map(row => {
                     const clases = SEMAFORO_CLASES[row.evaluacion.color] || SEMAFORO_CLASES.gray
@@ -1059,10 +1034,7 @@ export default function PersonalTab() {
       {/* ========== GUIA DE RATIOS ========== */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>💡</span>
-            <span>Guía de Ratios</span>
-          </h3>
+          <h3 className="font-bold text-white">Guía de Ratios</h3>
         </div>
         <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -1097,10 +1069,7 @@ export default function PersonalTab() {
       {/* ========== CARGA DE TRABAJADORES ========== */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>📤</span>
-            <span>Cargar Datos de Plantilla</span>
-          </h3>
+          <h3 className="font-bold text-white">Cargar Datos de Plantilla</h3>
         </div>
         <div className="p-4 space-y-4">
           <p className="text-sm text-gray-600">
@@ -1125,7 +1094,7 @@ export default function PersonalTab() {
               input.click()
             }}
           >
-            <div className="text-3xl mb-2">📋</div>
+            <FileSpreadsheet size={36} className="mx-auto mb-2 text-gray-400" />
             <p className="text-sm font-medium text-gray-700">
               Arrastra aquí el Excel de trabajadores mensuales
             </p>

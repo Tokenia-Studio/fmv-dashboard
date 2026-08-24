@@ -161,10 +161,7 @@ export default function HorizonteAmortizacion() {
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between gap-4">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📉</span>
-          <span>Horizonte de amortización de préstamos</span>
-        </h3>
+        <h3 className="font-bold text-white">Horizonte de amortización de préstamos</h3>
         <div className="flex bg-white/15 rounded-lg p-0.5 text-xs font-medium">
           {['mensual', 'anual'].map(v => (
             <button

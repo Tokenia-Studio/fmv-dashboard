@@ -4,6 +4,7 @@
 // ============================================
 
 import React, { useState, useEffect, useRef } from 'react'
+import { CheckCircle2, XCircle } from 'lucide-react'
 import { createClient } from '@supabase/supabase-js'
 import { supabase, auth } from '../../lib/supabase'
 
@@ -347,10 +348,7 @@ export default function GestionUsuarios() {
       {/* Crear nuevo usuario */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>&#128100;+</span>
-            <span>Crear nuevo usuario</span>
-          </h3>
+          <h3 className="font-bold text-white">Crear nuevo usuario</h3>
         </div>
 
         <form onSubmit={crearUsuario} className="p-4">
@@ -425,7 +423,9 @@ export default function GestionUsuarios() {
       {mensaje && (
         <div className={`p-3 rounded-lg text-sm flex items-center gap-2
           ${mensaje.tipo === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-          <span>{mensaje.tipo === 'success' ? '\u2705' : '\u274C'}</span>
+          {mensaje.tipo === 'success'
+            ? <CheckCircle2 size={16} className="shrink-0 text-green-600" />
+            : <XCircle size={16} className="shrink-0 text-red-600" />}
           {mensaje.texto}
         </div>
       )}
@@ -433,10 +433,7 @@ export default function GestionUsuarios() {
       {/* Lista de usuarios */}
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>&#128101;</span>
-            <span>Usuarios registrados</span>
-          </h3>
+          <h3 className="font-bold text-white">Usuarios registrados</h3>
           <span className="text-white/70 text-sm">
             {usuariosFiltrados.length === usuarios.length
               ? `${usuarios.length} accesos`

@@ -35,10 +35,7 @@ export default function EvolucionDeuda({ datos, año, proyeccion }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📈</span>
-          <span>Evolución de la Deuda</span>
-        </h3>
+        <h3 className="font-bold text-white">Evolución de la Deuda</h3>
       </div>
 
       <div className="p-4">

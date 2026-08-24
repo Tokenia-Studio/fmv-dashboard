@@ -41,10 +41,7 @@ export default function GastosFinancieros({ datos, año }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>💸</span>
-          <span>Gastos Financieros Mensuales</span>
-        </h3>
+        <h3 className="font-bold text-white">Gastos Financieros Mensuales</h3>
         <ExportButton
           onClick={() => exportarMovimientos(
             (m) => m.grupo === '66' && m.mes.startsWith(String(año)),

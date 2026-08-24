@@ -4,6 +4,7 @@
 // ============================================
 
 import React, { useState, useMemo } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell, LabelList
@@ -115,10 +116,7 @@ export default function PuenteCajaSection() {
       {/* Selector de periodo */}
       <div className="card overflow-hidden">
         <div className="card-header flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>🔎</span>
-            <span>¿Dónde va el dinero? — Puente beneficio → caja</span>
-          </h3>
+          <h3 className="font-bold text-white">¿Dónde va el dinero? — Puente beneficio → caja</h3>
           <select
             value={periodo}
             onChange={(e) => setPeriodo(e.target.value === 'año' ? 'año' : parseInt(e.target.value))}
@@ -199,16 +197,16 @@ export default function PuenteCajaSection() {
       {/* Tabla mensual del puente */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>🧮</span>
-            <span>Puente mensual — en qué se distribuye el dinero</span>
-          </h3>
+          <h3 className="font-bold text-white">Puente mensual — en qué se distribuye el dinero</h3>
         </div>
 
         {descuadre && (
-          <div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200">
-            ⚠ El puente no cuadra con la variación real de bancos
-            (dif. {formatCurrency(puenteCaja.totalCalc - puenteCaja.totalReal)}). Revisar datos cargados.
+          <div className="bg-red-50 text-red-700 text-sm px-4 py-2 border-b border-red-200 flex items-center gap-2">
+            <AlertTriangle size={16} className="shrink-0" />
+            <span>
+              El puente no cuadra con la variación real de bancos
+              (dif. {formatCurrency(puenteCaja.totalCalc - puenteCaja.totalReal)}). Revisar datos cargados.
+            </span>
           </div>
         )}
 

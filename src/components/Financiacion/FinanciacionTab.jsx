@@ -3,6 +3,7 @@
 // ============================================
 
 import React from 'react'
+import { Landmark, CalendarClock, CalendarDays, Scale, Percent, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
 import EvolucionDeuda from './EvolucionDeuda'
@@ -22,7 +23,7 @@ export default function FinanciacionTab() {
   if (!tieneDeuda && kpis.gastosFinYTD === 0) {
     return (
       <div className="text-center py-20">
-        <div className="text-6xl mb-4">🏦</div>
+        <Landmark size={56} className="mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin datos de Financiación</h2>
         <p className="text-gray-500">No se encontraron cuentas de deuda (17x, 52x) ni gastos financieros (66x)</p>
       </div>
@@ -37,55 +38,55 @@ export default function FinanciacionTab() {
           titulo="Deuda Corto Plazo"
           valor={kpis.deudaCorto}
           subtitulo="Vence en < 1 año (cta. 52x)"
-          icono="📅"
+          icono={CalendarClock}
           colorValor="text-red-600"
         />
         <KPICard
           titulo="Deuda Largo Plazo"
           valor={kpis.deudaLargo}
           subtitulo="Vence en > 1 año (cta. 17x)"
-          icono="📆"
+          icono={CalendarDays}
           colorValor="text-orange-600"
         />
         <KPICard
           titulo="Deuda Total"
           valor={kpis.deudaTotal}
           subtitulo="Suma corto + largo plazo"
-          icono="🏦"
+          icono={Landmark}
           colorValor="text-slate-800"
         />
         <KPICard
           titulo="Deuda Neta"
           valor={kpis.deudaNeta}
           subtitulo="Deuda total - Tesorería"
-          icono="💳"
+          icono={Scale}
         />
         <KPICard
           titulo="Gastos Fin. YTD"
           valor={kpis.gastosFinYTD}
           subtitulo="Intereses + comisiones (cta. 66x)"
-          icono="💸"
+          icono={Percent}
           colorValor="text-red-600"
         />
         <KPICard
           titulo="Tesorería"
           valor={kpis.tesoreria}
           subtitulo="Saldo en bancos (cta. 57x)"
-          icono="💰"
+          icono={Wallet}
           colorValor="text-green-600"
         />
         <KPICard
           titulo="Financiación Nueva YTD"
           valor={kpis.nuevaFinYTD}
           subtitulo="Préstamos recibidos en el año"
-          icono="🏧"
+          icono={TrendingUp}
           colorValor="text-green-600"
         />
         <KPICard
           titulo="Amortizado YTD"
           valor={kpis.amortizacionRealYTD}
           subtitulo="Cuotas devueltas en el año"
-          icono="↩️"
+          icono={TrendingDown}
           colorValor="text-red-600"
         />
       </div>

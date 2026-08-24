@@ -89,30 +89,30 @@ export const BALANCE_ACCOUNTS = {
   '57': { name: 'Tesorería', type: 'activo' }
 }
 
-// Tabs de navegación
+// Tabs de navegación (iconos lucide en utils/tabIcons.jsx, mapeados por id)
 export const TABS = [
-  { id: 'pyg', label: 'PyG', icon: '📋' },
-  { id: 'servicios', label: 'Servicios Ext.', icon: '🔧' },
-  { id: 'financiacion', label: 'Financiación', icon: '🏦' },
-  { id: 'proveedores', label: 'Proveedores', icon: '👥' },
-  { id: 'cashflow', label: 'Cash Flow', icon: '💰' },
-  { id: 'presupuesto', label: 'Presupuesto', icon: '📊' },
-  { id: 'cuentasAnuales', label: 'Cuentas Anuales', icon: '📑' },
-  // { id: 'gestionDocumental', label: 'Gest. Documental', icon: '📄' }, // APARCADO 25/02/2026
-  { id: 'personal', label: 'Personal', icon: '👥' },
-  { id: 'presupuestoCompras', label: 'Ppto Compras', icon: '🛒' },
-  { id: 'inversiones', label: 'Ppto Inversiones', icon: '🏗️' }, // Pestaña propia rol compras (direccion la ve dentro de Presupuesto)
-  // { id: 'seguimientoEstructuras', label: 'Seg. Estructuras', icon: '🏗️' }, // Movido a app independiente FMV Producción
-  // { id: 'planificacionProduccion', label: 'Planif. Producción', icon: '📋' }, // Movido a app independiente FMV Producción
-  { id: 'cargar', label: 'Cargar', icon: '📤' },
-  { id: 'usuarios', label: 'Usuarios', icon: '👤' }
+  { id: 'pyg', label: 'PyG' },
+  { id: 'servicios', label: 'Servicios Ext.' },
+  { id: 'financiacion', label: 'Financiación' },
+  { id: 'proveedores', label: 'Proveedores' },
+  { id: 'cashflow', label: 'Cash Flow' },
+  { id: 'presupuesto', label: 'Presupuesto' },
+  { id: 'cuentasAnuales', label: 'Cuentas Anuales' },
+  // { id: 'gestionDocumental', label: 'Gest. Documental' }, // APARCADO 25/02/2026
+  { id: 'personal', label: 'Personal' },
+  { id: 'presupuestoCompras', label: 'Ppto Compras' },
+  { id: 'inversiones', label: 'Ppto Inversiones' }, // Pestaña propia rol compras (direccion la ve dentro de Presupuesto)
+  // { id: 'seguimientoEstructuras', label: 'Seg. Estructuras' }, // Movido a app independiente FMV Producción
+  // { id: 'planificacionProduccion', label: 'Planif. Producción' }, // Movido a app independiente FMV Producción
+  { id: 'cargar', label: 'Cargar' },
+  { id: 'usuarios', label: 'Usuarios' }
 ]
 
 // Secciones de navegación para sidebar (rol direccion)
 export const NAVIGATION_SECTIONS = {
-  finanzas: { label: 'Finanzas', icon: '💰', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', 'presupuestoCompras'] },
-  // produccion: { label: 'Producción', icon: '🏭', tabs: [] }, // Movido a app independiente FMV Producción
-  admin: { label: 'Administración', icon: '⚙️', tabs: ['cargar', 'usuarios'] }
+  finanzas: { label: 'Finanzas', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', 'presupuestoCompras'] },
+  // produccion: { label: 'Producción', tabs: [] }, // Movido a app independiente FMV Producción
+  admin: { label: 'Administración', tabs: ['cargar', 'usuarios'] }
 }
 
 // Tabs visibles por rol
@@ -132,9 +132,9 @@ export const ESTRUCTURAS_PAGE_SIZE = 50
 
 // Estructura simplificada para Presupuesto Compras (solo grupos 60 y 62)
 export const ESTRUCTURA_COMPRAS = [
-  { id: 'compras60', label: 'COMPRAS (60)', grupo: '60', icon: '📦', type: 'header' },
-  { id: 'servicios62', label: 'SERVICIOS EXT. (62)', grupo: '62', icon: '🔧', type: 'header' },
-  { id: 'totalCompras', label: 'TOTAL', icon: '📊', type: 'total', calc: true }
+  { id: 'compras60', label: 'COMPRAS (60)', grupo: '60', type: 'header' },
+  { id: 'servicios62', label: 'SERVICIOS EXT. (62)', grupo: '62', type: 'header' },
+  { id: 'totalCompras', label: 'TOTAL', type: 'total', calc: true }
 ]
 
 // Mapeo por defecto grupo contable producto -> cuenta contable

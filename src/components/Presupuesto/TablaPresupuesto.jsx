@@ -3,6 +3,7 @@
 // ============================================
 
 import React, { useState, useMemo } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatPercent, formatExcelNumber, getValueClass } from '../../utils/formatters'
@@ -69,21 +70,21 @@ const CUENTA_A_CATEGORIA = {
 
 // Estructura del PyG analítico
 const ESTRUCTURA_PYG = [
-  { id: 'ventas', label: 'VENTAS', icon: '💰', type: 'header' },
+  { id: 'ventas', label: 'VENTAS', type: 'header' },
   { id: 'compras', label: '(-) Compras', indent: true, negative: true },
   { id: 'varExist', label: '(±) Var. existencias', indent: true },
-  { id: 'margenBruto', label: 'MARGEN BRUTO', icon: '📊', type: 'subtotal', calc: true },
+  { id: 'margenBruto', label: 'MARGEN BRUTO', type: 'subtotal', calc: true },
   { id: 'servicios', label: '(-) Servicios ext.', indent: true, negative: true },
   { id: 'personal', label: '(-) Personal', indent: true, negative: true },
   { id: 'subvenciones', label: '(+) Subvenciones', indent: true, optional: true },
   { id: 'otrosIngExplot', label: '(+) Otros ing. explot.', indent: true, optional: true },
-  { id: 'ebitda', label: 'EBITDA', icon: '💹', type: 'subtotal', calc: true },
+  { id: 'ebitda', label: 'EBITDA', type: 'subtotal', calc: true },
   { id: 'restoGastos', label: '(-) Resto gastos', indent: true, negative: true },
   { id: 'amortizaciones', label: '(-) Amortizaciones', indent: true, negative: true },
   { id: 'gastosFinancieros', label: '(-) Gastos financieros', indent: true, negative: true },
   { id: 'ingFinancieros', label: '(+) Ing. financieros', indent: true, optional: true },
   { id: 'ingExcepc', label: '(+) Ing. excepcionales', indent: true, optional: true },
-  { id: 'resultado', label: 'RESULTADO', icon: '📈', type: 'total', calc: true }
+  { id: 'resultado', label: 'RESULTADO', type: 'total', calc: true }
 ]
 
 export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año }) {
@@ -483,9 +484,8 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
           <td className={`p-3 ${fila.indent ? 'pl-6' : ''}`}>
             <span className="flex items-center gap-1">
               {isExpandable && (
-                <span className="text-xs text-gray-400 w-4 inline-block">{isExpanded ? '▼' : '▶'}</span>
+                <span className="text-gray-400 w-4 inline-block">{isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
               )}
-              {fila.icon && <span className="mr-1">{fila.icon}</span>}
               {fila.label}
             </span>
           </td>
@@ -538,7 +538,7 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
               <td className="p-2 pl-10">
                 <span className="flex items-center gap-1">
                   {hasSubdetail && (
-                    <span className="text-xs text-gray-400 w-4 inline-block">{isC3Expanded ? '▼' : '▶'}</span>
+                    <span className="text-gray-400 w-4 inline-block">{isC3Expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
                   )}
                   <span className="text-gray-500 font-mono text-xs mr-1">{c3}</span>
                   {nombre3}
@@ -615,10 +615,7 @@ export default function TablaPresupuesto({ mesSeleccionado, onMesChange, año })
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📊</span>
-          <span>PyG Presupuesto vs Real {año}</span>
-        </h3>
+        <h3 className="font-bold text-white">PyG Presupuesto vs Real {año}</h3>
         <div className="flex items-center gap-4">
           <select
             value={mesSeleccionado}

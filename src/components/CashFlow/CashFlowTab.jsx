@@ -3,6 +3,7 @@
 // ============================================
 
 import React from 'react'
+import { Wallet, BarChart3, TrendingUp } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine, Cell, LabelList
@@ -59,7 +60,7 @@ export default function CashFlowTab() {
   if (!tieneDatos) {
     return (
       <div className="text-center py-20">
-        <div className="text-6xl mb-4">💰</div>
+        <Wallet size={56} className="mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin datos de Tesorería</h2>
         <p className="text-gray-500">No se encontraron movimientos en cuentas de tesorería (57x)</p>
       </div>
@@ -88,30 +89,27 @@ export default function CashFlowTab() {
           titulo="Saldo Actual"
           valor={kpis.saldoActual}
           subtitulo="Dinero disponible en bancos"
-          icono="💰"
+          icono={Wallet}
           colorValor="text-green-600"
         />
         <KPICard
           titulo="Variación Mes"
           valor={kpis.variacionMes}
           subtitulo="Cambio respecto al mes anterior"
-          icono="📊"
+          icono={BarChart3}
         />
         <KPICard
           titulo="Variación YTD"
           valor={kpis.variacionYTD}
           subtitulo="Cambio acumulado desde enero"
-          icono="📈"
+          icono={TrendingUp}
         />
       </div>
 
       {/* Gráfico de saldo */}
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>📈</span>
-            <span>Evolución de Tesorería</span>
-          </h3>
+          <h3 className="font-bold text-white">Evolución de Tesorería</h3>
           <ExportButton
             onClick={() => exportarMovimientos(
               (m) => m.grupo === '57' && m.mes.startsWith(String(añoActual)),
@@ -154,10 +152,7 @@ export default function CashFlowTab() {
       {/* Gráfico de variación */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>📊</span>
-            <span>Variación Mensual de Caja</span>
-          </h3>
+          <h3 className="font-bold text-white">Variación Mensual de Caja</h3>
         </div>
 
         <div className="p-4">

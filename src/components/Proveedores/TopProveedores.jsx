@@ -3,6 +3,7 @@
 // ============================================
 
 import React from 'react'
+import { Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatPercent, formatExcelNumber } from '../../utils/formatters'
@@ -79,10 +80,7 @@ export default function TopProveedores({ datos, totalPagos, año }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>🏆</span>
-          <span>Top 15 Proveedores por Gasto</span>
-        </h3>
+        <h3 className="font-bold text-white">Top 15 Proveedores por Gasto</h3>
         <ExportButton
           onClick={() => {
             const exportData = datos.map((p, idx) => ({
@@ -156,10 +154,11 @@ export default function TopProveedores({ datos, totalPagos, año }) {
                   <td className="p-3 text-center">
                     <button
                       onClick={() => exportarProveedor(prov)}
-                      className="px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded
+                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs bg-slate-100 text-slate-700 rounded
                                 hover:bg-slate-200 transition-colors"
                     >
-                      📥 Extracto
+                      <Download size={15} />
+                      Extracto
                     </button>
                   </td>
                 </tr>

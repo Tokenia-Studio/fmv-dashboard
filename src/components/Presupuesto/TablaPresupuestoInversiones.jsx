@@ -6,6 +6,7 @@
 // ============================================
 
 import React, { useState, useMemo } from 'react'
+import { Building2, Pencil, ChevronDown, ChevronRight } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatExcelNumber, getValueClass } from '../../utils/formatters'
@@ -15,14 +16,14 @@ import ExportButton from '../UI/ExportButton'
 
 // Familias del grupo 2 con fila propia (solo se pintan las que tienen datos)
 const FAMILIAS = [
-  { prefijo: '20', label: 'Inmovilizado intangible', icon: '💡' },
-  { prefijo: '21', label: 'Inmovilizado material', icon: '🏭' },
-  { prefijo: '22', label: 'Inversiones inmobiliarias', icon: '🏢' },
-  { prefijo: '23', label: 'Inmovilizado en curso y anticipos', icon: '🚧' },
-  { prefijo: '24', label: 'Inversiones financieras en el grupo', icon: '📈' },
-  { prefijo: '25', label: 'Otras inversiones financieras L/P', icon: '📈' },
-  { prefijo: '26', label: 'Fianzas y depósitos L/P', icon: '🔒' },
-  { prefijo: '27', label: 'Otras cuentas grupo 2', icon: '📦' }
+  { prefijo: '20', label: 'Inmovilizado intangible' },
+  { prefijo: '21', label: 'Inmovilizado material' },
+  { prefijo: '22', label: 'Inversiones inmobiliarias' },
+  { prefijo: '23', label: 'Inmovilizado en curso y anticipos' },
+  { prefijo: '24', label: 'Inversiones financieras en el grupo' },
+  { prefijo: '25', label: 'Otras inversiones financieras L/P' },
+  { prefijo: '26', label: 'Fianzas y depósitos L/P' },
+  { prefijo: '27', label: 'Otras cuentas grupo 2' }
 ]
 
 // Nombres PGC de las cuentas 3 dígitos más habituales del grupo 2
@@ -99,7 +100,9 @@ function CeldaPpto({ valor, onGuardar }) {
       onClick={empezar}
       title="Clic para escribir el presupuesto de este mes"
     >
-      {valor ? formatCurrency(valor) : <span className="text-gray-300">✎ —</span>}
+      {valor ? formatCurrency(valor) : (
+        <span className="text-gray-300 inline-flex items-center gap-1"><Pencil size={12} /> —</span>
+      )}
     </td>
   )
 }
@@ -311,10 +314,7 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>🏗️</span>
-          <span>Inversiones (CAPEX) Presupuesto vs Real {año}</span>
-        </h3>
+        <h3 className="font-bold text-white">Inversiones (CAPEX) Presupuesto vs Real {año}</h3>
         <div className="flex items-center gap-4">
           <select
             value={mesSeleccionado}
@@ -331,7 +331,7 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
 
       {sinDatos ? (
         <div className="p-8 text-center">
-          <div className="text-4xl mb-4">🏗️</div>
+          <Building2 size={40} className="mx-auto mb-4 text-gray-300" />
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Sin inversiones en {año}</h3>
           <p className="text-gray-500 mb-4">No hay movimientos ni presupuesto en cuentas del grupo 2 (sin contar 28x/29x)</p>
           <div className="flex items-center justify-center gap-2">
@@ -386,8 +386,7 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
                     >
                       <td className="p-3">
                         <span className="flex items-center gap-1">
-                          <span className="text-xs text-gray-400 w-4 inline-block">{isExpanded ? '▼' : '▶'}</span>
-                          <span className="mr-1">{f.icon}</span>
+                          <span className="text-gray-400 w-4 inline-block">{isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
                           {f.label}
                         </span>
                       </td>
@@ -428,7 +427,7 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
                           <td className="p-2 pl-10">
                             <span className="flex items-center gap-1">
                               {haySubs && (
-                                <span className="text-xs text-gray-400 w-4 inline-block">{isC3Expanded ? '▼' : '▶'}</span>
+                                <span className="text-gray-400 w-4 inline-block">{isC3Expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
                               )}
                               <span className="text-gray-500 font-mono text-xs mr-1">{c3}</span>
                               {nombre3(c3)}
@@ -497,7 +496,7 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
 
                 {/* Total inversiones */}
                 <tr className="total-row text-base font-bold border-t-2 border-amber-300">
-                  <td className="p-3">🏗️ TOTAL INVERSIONES</td>
+                  <td className="p-3">TOTAL INVERSIONES</td>
                   <td className="p-3 text-right">{formatCurrency(totalMes(pres3))}</td>
                   <td className={`p-3 text-right ${getValueClass(-totalMes(real3))}`}>{formatCurrency(totalMes(real3))}</td>
                   <td className="p-3 text-right">{formatVar(calcVar(totalMes(real3), totalMes(pres3)))}</td>

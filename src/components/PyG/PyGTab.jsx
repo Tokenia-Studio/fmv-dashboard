@@ -3,6 +3,7 @@
 // ============================================
 
 import React, { useState, useEffect, useMemo } from 'react'
+import { Coins, BarChart3, Activity, TrendingUp } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import KPICard from '../UI/KPICard'
 import ResumenMensual from './ResumenMensual'
@@ -38,7 +39,7 @@ export default function PyGTab() {
   if (!añoConDatos) {
     return (
       <div className="text-center py-20">
-        <div className="text-6xl mb-4">📊</div>
+        <BarChart3 size={56} className="mx-auto mb-4 text-gray-300" />
         <h2 className="text-xl font-semibold text-gray-700 mb-2">Sin datos para {añoActual}</h2>
         <p className="text-gray-500">Carga un diario contable en la pestaña "Cargar"</p>
       </div>
@@ -74,27 +75,27 @@ export default function PyGTab() {
           titulo="Ventas"
           valor={totales.ventas}
           subtitulo={mesHasta < 12 ? `ene–${MONTHS[mesHasta - 1].slice(0, 3).toLowerCase()}` : undefined}
-          icono="💰"
+          icono={Coins}
           colorValor="text-green-600"
         />
         <KPICard
           titulo="Margen Bruto"
           valor={totales.margenBruto}
           subtitulo={`${formatPercent(totales.ventas ? (totales.margenBruto / totales.ventas) * 100 : 0)} s/ventas${sufijoPeriodo}`}
-          icono="📊"
+          icono={BarChart3}
           colorValor="text-blue-600"
         />
         <KPICard
           titulo="EBITDA"
           valor={totales.ebitda}
           subtitulo={`${formatPercent(totales.ventas ? (totales.ebitda / totales.ventas) * 100 : 0)} s/ventas${sufijoPeriodo}`}
-          icono="💹"
+          icono={Activity}
         />
         <KPICard
           titulo="Resultado"
           valor={totales.resultado}
           subtitulo={`${formatPercent(totales.ventas ? (totales.resultado / totales.ventas) * 100 : 0)} s/ventas${sufijoPeriodo}`}
-          icono="📈"
+          icono={TrendingUp}
         />
       </div>
 

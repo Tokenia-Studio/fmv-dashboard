@@ -3,6 +3,7 @@
 // ============================================
 
 import React, { useState, useCallback } from 'react'
+import { CheckCircle2, XCircle, Clock, Check, Trash2, FolderOpen, ClipboardList } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 
@@ -87,9 +88,9 @@ export default function UploadTab() {
                         ${mensaje.tipo === 'success' ? 'bg-green-100 text-green-800' :
                           mensaje.tipo === 'error' ? 'bg-red-100 text-red-800' :
                           'bg-blue-100 text-blue-800'}`}>
-          <span className="text-xl">
-            {mensaje.tipo === 'success' ? '✅' : mensaje.tipo === 'error' ? '❌' : '⏳'}
-          </span>
+          {mensaje.tipo === 'success' ? <CheckCircle2 size={18} className="text-green-600" />
+            : mensaje.tipo === 'error' ? <XCircle size={18} className="text-red-600" />
+            : <Clock size={18} className="text-blue-600" />}
           <span>{mensaje.texto}</span>
         </div>
       )}
@@ -98,10 +99,7 @@ export default function UploadTab() {
         {/* Carga de Diario */}
         <div className="card overflow-hidden">
           <div className="card-header">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span>📊</span>
-              <span>Cargar Diario Contable</span>
-            </h3>
+            <h3 className="font-bold text-white">Cargar Diario Contable</h3>
           </div>
 
           <div className="p-4">
@@ -124,7 +122,7 @@ export default function UploadTab() {
                 className="hidden"
               />
 
-              <div className="text-4xl mb-3">📁</div>
+              <FolderOpen size={40} className="mx-auto mb-3 text-gray-300" />
               <p className="font-medium text-gray-700 mb-1">
                 Arrastra el diario aquí
               </p>
@@ -147,10 +145,7 @@ export default function UploadTab() {
         {/* Carga de Proveedores */}
         <div className="card overflow-hidden">
           <div className="card-header">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span>👥</span>
-              <span>Cargar Maestro Proveedores</span>
-            </h3>
+            <h3 className="font-bold text-white">Cargar Maestro Proveedores</h3>
           </div>
 
           <div className="p-4">
@@ -167,7 +162,7 @@ export default function UploadTab() {
                 className="hidden"
               />
 
-              <div className="text-4xl mb-3">📋</div>
+              <ClipboardList size={40} className="mx-auto mb-3 text-gray-300" />
               <p className="font-medium text-gray-700 mb-1">
                 Cargar lista de proveedores
               </p>
@@ -388,10 +383,7 @@ export default function UploadTab() {
       {tieneDatos && (
         <div className="card overflow-hidden">
           <div className="card-header flex items-center justify-between">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span>📦</span>
-              <span>Datos Cargados</span>
-            </h3>
+            <h3 className="font-bold text-white">Datos Cargados</h3>
             <button
               onClick={() => {
                 if (confirm('¿Eliminar TODOS los datos cargados?')) {
@@ -399,9 +391,10 @@ export default function UploadTab() {
                   setMensaje({ tipo: 'success', texto: 'Datos eliminados' })
                 }
               }}
-              className="px-3 py-1 text-sm bg-red-500/20 text-white rounded hover:bg-red-500/30"
+              className="px-3 py-1 text-sm bg-red-500/20 text-white rounded hover:bg-red-500/30 flex items-center gap-1.5"
             >
-              🗑️ Eliminar datos
+              <Trash2 size={15} />
+              Eliminar datos
             </button>
           </div>
 
@@ -431,7 +424,11 @@ export default function UploadTab() {
               <div className={`rounded-lg p-3 ${validacion?.cuadrado ? 'bg-green-50' : 'bg-red-50'}`}>
                 <p className="text-xs text-gray-500 uppercase">Estado</p>
                 <p className={`text-xl font-bold ${validacion?.cuadrado ? 'text-green-700' : 'text-red-700'}`}>
-                  {validacion?.cuadrado ? '✅ Cuadrado' : '❌ Descuadre'}
+                  {validacion?.cuadrado ? (
+                    <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> Cuadrado</span>
+                  ) : (
+                    <span className="flex items-center gap-1.5"><XCircle size={16} /> Descuadre</span>
+                  )}
                 </p>
                 {!validacion?.cuadrado && (
                   <p className="text-xs text-red-600 mt-1">
@@ -461,10 +458,7 @@ export default function UploadTab() {
       {Object.keys(archivosCargados || {}).length > 0 && (
         <div className="card overflow-hidden">
           <div className="card-header">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <span>📅</span>
-              <span>Archivos por Año</span>
-            </h3>
+            <h3 className="font-bold text-white">Archivos por Año</h3>
           </div>
 
           <div className="p-4">
@@ -478,8 +472,8 @@ export default function UploadTab() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-2xl font-bold text-blue-800">{año}</span>
-                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                        ✓ Cargado
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full inline-flex items-center gap-1">
+                        <Check size={12} /> Cargado
                       </span>
                     </div>
 
@@ -531,10 +525,7 @@ export default function UploadTab() {
       {/* Instrucciones */}
       {!tieneDatos && (
         <div className="card p-6">
-          <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span>📖</span>
-            Instrucciones
-          </h3>
+          <h3 className="font-semibold text-gray-800 mb-3">Instrucciones</h3>
           <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
             <li>Exporta el <strong>diario contable</strong> desde tu ERP en formato Excel</li>
             <li>Arrastra o selecciona el archivo en el área de carga</li>

@@ -8,18 +8,18 @@ import { THRESHOLDS } from '../../utils/constants'
 
 export default function RatiosPanel({ ratios, kpis }) {
   const getEstadoSemaforo = (valor, umbral, inverso = false) => {
-    if (valor === null || valor === undefined) return { color: 'gray', icon: '⚪' }
+    if (valor === null || valor === undefined) return { color: 'gray' }
 
     if (inverso) {
       // Menor es mejor (ej: Deuda/EBITDA)
-      if (valor <= umbral.warning) return { color: 'green', icon: '🟢' }
-      if (valor <= umbral.danger) return { color: 'yellow', icon: '🟡' }
-      return { color: 'red', icon: '🔴' }
+      if (valor <= umbral.warning) return { color: 'green' }
+      if (valor <= umbral.danger) return { color: 'yellow' }
+      return { color: 'red' }
     } else {
       // Mayor es mejor (ej: Cobertura intereses)
-      if (valor >= umbral.warning) return { color: 'green', icon: '🟢' }
-      if (valor >= umbral.danger) return { color: 'yellow', icon: '🟡' }
-      return { color: 'red', icon: '🔴' }
+      if (valor >= umbral.warning) return { color: 'green' }
+      if (valor >= umbral.danger) return { color: 'yellow' }
+      return { color: 'red' }
     }
   }
 
@@ -53,10 +53,7 @@ export default function RatiosPanel({ ratios, kpis }) {
   return (
     <div className="card overflow-hidden">
       <div className="card-header">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📊</span>
-          <span>Ratios de Apalancamiento</span>
-        </h3>
+        <h3 className="font-bold text-white">Ratios de Apalancamiento</h3>
       </div>
 
       <div className="p-4">
@@ -75,7 +72,11 @@ export default function RatiosPanel({ ratios, kpis }) {
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">{ratio.label}</span>
-                  <span className="text-xl">{estado.icon}</span>
+                  <span className={`w-2.5 h-2.5 rounded-full inline-block mt-1
+                                   ${estado.color === 'green' ? 'bg-green-500' :
+                                     estado.color === 'yellow' ? 'bg-yellow-400' :
+                                     estado.color === 'red' ? 'bg-red-500' :
+                                     'bg-gray-300'}`} />
                 </div>
 
                 <div className={`text-2xl font-bold mb-1
@@ -94,9 +95,9 @@ export default function RatiosPanel({ ratios, kpis }) {
 
         {/* Leyenda */}
         <div className="mt-4 pt-4 border-t border-gray-200 flex justify-center gap-6 text-xs text-gray-500">
-          <span className="flex items-center gap-1">🟢 Saludable</span>
-          <span className="flex items-center gap-1">🟡 Atención</span>
-          <span className="flex items-center gap-1">🔴 Riesgo</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Saludable</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" /> Atención</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> Riesgo</span>
         </div>
       </div>
     </div>

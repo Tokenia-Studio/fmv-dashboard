@@ -31,7 +31,12 @@ export default function KPICard({
         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
           {titulo}
         </span>
-        {icono && <span className="text-xl">{icono}</span>}
+        {icono && (
+          typeof icono === 'string'
+            // Emoji heredado (pestañas aún sin migrar a lucide)
+            ? <span className="text-xl">{icono}</span>
+            : React.createElement(icono, { size: 18, className: 'text-gray-400 shrink-0' })
+        )}
       </div>
 
       <div className={`text-2xl font-bold ${claseColor}`}>

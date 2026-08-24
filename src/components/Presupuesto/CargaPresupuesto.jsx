@@ -3,6 +3,7 @@
 // ============================================
 
 import React, { useRef, useState } from 'react'
+import { Download, FolderOpen, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import { exportarPlantillaPresupuesto } from '../../utils/exportPresupuesto'
 
@@ -59,10 +60,7 @@ export default function CargaPresupuesto() {
     <div className="card p-4">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-            <span>📤</span>
-            Cargar Presupuesto
-          </h3>
+          <h3 className="font-semibold text-gray-800">Cargar Presupuesto</h3>
           <p className="text-sm text-gray-500 mt-1">
             {tienePresupuesto
               ? `Presupuesto cargado: ${presupuestos.length} lineas para ${añoActual}`
@@ -93,8 +91,8 @@ export default function CargaPresupuesto() {
             className="px-4 py-2 rounded-lg font-medium border border-gray-300 text-gray-700
                        hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <span className="flex items-center gap-2">
-              <span>📥</span>
+            <span className="flex items-center gap-1.5">
+              <Download size={15} />
               Descargar plantilla
             </span>
           </button>
@@ -116,13 +114,13 @@ export default function CargaPresupuesto() {
                          : 'bg-blue-600 text-white hover:bg-blue-700'}`}
           >
             {cargando ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin">⚙️</span>
+              <span className="flex items-center gap-1.5">
+                <Loader2 size={15} className="animate-spin" />
                 Cargando...
               </span>
             ) : (
-              <span className="flex items-center gap-2">
-                <span>📂</span>
+              <span className="flex items-center gap-1.5">
+                <FolderOpen size={15} />
                 {tienePresupuesto ? 'Reemplazar' : 'Seleccionar archivo'}
               </span>
             )}
@@ -135,12 +133,12 @@ export default function CargaPresupuesto() {
         <div className={`mt-4 p-3 rounded-lg ${resultado.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
           {resultado.success ? (
             <div className="flex items-center gap-2">
-              <span>✅</span>
+              <CheckCircle2 size={16} className="text-green-600" />
               <span>Presupuesto {añoSeleccionado} cargado: {resultado.count} lineas</span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span>❌</span>
+              <XCircle size={16} className="text-red-600" />
               <span>Error: {resultado.error}</span>
             </div>
           )}

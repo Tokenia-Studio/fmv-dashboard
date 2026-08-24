@@ -3,6 +3,7 @@
 // ============================================
 
 import React, { useState } from 'react'
+import { BookOpen } from 'lucide-react'
 import { useData } from '../../context/DataContext'
 import TablaBalanceCCAA from './TablaBalanceCCAA'
 import TablaPyGCCAA from './TablaPyGCCAA'
@@ -14,7 +15,7 @@ export default function CuentasAnualesTab() {
   if (movimientos.length === 0) {
     return (
       <div className="text-center py-16 text-gray-500">
-        <p className="text-5xl mb-4">📑</p>
+        <BookOpen size={56} className="mx-auto mb-4 text-gray-300" />
         <p className="text-lg font-medium">No hay datos cargados</p>
         <p className="text-sm">Carga un diario contable para ver las Cuentas Anuales</p>
       </div>

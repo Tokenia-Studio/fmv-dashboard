@@ -91,10 +91,7 @@ export default function ComparativaInteranual() {
   return (
     <div className="card overflow-hidden">
       <div className="card-header flex items-center justify-between">
-        <h3 className="font-bold text-white flex items-center gap-2">
-          <span>📈</span>
-          <span>Comparativa Interanual {añoActual} vs {añoAnterior}</span>
-        </h3>
+        <h3 className="font-bold text-white">Comparativa Interanual {añoActual} vs {añoAnterior}</h3>
         {!tieneAnterior && (
           <span className="text-xs bg-yellow-500/20 text-yellow-200 px-2 py-1 rounded">
             Sin datos de {añoAnterior}

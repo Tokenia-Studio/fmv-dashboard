@@ -406,9 +406,7 @@ export default function TablaBalanceCCAA() {
 
       <div className="card overflow-hidden">
         <div className="card-header flex items-center justify-between">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <span>Balance de Situacion {añoActual}</span>
-          </h3>
+          <h3 className="font-bold text-white">Balance de Situacion {añoActual}</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={expandAll}
