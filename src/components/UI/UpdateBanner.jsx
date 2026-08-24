@@ -41,11 +41,13 @@ export default function UpdateBanner() {
     <button
       onClick={() => window.location.reload()}
       className="fixed bottom-4 right-4 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-full
-                 bg-blue-700 text-white text-sm font-semibold shadow-lg hover:bg-blue-800
+                 bg-fmv-600 text-white text-sm font-semibold shadow-lg hover:bg-fmv-500
                  transition-colors print:hidden"
       title="Hay una versión nueva de la aplicación desplegada. Pulsa para recargar y actualizarte."
     >
-      <span>🔄</span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
+      </svg>
       Nueva versión disponible — Actualizar
     </button>
   )

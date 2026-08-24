@@ -170,11 +170,13 @@ export default function LoginScreen({ onLogin, forceMode }) {
   // Pantalla de carga mientras verifica token
   if (checkingToken) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-fmv-900 flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl mb-4 shadow-lg animate-pulse">
-            <span className="text-2xl font-bold text-white tracking-tight">FMV</span>
-          </div>
+          <img
+            src="/logo-fmv-icono.png"
+            alt="Fabricaciones Metálicas Valdepinto"
+            className="h-20 w-auto mx-auto mb-4 animate-pulse"
+          />
           <p className="text-gray-400">Verificando...</p>
         </div>
       </div>
@@ -182,12 +184,12 @@ export default function LoginScreen({ onLogin, forceMode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-fmv-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl mb-4 shadow-lg">
-            <span className="text-2xl font-bold text-white tracking-tight">FMV</span>
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-fmv-900 rounded-2xl mb-4 shadow-lg p-3.5">
+            <img src="/logo-fmv-icono.png" alt="Fabricaciones Metálicas Valdepinto" className="max-h-full w-auto" />
           </div>
           <h1 className="text-2xl font-bold text-gray-800">{getTitle()}</h1>
           <p className="text-gray-500 text-sm mt-1">{getSubtitle()}</p>

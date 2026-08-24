@@ -9,6 +9,7 @@ import Header from './components/Layout/Header'
 import Footer from './components/Layout/Footer'
 import Sidebar from './components/Layout/Sidebar'
 import PyGTab from './components/PyG/PyGTab'
+import PyGSkeleton from './components/PyG/PyGSkeleton'
 import ServiciosTab from './components/ServiciosExt/ServiciosTab'
 import FinanciacionTab from './components/Financiacion/FinanciacionTab'
 import ProveedoresTab from './components/Proveedores/ProveedoresTab'
@@ -67,7 +68,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App() {
-  const { tabActiva, movimientos, loading, loadingMessage, userRole } = useData()
+  const { tabActiva, movimientos, loading, loadingMessage, recargaCompleta, userRole } = useData()
   const [user, setUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [forcePasswordReset, setForcePasswordReset] = useState(false)
@@ -128,11 +129,13 @@ function App() {
   // Pantalla de carga inicial
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-fmv-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl mb-4 shadow-lg animate-pulse">
-            <span className="text-2xl font-bold text-white tracking-tight">FMV</span>
-          </div>
+          <img
+            src="/logo-fmv-icono.png"
+            alt="Fabricaciones Metálicas Valdepinto"
+            className="h-20 w-auto mx-auto mb-4 animate-pulse"
+          />
           <p className="text-gray-400">Cargando...</p>
         </div>
       </div>
@@ -147,11 +150,13 @@ function App() {
   // Sin rol asignado en esta app
   if (userRole === null && !loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-fmv-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-4">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl mb-4 shadow-lg">
-            <span className="text-2xl font-bold text-white tracking-tight">FMV</span>
-          </div>
+          <img
+            src="/logo-fmv-icono.png"
+            alt="Fabricaciones Metálicas Valdepinto"
+            className="h-20 w-auto mx-auto mb-4"
+          />
           <h2 className="text-xl font-semibold text-white mb-2">Sin acceso</h2>
           <p className="text-gray-400 mb-6">Tu cuenta no tiene permisos para acceder al Dashboard Financiero. Contacta con el administrador.</p>
           <button onClick={handleLogout} className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 text-sm">
@@ -162,8 +167,17 @@ function App() {
     )
   }
 
+  // Recarga completa desde Supabase (arranque de la app o recargar datos):
+  // con PyG activa se pinta su skeleton en el contenido en vez del overlay
+  // bloqueante. Subir/borrar ficheros sueltos sigue usando el overlay.
+  const skeletonPyG = loading && recargaCompleta && tabActiva === 'pyg'
+
   // Renderizar pestaña activa
   const renderTab = () => {
+    if (skeletonPyG) {
+      return <PyGSkeleton />
+    }
+
     // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)
     if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'presupuestoCompras' && tabActiva !== 'personal' && tabActiva !== 'usuarios') {
       return <UploadTab />
@@ -210,14 +224,14 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Loading overlay */}
-      {loading && (
+      {loading && !skeletonPyG && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 text-center shadow-2xl min-w-[320px]">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl mb-4">
-              <span className="text-lg font-bold text-white tracking-tight">FMV</span>
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-fmv-900 rounded-xl mb-4 p-2.5">
+              <img src="/logo-fmv-icono.png" alt="FMV" className="max-h-full w-auto" />
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1.5 mb-4 overflow-hidden">
-              <div className="bg-slate-700 h-1.5 rounded-full animate-loading-bar" />
+              <div className="bg-fmv-600 h-1.5 rounded-full animate-loading-bar" />
             </div>
             <p className="font-medium text-gray-700 text-sm">
               {loadingMessage || 'Procesando...'}
@@ -226,29 +240,33 @@ function App() {
         </div>
       )}
 
-      {/* Header con navegacion */}
-      <Header
-        user={user}
-        onLogout={handleLogout}
-        onToggleSidebar={useSidebar ? toggleSidebar : undefined}
-      />
-
-      {/* Body: Sidebar + Main (direccion) or just Main (compras) */}
+      {/* Body: el sidebar llega hasta arriba del todo y el header queda a su
+          derecha, con el logo FMV a la altura de "Dashboard Financiero" */}
       {useSidebar ? (
         <div className="flex flex-1">
           <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+          <div className="flex flex-col flex-1 min-w-0">
+            <Header
+              user={user}
+              onLogout={handleLogout}
+              onToggleSidebar={toggleSidebar}
+            />
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+              <ErrorBoundary>
+                {renderTab()}
+              </ErrorBoundary>
+            </main>
+          </div>
+        </div>
+      ) : (
+        <>
+          <Header user={user} onLogout={handleLogout} />
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
             <ErrorBoundary>
               {renderTab()}
             </ErrorBoundary>
           </main>
-        </div>
-      ) : (
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-          <ErrorBoundary>
-            {renderTab()}
-          </ErrorBoundary>
-        </main>
+        </>
       )}
 
       {/* Footer */}

@@ -26,6 +26,8 @@ npm-debug.log*
 *.jpg
 *.jpeg
 !public/logo_tokenia_firma.png
+!public/logo-fmv-icono.png
+!public/logo-fmv-blanco.png
 !public/ayuda/**/*.png
 
 .vercel

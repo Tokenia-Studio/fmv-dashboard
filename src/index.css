@@ -8,10 +8,14 @@
 }
 
 body {
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
-  background: linear-gradient(180deg, #f7fafc 0%, #e2e8f0 100%);
+  background: #F5F8FC; /* fmv-50, superficie plana */
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  /* Cifras tabulares: todos los números ocupan el mismo ancho y las columnas
+     de las tablas financieras quedan alineadas dígito a dígito */
+  font-variant-numeric: tabular-nums;
 }
 
 /* Scrollbar personalizada */
@@ -38,12 +42,12 @@ body {
   }
 
   .card-header {
-    @apply px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-slate-800 to-slate-700;
+    @apply px-4 py-3 border-b border-gray-100 bg-fmv-800;
   }
 
   .btn-primary {
-    @apply px-4 py-2 bg-slate-800 text-white rounded-lg font-medium
-           hover:bg-slate-700 transition-colors disabled:opacity-50;
+    @apply px-4 py-2 bg-fmv-800 text-white rounded-lg font-medium
+           hover:bg-fmv-700 transition-colors disabled:opacity-50;
   }
 
   .btn-secondary {
@@ -53,7 +57,7 @@ body {
 
   .input {
     @apply w-full px-3 py-2 border border-gray-300 rounded-lg
-           focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none;
+           focus:ring-2 focus:ring-fmv-500 focus:border-transparent outline-none;
   }
 
   .kpi-card {
@@ -70,11 +74,11 @@ body {
   }
 
   .subtotal-row {
-    @apply bg-gradient-to-r from-blue-50 to-indigo-50 font-semibold;
+    @apply bg-fmv-100 font-semibold;
   }
 
   .total-row {
-    @apply bg-gradient-to-r from-slate-800 to-slate-700 text-white font-bold;
+    @apply bg-fmv-800 text-white font-bold;
   }
 
   .tab-active {
