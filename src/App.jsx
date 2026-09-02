@@ -25,6 +25,7 @@ import GestionDocumentalTab from './components/GestionDocumental/GestionDocument
 import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
 import LoginScreen from './components/Auth/LoginScreen'
+import { esEnlaceDeAcceso } from './lib/authUrl'
 import UpdateBanner from './components/UI/UpdateBanner'
 import UltimaActualizacion from './components/UI/UltimaActualizacion'
 
@@ -71,7 +72,10 @@ function App() {
   const { tabActiva, movimientos, loading, loadingMessage, recargaCompleta, userRole } = useData()
   const [user, setUser] = useState(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
-  const [forcePasswordReset, setForcePasswordReset] = useState(false)
+  // Enlace de invitación (creado en Usuarios) o de recuperación: la sesión viene
+  // en la URL pero hay que establecer contraseña antes de entrar. Se lee el hash
+  // al arrancar porque supabase-js lo consume y para la invitación solo emite SIGNED_IN.
+  const [forcePasswordReset, setForcePasswordReset] = useState(() => esEnlaceDeAcceso(window.location.hash))
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
 
   // Verificar sesión al cargar

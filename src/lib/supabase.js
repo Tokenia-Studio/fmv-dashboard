@@ -18,12 +18,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // ============================================
 
 export const auth = {
-  // Registro con email y password
-  signUp: async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    return { data, error }
-  },
-
   // Login con email y password
   signIn: async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })

@@ -1,31 +1,30 @@
 // ============================================
 // GESTION USUARIOS - Centralizada para todas las apps
 // Solo para rol direccion
+//
+// Alta por INVITACIÓN: dirección pone email, app, rol (y centros o taller) y
+// pulsa "Invitar". La Edge Function admin-users crea la cuenta e invita por
+// correo; el usuario pulsa el enlace, cae en su app y establece su contraseña.
+// Ese clic confirma el email. Cambios de rol/centros/taller se hacen aquí
+// directamente sobre app_user_roles (RLS: solo dirección escribe).
 // ============================================
 
-import React, { useState, useEffect, useRef } from 'react'
-import { CheckCircle2, XCircle } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
-import { supabase, auth } from '../../lib/supabase'
+import React, { useState, useEffect } from 'react'
+import { CheckCircle2, XCircle, MailPlus, Clock } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
-// Cliente secundario sin persistencia de sesión (para crear usuarios sin perder la sesión admin)
-const supabaseSignup = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-)
-
-// Configuración de apps y roles
+// Configuración de apps y roles.
+// Para añadir una app nueva (p.ej. Comercial): una entrada más con su URL y roles.
+// `url` es a donde lleva el enlace de invitación (debe estar en Supabase →
+// Auth → URL Configuration → Redirect URLs).
 const APPS = {
   dashboard: {
     label: 'Dashboard',
-    // URL de la app: a dónde debe redirigir el correo de confirmación de signup
     url: 'https://fmv-dashboard-v2.vercel.app',
     roles: [
       { value: 'direccion', label: 'Dirección' },
       { value: 'compras', label: 'Compras' }
-    ],
-    color: 'blue'
+    ]
   },
   produccion: {
     label: 'Producción',
@@ -35,17 +34,20 @@ const APPS = {
       { value: 'planificacion', label: 'Planificación' },
       { value: 'taller', label: 'Taller' },
       { value: 'seccion', label: 'Sección' }
-    ],
-    color: 'emerald'
+    ]
   },
   web: {
+    // La web (Astro + Decap CMS) no usa Supabase: se mantiene solo para mostrar
+    // filas antiguas; no se puede invitar a ella.
     label: 'Web',
+    url: null,
     roles: [
       { value: 'editor', label: 'Editor' }
-    ],
-    color: 'cyan'
+    ]
   }
 }
+
+const APPS_INVITABLES = Object.entries(APPS).filter(([, cfg]) => cfg.url)
 
 const APP_BADGE_STYLES = {
   dashboard: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -70,32 +72,108 @@ const ROLE_BADGE_STYLES = {
 }
 
 // Centros de trabajo (secciones de producción) que un usuario "Sección" puede ver.
-// El código coincide con el centro de trabajo de Producción (→ su fase). Multi-selección.
+// Mismo código que el centro de trabajo de Business Central / Producción y su
+// fase genérica (constants.js de Producción). Multi-selección.
 const CENTROS_SECCION = [
-  { cod: '015', label: 'Láser' },
-  { cod: '012', label: 'Plegado' },
-  { cod: '003', label: 'Soldadura' },
-  { cod: '025', label: 'Repasado' },
-  { cod: '024', label: 'Montaje' },
-  { cod: '028', label: 'Pintura' }
+  { cod: '015', label: 'Láser', fase: 'Láser' },
+  { cod: '054', label: 'Láser 054', fase: 'Láser' },
+  { cod: '055', label: 'Láser 055', fase: 'Láser' },
+  { cod: '026', label: 'Sierra 026', fase: 'Corte sierra' },
+  { cod: '041', label: 'Sierra 041', fase: 'Corte sierra' },
+  { cod: '016', label: 'Corte por agua', fase: 'Corte sierra' },
+  { cod: '012', label: 'Plegadora', fase: 'Plegado' },
+  { cod: '008', label: 'Plegadora 008', fase: 'Plegado' },
+  { cod: '052', label: 'Plegadora 052', fase: 'Plegado' },
+  { cod: '101', label: 'Plegadora 101', fase: 'Plegado' },
+  { cod: '003', label: 'Soldadura', fase: 'Soldadura' },
+  { cod: '022', label: 'Soldadura 022', fase: 'Soldadura' },
+  { cod: '023', label: 'Soldadura 023', fase: 'Soldadura' },
+  { cod: '049', label: 'Soldadura 049', fase: 'Soldadura' },
+  { cod: '025', label: 'Banco de esmerilar', fase: 'Repasado' },
+  { cod: '030', label: 'Rebarbar', fase: 'Repasado' },
+  { cod: '098', label: 'Verificación', fase: 'Verificación' },
+  { cod: '024', label: 'Montaje final', fase: 'Montaje' },
+  { cod: '028', label: 'Pintura', fase: 'Pintura' },
+  { cod: '099', label: 'Diseño / OT', fase: 'Diseño' }
 ]
+
+const FASES_SECCION = [...new Set(CENTROS_SECCION.map(c => c.fase))]
+
+function etiquetaCentros(cods) {
+  const lista = cods || []
+  if (!lista.length) return null
+  return lista
+    .map(cod => CENTROS_SECCION.find(c => c.cod === cod)?.label || cod)
+    .join(', ')
+}
+
+// Llama a la Edge Function admin-users con la sesión del admin.
+// supabase.functions.invoke devuelve el cuerpo de error dentro de error.context.
+async function llamarAdminUsers(body) {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body })
+  if (error) {
+    let msg = error.message
+    try {
+      const j = await error.context?.json?.()
+      if (j?.error) msg = j.error
+    } catch { /* sin cuerpo JSON */ }
+    throw new Error(msg)
+  }
+  if (data?.error) throw new Error(data.error)
+  return data
+}
+
+// Selector multi-centro agrupado por fase (reutilizado en formulario y tabla)
+function SelectorCentros({ seleccionados, onToggle, onClose }) {
+  return (
+    <>
+      <div className="fixed inset-0 z-10" onClick={onClose} />
+      <div className="absolute z-20 mt-1 w-56 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg p-1 text-left left-0">
+        {FASES_SECCION.map(fase => (
+          <div key={fase}>
+            <div className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{fase}</div>
+            {CENTROS_SECCION.filter(c => c.fase === fase).map(c => {
+              const marcado = seleccionados.includes(c.cod)
+              return (
+                <button
+                  key={c.cod}
+                  type="button"
+                  onClick={() => onToggle(c.cod)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-xs"
+                >
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${marcado ? 'bg-teal-600 border-teal-600 text-white' : 'border-gray-300'}`}>
+                    {marcado && '✓'}
+                  </span>
+                  <span className="text-gray-700">{c.label}</span>
+                  <span className="text-gray-300 ml-auto">{c.cod}</span>
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
 
 export default function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState(null)
-  const [openCentros, setOpenCentros] = useState(null) // user_id con el desplegable de centros abierto
+  const [openCentros, setOpenCentros] = useState(null) // user_id con el desplegable de centros abierto, o 'nuevo'
+  const [reenviando, setReenviando] = useState(null)
 
   // Filtros
   const [filtroEmail, setFiltroEmail] = useState('')
   const [filtroApp, setFiltroApp] = useState('')
   const [filtroRol, setFiltroRol] = useState('')
 
-  // Formulario nuevo usuario
+  // Formulario nueva invitación
   const [nuevoEmail, setNuevoEmail] = useState('')
-  const [nuevoPassword, setNuevoPassword] = useState('')
   const [nuevoApp, setNuevoApp] = useState('dashboard')
   const [nuevoRol, setNuevoRol] = useState('compras')
+  const [nuevoCentros, setNuevoCentros] = useState([])
+  const [nuevoTaller, setNuevoTaller] = useState('')
   const [creando, setCreando] = useState(false)
 
   useEffect(() => {
@@ -110,6 +188,11 @@ export default function GestionUsuarios() {
     }
   }, [nuevoApp])
 
+  const avisar = (tipo, texto, ms = 4000) => {
+    setMensaje({ tipo, texto })
+    setTimeout(() => setMensaje(null), ms)
+  }
+
   const cargarUsuarios = async () => {
     setLoading(true)
     try {
@@ -122,13 +205,21 @@ export default function GestionUsuarios() {
       if (rolesRes.error) throw rolesRes.error
       if (authRes.error) throw authRes.error
 
-      // Mapa de emails desde auth.users
-      const emailMap = {}
-      ;(authRes.data || []).forEach(au => { emailMap[au.id] = au.email })
+      // Estado de cada cuenta desde auth.users
+      const authMap = {}
+      ;(authRes.data || []).forEach(au => { authMap[au.id] = au })
 
-      // Enriquecer roles con email real y filtrar los que no tienen email
+      // Enriquecer roles con email real y estado de la invitación
       const enriquecidos = (rolesRes.data || [])
-        .map(r => ({ ...r, email: r.email || emailMap[r.user_id] || null }))
+        .map(r => {
+          const au = authMap[r.user_id]
+          return {
+            ...r,
+            email: r.email || au?.email || null,
+            // Pendiente = aún no ha establecido contraseña / nunca ha entrado
+            pendiente: au ? (!au.email_confirmed_at || !au.last_sign_in_at) : false
+          }
+        })
         .filter(r => r.email)
         .sort((a, b) => (a.email || '').localeCompare(b.email || ''))
 
@@ -140,13 +231,13 @@ export default function GestionUsuarios() {
     setLoading(false)
   }
 
-  const cambiarRol = async (userId, app, nuevoRol) => {
+  const cambiarRol = async (userId, app, rol) => {
     try {
-      const updates = { role: nuevoRol }
+      const updates = { role: rol }
       // Si cambia a no-taller, limpiar taller_asignado
-      if (nuevoRol !== 'taller') updates.taller_asignado = null
+      if (rol !== 'taller') updates.taller_asignado = null
       // Si cambia a no-seccion, limpiar centros_asignados
-      if (nuevoRol !== 'seccion') updates.centros_asignados = null
+      if (rol !== 'seccion') updates.centros_asignados = null
 
       const { error } = await supabase
         .from('app_user_roles')
@@ -159,14 +250,13 @@ export default function GestionUsuarios() {
       setUsuarios(prev => prev.map(u =>
         u.user_id === userId && u.app === app ? { ...u, ...updates } : u
       ))
-      setMensaje({ tipo: 'success', texto: 'Rol actualizado' })
+      avisar('success', 'Rol actualizado', 3000)
     } catch (e) {
-      setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+      avisar('error', 'Error: ' + e.message, 3000)
     }
-    setTimeout(() => setMensaje(null), 3000)
   }
 
-  // Multi-selección de centros de trabajo (rol Sección)
+  // Multi-selección de centros de trabajo (rol Sección) en la tabla
   const toggleCentro = async (userId, cod) => {
     const fila = usuarios.find(u => u.user_id === userId && u.app === 'produccion')
     const actuales = fila?.centros_asignados || []
@@ -186,8 +276,7 @@ export default function GestionUsuarios() {
         u.user_id === userId && u.app === 'produccion' ? { ...u, centros_asignados: nuevos } : u
       ))
     } catch (e) {
-      setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
-      setTimeout(() => setMensaje(null), 3000)
+      avisar('error', 'Error: ' + e.message, 3000)
     }
   }
 
@@ -204,84 +293,52 @@ export default function GestionUsuarios() {
       setUsuarios(prev => prev.map(u =>
         u.user_id === userId && u.app === 'produccion' ? { ...u, taller_asignado: taller || null } : u
       ))
-      setMensaje({ tipo: 'success', texto: 'Taller actualizado' })
+      avisar('success', 'Taller actualizado', 3000)
     } catch (e) {
-      setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+      avisar('error', 'Error: ' + e.message, 3000)
     }
-    setTimeout(() => setMensaje(null), 3000)
   }
 
-  const crearUsuario = async (e) => {
+  const invitar = async (e) => {
     e.preventDefault()
     if (!nuevoEmail) return
+    const cfg = APPS[nuevoApp]
+    if (!cfg?.url) { avisar('error', 'Esta aplicación no admite invitaciones'); return }
 
     setCreando(true)
     setMensaje(null)
-
     try {
-      const emailLower = nuevoEmail.toLowerCase().trim()
-
-      // 1. ¿El email ya existe en app_user_roles? (acceso a otra app)
-      //    Reusamos su user_id en vez de hacer signUp — evita FK violation
-      //    cuando Supabase devuelve un id falso por email duplicado.
-      const { data: existing, error: existingError } = await supabase
-        .from('app_user_roles')
-        .select('user_id')
-        .eq('email', emailLower)
-        .limit(1)
-        .maybeSingle()
-      if (existingError) throw existingError
-
-      let userId
-      let yaExistia = false
-
-      if (existing?.user_id) {
-        userId = existing.user_id
-        yaExistia = true
-      } else {
-        if (!nuevoPassword) {
-          throw new Error('Password obligatoria para usuarios nuevos')
-        }
-        // Redirige el correo de confirmación a la app del rol elegido (Producción → app
-        // de producción), no al Site URL por defecto de Supabase (Dashboard). La URL debe
-        // estar en Auth → URL Configuration → Redirect URLs de Supabase o Supabase la ignora.
-        const redirectBase = APPS[nuevoApp]?.url
-        const { data: signUpData, error: signUpError } = await supabaseSignup.auth.signUp({
-          email: emailLower,
-          password: nuevoPassword,
-          options: redirectBase ? { emailRedirectTo: redirectBase } : undefined
-        })
-        if (signUpError) throw signUpError
-        if (!signUpData.user) throw new Error('No se pudo crear el usuario')
-        userId = signUpData.user.id
-      }
-
-      // 2. Asignar rol en app_user_roles (alta o ampliación de acceso)
-      const { error: roleError } = await supabase
-        .from('app_user_roles')
-        .upsert({
-          user_id: userId,
-          app: nuevoApp,
-          role: nuevoRol,
-          email: emailLower
-        }, { onConflict: 'user_id,app' })
-      if (roleError) throw roleError
-
-      const appLabel = APPS[nuevoApp]?.label || nuevoApp
-      const rolLabel = APPS[nuevoApp]?.roles.find(r => r.value === nuevoRol)?.label || nuevoRol
-      const accion = yaExistia ? 'Acceso añadido a' : `Usuario ${nuevoEmail} creado en`
-      setMensaje({ tipo: 'success', texto: `${accion} ${appLabel} con rol ${rolLabel}` })
+      const data = await llamarAdminUsers({
+        action: 'invite',
+        email: nuevoEmail.trim().toLowerCase(),
+        app: nuevoApp,
+        role: nuevoRol,
+        redirectTo: cfg.url,
+        centros: nuevoRol === 'seccion' ? nuevoCentros : undefined,
+        taller: nuevoRol === 'taller' ? (nuevoTaller || null) : undefined
+      })
+      avisar('success', data?.mensaje || 'Invitación enviada', 6000)
       setNuevoEmail('')
-      setNuevoPassword('')
+      setNuevoCentros([])
+      setNuevoTaller('')
       cargarUsuarios()
-    } catch (e) {
-      const msg = e.message === 'User already registered'
-        ? 'Este email ya está registrado en Auth pero no en ninguna app — pide al usuario que vuelva a registrarse o resetea su password desde Supabase'
-        : e.message
-      setMensaje({ tipo: 'error', texto: msg })
+    } catch (err) {
+      avisar('error', err.message, 8000)
     }
     setCreando(false)
-    setTimeout(() => setMensaje(null), 5000)
+  }
+
+  const reenviarInvitacion = async (u) => {
+    const cfg = APPS[u.app]
+    if (!cfg?.url) { avisar('error', 'Esta aplicación no admite invitaciones'); return }
+    setReenviando(u.user_id)
+    try {
+      const data = await llamarAdminUsers({ action: 'resend', user_id: u.user_id, redirectTo: cfg.url })
+      avisar('success', data?.mensaje || 'Invitación reenviada', 6000)
+    } catch (err) {
+      avisar('error', err.message, 8000)
+    }
+    setReenviando(null)
   }
 
   const eliminarAcceso = async (userId, app, email) => {
@@ -292,12 +349,11 @@ export default function GestionUsuarios() {
       // Último acceso: eliminar usuario completo
       if (!confirm(`${email} solo tiene acceso a ${APPS[app]?.label || app}.\n\n¿Eliminar completamente la cuenta?`)) return
       try {
-        const { error } = await supabase.rpc('app_delete_user', { target_user_id: userId })
-        if (error) throw error
+        await llamarAdminUsers({ action: 'delete', user_id: userId })
         setUsuarios(prev => prev.filter(u => u.user_id !== userId))
-        setMensaje({ tipo: 'success', texto: `Usuario ${email} eliminado completamente` })
+        avisar('success', `Usuario ${email} eliminado completamente`, 3000)
       } catch (e) {
-        setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+        avisar('error', 'Error: ' + e.message, 6000)
       }
     } else {
       // Tiene más accesos: solo quitar este rol
@@ -310,12 +366,11 @@ export default function GestionUsuarios() {
           .eq('app', app)
         if (error) throw error
         setUsuarios(prev => prev.filter(u => !(u.user_id === userId && u.app === app)))
-        setMensaje({ tipo: 'success', texto: `Acceso de ${email} a ${APPS[app]?.label || app} eliminado` })
+        avisar('success', `Acceso de ${email} a ${APPS[app]?.label || app} eliminado`, 3000)
       } catch (e) {
-        setMensaje({ tipo: 'error', texto: 'Error: ' + e.message })
+        avisar('error', 'Error: ' + e.message, 3000)
       }
     }
-    setTimeout(() => setMensaje(null), 3000)
   }
 
   // Filtrar usuarios
@@ -332,26 +387,25 @@ export default function GestionUsuarios() {
     emailCount[u.user_id] = (emailCount[u.user_id] || 0) + 1
   })
 
-  // Roles únicos disponibles en la lista filtrada (para el filtro de rol)
-  const rolesUnicos = [...new Set(usuarios.map(u => u.role))].sort()
-
   const rolesApp = APPS[nuevoApp]?.roles || []
 
-  // Email del formulario coincide con un usuario ya existente en otra app → no pedir password
+  // Email del formulario coincide con un usuario ya existente en otra app → solo se añade acceso
   const emailLowerForm = nuevoEmail.toLowerCase().trim()
   const usuarioExistente = emailLowerForm
     ? usuarios.find(u => (u.email || '').toLowerCase() === emailLowerForm)
     : null
+  const esSeccionNuevo = nuevoApp === 'produccion' && nuevoRol === 'seccion'
+  const esTallerNuevo = nuevoApp === 'produccion' && nuevoRol === 'taller'
 
   return (
     <div className="space-y-6">
-      {/* Crear nuevo usuario */}
+      {/* Invitar usuario */}
       <div className="card overflow-hidden">
         <div className="card-header">
-          <h3 className="font-bold text-white">Crear nuevo usuario</h3>
+          <h3 className="font-bold text-white">Invitar usuario</h3>
         </div>
 
-        <form onSubmit={crearUsuario} className="p-4">
+        <form onSubmit={invitar} className="p-4">
           <div className="grid md:grid-cols-5 gap-3 items-end">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Email</label>
@@ -365,29 +419,13 @@ export default function GestionUsuarios() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">
-                Contraseña temporal
-                {usuarioExistente && <span className="ml-1 text-emerald-600 font-medium">(no necesaria — usuario existente)</span>}
-              </label>
-              <input
-                type="text"
-                value={usuarioExistente ? '' : nuevoPassword}
-                onChange={(e) => setNuevoPassword(e.target.value)}
-                disabled={!!usuarioExistente}
-                className="w-full px-3 py-2 border rounded-lg text-sm disabled:bg-gray-100 disabled:text-gray-400"
-                placeholder={usuarioExistente ? 'Mantiene su password actual' : 'Min. 6 caracteres'}
-                minLength={6}
-                required={!usuarioExistente}
-              />
-            </div>
-            <div>
               <label className="block text-xs text-gray-500 mb-1">Aplicación</label>
               <select
                 value={nuevoApp}
                 onChange={(e) => setNuevoApp(e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm"
               >
-                {Object.entries(APPS).map(([key, cfg]) => (
+                {APPS_INVITABLES.map(([key, cfg]) => (
                   <option key={key} value={key}>{cfg.label}</option>
                 ))}
               </select>
@@ -404,16 +442,62 @@ export default function GestionUsuarios() {
                 ))}
               </select>
             </div>
+            <div>
+              {esSeccionNuevo ? (
+                <>
+                  <label className="block text-xs text-gray-500 mb-1">Centros</label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenCentros(openCentros === 'nuevo' ? null : 'nuevo')}
+                      className="w-full px-3 py-2 border rounded-lg text-sm bg-white text-left flex items-center justify-between gap-1 hover:border-teal-400"
+                    >
+                      <span className="truncate">
+                        {etiquetaCentros(nuevoCentros) || <span className="text-gray-400">Seleccionar centros…</span>}
+                      </span>
+                      <span className="text-gray-400">▾</span>
+                    </button>
+                    {openCentros === 'nuevo' && (
+                      <SelectorCentros
+                        seleccionados={nuevoCentros}
+                        onToggle={(cod) => setNuevoCentros(prev => prev.includes(cod) ? prev.filter(c => c !== cod) : [...prev, cod])}
+                        onClose={() => setOpenCentros(null)}
+                      />
+                    )}
+                  </div>
+                </>
+              ) : esTallerNuevo ? (
+                <>
+                  <label className="block text-xs text-gray-500 mb-1">Taller</label>
+                  <select
+                    value={nuevoTaller}
+                    onChange={(e) => setNuevoTaller(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  >
+                    <option value="">Todos</option>
+                    <option value="1">Taller 1</option>
+                    <option value="2">Taller 2</option>
+                  </select>
+                </>
+              ) : (
+                <p className="text-xs text-gray-400 pb-2">
+                  {usuarioExistente
+                    ? 'Usuario existente: se le añade el acceso sin enviar correo.'
+                    : 'Recibirá un correo con un enlace para establecer su contraseña.'}
+                </p>
+              )}
+            </div>
             <button
               type="submit"
               disabled={creando}
-              className={`px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50 ${
+              className={`px-4 py-2 text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 ${
                 usuarioExistente ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
+              <MailPlus size={16} />
               {creando
-                ? (usuarioExistente ? 'Añadiendo acceso...' : 'Creando...')
-                : (usuarioExistente ? 'Añadir acceso' : 'Crear usuario')}
+                ? (usuarioExistente ? 'Añadiendo acceso...' : 'Invitando...')
+                : (usuarioExistente ? 'Añadir acceso' : 'Invitar')}
             </button>
           </div>
         </form>
@@ -504,7 +588,17 @@ export default function GestionUsuarios() {
                   const rolesDisponibles = appCfg?.roles || []
                   return (
                     <tr key={`${u.user_id}-${u.app}`} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{u.email}</td>
+                      <td className="p-3 font-medium">
+                        {u.email}
+                        {u.pendiente && (
+                          <span
+                            className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 align-middle"
+                            title="Aún no ha establecido contraseña ni ha entrado"
+                          >
+                            <Clock size={11} /> Pendiente de aceptar
+                          </span>
+                        )}
+                      </td>
                       <td className="p-3">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium border ${APP_BADGE_STYLES[u.app] || 'bg-gray-50 text-gray-700 border-gray-200'}`}>
                           {appCfg?.label || u.app}
@@ -538,35 +632,17 @@ export default function GestionUsuarios() {
                               onClick={() => setOpenCentros(openCentros === u.user_id ? null : u.user_id)}
                               className="px-2 py-1 rounded text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-teal-400 min-w-[150px] flex items-center justify-between gap-1"
                             >
-                              <span className="truncate max-w-[180px]">
-                                {(u.centros_asignados || []).length
-                                  ? CENTROS_SECCION.filter(c => u.centros_asignados.includes(c.cod)).map(c => c.label).join(', ')
-                                  : <span className="text-gray-400">Seleccionar centros…</span>}
+                              <span className="truncate max-w-[220px]">
+                                {etiquetaCentros(u.centros_asignados) || <span className="text-gray-400">Seleccionar centros…</span>}
                               </span>
                               <span className="text-gray-400">▾</span>
                             </button>
                             {openCentros === u.user_id && (
-                              <>
-                                <div className="fixed inset-0 z-10" onClick={() => setOpenCentros(null)} />
-                                <div className="absolute z-20 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg p-1 text-left">
-                                  {CENTROS_SECCION.map(c => {
-                                    const marcado = (u.centros_asignados || []).includes(c.cod)
-                                    return (
-                                      <button
-                                        key={c.cod}
-                                        onClick={() => toggleCentro(u.user_id, c.cod)}
-                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-xs"
-                                      >
-                                        <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${marcado ? 'bg-teal-600 border-teal-600 text-white' : 'border-gray-300'}`}>
-                                          {marcado && '✓'}
-                                        </span>
-                                        <span className="text-gray-700">{c.label}</span>
-                                        <span className="text-gray-300 ml-auto">{c.cod}</span>
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </>
+                              <SelectorCentros
+                                seleccionados={u.centros_asignados || []}
+                                onToggle={(cod) => toggleCentro(u.user_id, cod)}
+                                onClose={() => setOpenCentros(null)}
+                              />
                             )}
                           </div>
                         ) : (
@@ -576,7 +652,17 @@ export default function GestionUsuarios() {
                       <td className="p-3 text-gray-500">
                         {u.created_at ? new Date(u.created_at).toLocaleDateString('es-ES') : '-'}
                       </td>
-                      <td className="p-3 text-right">
+                      <td className="p-3 text-right whitespace-nowrap">
+                        {u.pendiente && appCfg?.url && (
+                          <button
+                            onClick={() => reenviarInvitacion(u)}
+                            disabled={reenviando === u.user_id}
+                            className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50 mr-1"
+                            title="Volver a enviar el correo con el enlace para establecer contraseña"
+                          >
+                            {reenviando === u.user_id ? 'Enviando…' : 'Reenviar invitación'}
+                          </button>
+                        )}
                         <button
                           onClick={() => eliminarAcceso(u.user_id, u.app, u.email)}
                           className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"

@@ -1,6 +1,7 @@
 // ============================================
 // LOGIN SCREEN - Autenticacion con Supabase
-// Maneja: login, registro, invitación, reset password
+// Maneja: login, invitación (establecer contraseña), reset password.
+// Sin registro público: las cuentas se crean desde Usuarios (invitación).
 // ============================================
 
 import React, { useState, useEffect } from 'react'
@@ -14,7 +15,7 @@ export default function LoginScreen({ onLogin, forceMode }) {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  // Modos: 'login', 'register', 'setPassword', 'forgotPassword'
+  // Modos: 'login', 'setPassword', 'forgotPassword'
   const [mode, setMode] = useState(forceMode || 'login')
   const [checkingToken, setCheckingToken] = useState(!forceMode)
 
@@ -80,15 +81,6 @@ export default function LoginScreen({ onLogin, forceMode }) {
         if (error) throw error
         if (data.user) onLogin(data.user)
 
-      } else if (mode === 'register') {
-        const { data, error } = await auth.signUp(email, password)
-        if (error) throw error
-        if (data.user) {
-          setSuccess('Usuario creado. Ya puedes iniciar sesión.')
-          setMode('login')
-          setPassword('')
-        }
-
       } else if (mode === 'setPassword') {
         // Validar que las contraseñas coincidan
         if (password !== confirmPassword) {
@@ -139,7 +131,6 @@ export default function LoginScreen({ onLogin, forceMode }) {
   const getTitle = () => {
     switch (mode) {
       case 'login': return 'Iniciar sesión'
-      case 'register': return 'Crear cuenta'
       case 'setPassword': return 'Establece tu contraseña'
       case 'forgotPassword': return 'Recuperar contraseña'
       default: return 'FMV Dashboard'
@@ -149,7 +140,6 @@ export default function LoginScreen({ onLogin, forceMode }) {
   const getSubtitle = () => {
     switch (mode) {
       case 'login': return 'Introduce tus credenciales'
-      case 'register': return 'Crea una nueva cuenta'
       case 'setPassword': return 'Crea una contraseña para tu cuenta'
       case 'forgotPassword': return 'Te enviaremos un email de recuperación'
       default: return ''
@@ -160,7 +150,6 @@ export default function LoginScreen({ onLogin, forceMode }) {
     if (loading) return 'Procesando...'
     switch (mode) {
       case 'login': return 'Acceder'
-      case 'register': return 'Crear cuenta'
       case 'setPassword': return 'Guardar contraseña'
       case 'forgotPassword': return 'Enviar email'
       default: return 'Continuar'
@@ -204,8 +193,8 @@ export default function LoginScreen({ onLogin, forceMode }) {
 
         {/* Formulario */}
         <form onSubmit={handleSubmit}>
-          {/* Email - solo en login, register y forgotPassword */}
-          {(mode === 'login' || mode === 'register' || mode === 'forgotPassword') && (
+          {/* Email - solo en login y forgotPassword */}
+          {(mode === 'login' || mode === 'forgotPassword') && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email
@@ -238,8 +227,8 @@ export default function LoginScreen({ onLogin, forceMode }) {
             </div>
           )}
 
-          {/* Password - en login, register y setPassword */}
-          {(mode === 'login' || mode === 'register' || mode === 'setPassword') && (
+          {/* Password - en login y setPassword */}
+          {(mode === 'login' || mode === 'setPassword') && (
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {mode === 'setPassword' ? 'Nueva contraseña' : 'Contraseña'}
@@ -339,25 +328,6 @@ export default function LoginScreen({ onLogin, forceMode }) {
               className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
             >
               ¿Olvidaste tu contraseña?
-            </button>
-          </div>
-        )}
-
-        {/* Toggle entre login y register */}
-        {(mode === 'login' || mode === 'register') && (
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === 'login' ? 'register' : 'login')
-                setError('')
-                setSuccess('')
-              }}
-              className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              {mode === 'login'
-                ? '¿No tienes cuenta? Crear una'
-                : '¿Ya tienes cuenta? Iniciar sesión'}
             </button>
           </div>
         )}
