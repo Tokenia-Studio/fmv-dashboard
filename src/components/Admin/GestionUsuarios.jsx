@@ -9,7 +9,8 @@
 // directamente sobre app_user_roles (RLS: solo dirección escribe).
 // ============================================
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { CheckCircle2, XCircle, MailPlus, Clock } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
@@ -123,12 +124,43 @@ async function llamarAdminUsers(body) {
   return data
 }
 
-// Selector multi-centro agrupado por fase (reutilizado en formulario y tabla)
-function SelectorCentros({ seleccionados, onToggle, onClose }) {
-  return (
+// Selector multi-centro agrupado por fase (reutilizado en formulario y tabla).
+// Se pinta en un portal con posición fija, anclado al botón: así no lo recortan
+// las tarjetas (overflow-hidden) ni el scroll horizontal de la tabla.
+function SelectorCentros({ anchorEl, seleccionados, onToggle, onClose }) {
+  const ALTO_MAX = 320
+  const [pos, setPos] = useState(null)
+
+  useLayoutEffect(() => {
+    function colocar() {
+      if (!anchorEl) return
+      const r = anchorEl.getBoundingClientRect()
+      const abajo = window.innerHeight - r.bottom
+      const arriba = abajo < ALTO_MAX && r.top > abajo
+      setPos({
+        left: Math.min(r.left, window.innerWidth - 232),
+        top: arriba ? undefined : r.bottom + 4,
+        bottom: arriba ? window.innerHeight - r.top + 4 : undefined,
+        maxHeight: Math.min(ALTO_MAX, (arriba ? r.top : abajo) - 8)
+      })
+    }
+    colocar()
+    window.addEventListener('resize', colocar)
+    window.addEventListener('scroll', colocar, true)
+    return () => {
+      window.removeEventListener('resize', colocar)
+      window.removeEventListener('scroll', colocar, true)
+    }
+  }, [anchorEl])
+
+  if (!pos) return null
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-10" onClick={onClose} />
-      <div className="absolute z-20 mt-1 w-56 max-h-80 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg p-1 text-left left-0">
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className="fixed z-50 w-56 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg p-1 text-left"
+        style={{ left: pos.left, top: pos.top, bottom: pos.bottom, maxHeight: pos.maxHeight }}
+      >
         {FASES_SECCION.map(fase => (
           <div key={fase}>
             <div className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{fase}</div>
@@ -152,7 +184,8 @@ function SelectorCentros({ seleccionados, onToggle, onClose }) {
           </div>
         ))}
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 
@@ -161,6 +194,8 @@ export default function GestionUsuarios() {
   const [loading, setLoading] = useState(true)
   const [mensaje, setMensaje] = useState(null)
   const [openCentros, setOpenCentros] = useState(null) // user_id con el desplegable de centros abierto, o 'nuevo'
+  const [nuevoBtnEl, setNuevoBtnEl] = useState(null)   // botón de centros del formulario (ancla del desplegable)
+  const btnCentrosRefs = useRef({})                     // botones de centros por user_id en la tabla
   const [reenviando, setReenviando] = useState(null)
 
   // Filtros
@@ -449,6 +484,7 @@ export default function GestionUsuarios() {
                   <div className="relative">
                     <button
                       type="button"
+                      ref={setNuevoBtnEl}
                       onClick={() => setOpenCentros(openCentros === 'nuevo' ? null : 'nuevo')}
                       className="w-full px-3 py-2 border rounded-lg text-sm bg-white text-left flex items-center justify-between gap-1 hover:border-teal-400"
                     >
@@ -459,6 +495,7 @@ export default function GestionUsuarios() {
                     </button>
                     {openCentros === 'nuevo' && (
                       <SelectorCentros
+                        anchorEl={nuevoBtnEl}
                         seleccionados={nuevoCentros}
                         onToggle={(cod) => setNuevoCentros(prev => prev.includes(cod) ? prev.filter(c => c !== cod) : [...prev, cod])}
                         onClose={() => setOpenCentros(null)}
@@ -629,6 +666,7 @@ export default function GestionUsuarios() {
                         ) : u.app === 'produccion' && u.role === 'seccion' ? (
                           <div className="relative inline-block text-left">
                             <button
+                              ref={el => { btnCentrosRefs.current[u.user_id] = el }}
                               onClick={() => setOpenCentros(openCentros === u.user_id ? null : u.user_id)}
                               className="px-2 py-1 rounded text-xs font-medium border bg-white text-gray-700 border-gray-300 hover:border-teal-400 min-w-[150px] flex items-center justify-between gap-1"
                             >
@@ -639,6 +677,7 @@ export default function GestionUsuarios() {
                             </button>
                             {openCentros === u.user_id && (
                               <SelectorCentros
+                                anchorEl={btnCentrosRefs.current[u.user_id]}
                                 seleccionados={u.centros_asignados || []}
                                 onToggle={(cod) => toggleCentro(u.user_id, cod)}
                                 onClose={() => setOpenCentros(null)}
