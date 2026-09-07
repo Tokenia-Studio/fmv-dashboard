@@ -244,7 +244,10 @@ export default function PersonalTab() {
       const proveedores = gastosPorMes[d.mesNum]?.proveedores || 0
       const acreedores = gastosPorMes[d.mesNum]?.acreedores || 0
       const resto = gastosPorMes[d.mesNum]?.resto || 0
-      const totalGastos = personalMes + proveedores + acreedores + resto
+      // Gastos OPERATIVOS (64 + 60 + 62): es lo que comparan los benchmarks
+      // sectoriales. El resto del grupo 6 (63/65/66/67/68/69) se muestra en la
+      // tabla solo a título informativo y no entra en los ratios por hora ni en % G/V.
+      const totalGastos = personalMes + proveedores + acreedores
       const ingresos = d.ventas || 0
 
       return {
@@ -823,8 +826,8 @@ export default function PersonalTab() {
                 <th className="px-2 py-2 text-right font-semibold text-purple-700 cursor-help" title="Gasto de personal COMPLETO del mes (grupo 64: sueldos 640 + indemnizaciones 641 + Seg. Social empresa 642 + otros gastos sociales 643-649). Coincide con la línea Personal del PyG.">Personal</th>
                 <th className="px-2 py-2 text-right font-semibold text-rose-700 cursor-help" title="Gastos de grupo 60 del mes (compras de materia prima, subcontrataciones, envases, etc.). Son costes directos dentro del margen bruto.">Proveed.</th>
                 <th className="px-2 py-2 text-right font-semibold text-orange-700 cursor-help" title="Servicios exteriores (grupo 62): arrendamientos, reparaciones, suministros, etc. Son gastos por debajo del margen bruto.">Acreed.</th>
-                <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Resto de gastos del grupo 6: tributos (63), otros gastos de gestión (65), gastos financieros (66), pérdidas (67), amortizaciones (68) y deterioros (69). No incluye la variación de existencias (61), que es un ajuste contable y no un gasto operativo.">Resto Ind.</th>
-                <th className="px-2 py-2 text-right font-semibold text-gray-800 cursor-help" title="Suma de Personal + Proveedores + Acreedores + Resto: TODOS los gastos del grupo 6 del mes.">Total Gtos.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-600 cursor-help" title="Solo informativo, NO entra en Total Gtos. ni en los ratios por hora. Resto de gastos del grupo 6: tributos (63), otros gastos de gestión (65), gastos financieros (66), pérdidas (67), amortizaciones (68) y deterioros (69). No incluye la variación de existencias (61), que es un ajuste contable y no un gasto operativo.">Resto Ind.</th>
+                <th className="px-2 py-2 text-right font-semibold text-gray-800 cursor-help" title="Gastos operativos del mes: Personal (64) + Proveedores (60) + Acreedores (62). No incluye Resto Ind. (amortizaciones, financieros, tributos…), que ya tienen su sitio en el PyG. Es la base de Gtos./h Tot. y % G/V.">Total Gtos.</th>
                 <th className="px-2 py-2 text-right font-semibold text-green-700 cursor-help" title="Importe neto de la cifra de negocios del mes (ventas).">Ingresos</th>
                 <th className="px-2 py-2 text-right font-semibold text-blue-600 cursor-help" title="Total Gastos ÷ Trabajadores. Coste total promedio por empleado en el mes.">Gtos./Trab.</th>
                 <th className="px-2 py-2 text-right font-semibold text-blue-700 cursor-help" title="Coste laboral COMPLETO por hora trabajada (Personal ÷ Horas Totales): sueldos + Seg. Social de empresa + indemnizaciones + otros gastos sociales. Es lo que de verdad cuesta cada hora de plantilla.">Gtos./h Pers.</th>
@@ -834,7 +837,7 @@ export default function PersonalTab() {
                 <th className="px-2 py-2 text-right font-semibold text-green-700 cursor-help" title="Facturación por hora trabajada (Ingresos ÷ Horas Totales). Comparar con Gtos./h Tot. para ver el margen por hora.">Ingr./Hora</th>
                 <th className="px-2 py-2 text-right font-semibold text-emerald-700 cursor-help" title="Facturación mensual por empleado (Ingresos ÷ Trabajadores).">Ingr./Trab.</th>
                 <th className="px-2 py-2 text-right font-semibold text-indigo-700 cursor-help" title="Facturación media por día laborable del mes (Ingresos ÷ Días Lab.).">Vtas./Día</th>
-                <th className="px-2 py-2 text-right font-semibold text-amber-700 cursor-help" title="Peso de los gastos operativos (640 + 60 + 62) sobre las ventas. >95% indica margen muy ajustado.">% G/V</th>
+                <th className="px-2 py-2 text-right font-semibold text-amber-700 cursor-help" title="Peso de los gastos operativos (64 + 60 + 62) sobre las ventas. >95% indica margen muy ajustado.">% G/V</th>
               </tr>
             </thead>
             <tbody>

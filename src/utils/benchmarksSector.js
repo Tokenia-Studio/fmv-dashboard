@@ -28,7 +28,7 @@ export const BENCHMARKS_SECTOR = {
     saludableMin: 82,
     saludableMax: 92,
     excelenteMax: 82,
-    descripcion: 'Suma de grupos 60 + 62 + 640 sobre ventas.'
+    descripcion: 'Suma de grupos 64 + 60 + 62 sobre ventas (gastos operativos, sin amortizaciones ni financieros).'
   },
   pctProveedoresVentas: {
     label: 'Proveedores 60 / Ventas',
@@ -100,7 +100,7 @@ export const BENCHMARKS_SECTOR = {
     saludableMin: 42,
     saludableMax: 52,
     excelenteMax: 42,
-    descripcion: 'Coste total por hora (640 + 60 + 62). Base para calcular el margen por hora.'
+    descripcion: 'Coste operativo por hora (64 + 60 + 62). Base para calcular el margen por hora.'
   },
   margenHora: {
     label: 'Margen / Hora',
@@ -110,7 +110,7 @@ export const BENCHMARKS_SECTOR = {
     saludableMin: 6,
     saludableMax: 12,
     excelenteMin: 12,
-    descripcion: 'Ingresos − Gastos por hora trabajada. Lo que queda para amortizaciones, financieros y beneficio.'
+    descripcion: 'Ingresos − Gastos operativos por hora (EBITDA por hora). Lo que queda para amortizaciones, financieros y beneficio.'
   },
 
   // ========== PRODUCTIVIDAD POR EMPLEADO (anual) ==========
@@ -169,19 +169,23 @@ export function evaluarBenchmark(valor, bench) {
 export function posicionEnEscala(valor, bench) {
   if (valor == null || isNaN(valor) || !bench) return 0
   // Definimos la escala entera desde tensionado extremo hasta excelente extremo
-  let min, max
+  // peor = extremo izquierdo (0), mejor = extremo derecho (100)
+  let peor, mejor
   if (bench.direction === 'lower') {
-    // Mejor valor pequeño. Escala invertida: min = mucho peor que tensionado, max = 0 o excelente
-    min = bench.tensionadoMin * 1.5
-    max = Math.max(bench.excelenteMax * 0.5, 0)
+    // Cuanto más bajo mejor: el peor valor es el alto
+    peor = bench.tensionadoMin * 1.5
+    mejor = Math.max(bench.excelenteMax * 0.5, 0)
   } else {
-    min = Math.max(bench.tensionadoMax * 0.5, 0)
-    max = bench.excelenteMin * 1.5
+    peor = Math.max(bench.tensionadoMax * 0.5, 0)
+    mejor = bench.excelenteMin * 1.5
   }
-  const span = max - min
+  const span = mejor - peor
   if (span === 0) return 50
-  const pos = ((valor - min) / span) * 100
-  return Math.max(0, Math.min(100, bench.direction === 'lower' ? 100 - pos : pos))
+  // Con direction 'lower' el span es negativo y la propia división ya invierte
+  // la escala: NO volver a restar de 100 (ese doble giro dejaba los valores
+  // malos en la zona verde).
+  const pos = ((valor - peor) / span) * 100
+  return Math.max(0, Math.min(100, pos))
 }
 
 // Genera el texto del rango saludable para mostrar al usuario
