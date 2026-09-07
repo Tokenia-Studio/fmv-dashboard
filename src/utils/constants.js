@@ -98,7 +98,6 @@ export const TABS = [
   { id: 'cashflow', label: 'Cash Flow' },
   { id: 'presupuesto', label: 'Presupuesto' },
   { id: 'cuentasAnuales', label: 'Cuentas Anuales' },
-  // { id: 'gestionDocumental', label: 'Gest. Documental' }, // APARCADO 25/02/2026
   { id: 'personal', label: 'Personal' },
   { id: 'presupuestoCompras', label: 'Ppto Compras' },
   { id: 'inversiones', label: 'Ppto Inversiones' }, // Pestaña propia rol compras (direccion la ve dentro de Presupuesto)

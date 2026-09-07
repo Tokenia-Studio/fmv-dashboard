@@ -20,7 +20,6 @@ import PresupuestoInversionesTab from './components/Presupuesto/PresupuestoInver
 // import SeguimientoEstructurasTab from './components/SeguimientoEstructuras/SeguimientoEstructurasTab' // Movido a app independiente
 import CuentasAnualesTab from './components/CuentasAnuales/CuentasAnualesTab'
 import PersonalTab from './components/Personal/PersonalTab'
-import GestionDocumentalTab from './components/GestionDocumental/GestionDocumentalTab'
 // import PlanificacionProduccionTab from './components/PlanificacionProduccion/PlanificacionProduccionTab' // Movido a app independiente
 import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
@@ -204,8 +203,6 @@ function App() {
         return <CuentasAnualesTab />
       case 'personal':
         return <PersonalTab />
-      case 'gestionDocumental':
-        return <GestionDocumentalTab />
       case 'presupuestoCompras':
         return <PresupuestoComprasTab />
       case 'inversiones':
