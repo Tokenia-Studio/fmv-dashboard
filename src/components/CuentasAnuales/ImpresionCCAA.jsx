@@ -41,7 +41,7 @@ function FilaDoc({ label, val, valAnt, nivel = 0, negrita = false, borde = false
   )
 }
 
-export default function ImpresionCCAA({ cuentasAnuales, año, mesHasta, conDesglose }) {
+export default function ImpresionCCAA({ cuentasAnuales, año, mesHasta, conDesglose, saltoPagina = false, comparativoCompleto = false }) {
   if (!cuentasAnuales) return null
 
   const añoAnterior = año - 1
@@ -156,13 +156,13 @@ export default function ImpresionCCAA({ cuentasAnuales, año, mesHasta, conDesgl
   })
 
   const notaPie = corte
-    ? `Estados financieros intermedios a ${fechaCorte}, elaborados a partir de los registros contables de la sociedad. Balance comparado con el cierre del ejercicio ${añoAnterior}; cuenta de resultados comparada con el mismo periodo del ejercicio anterior. Importes expresados en euros.`
+    ? `Estados financieros intermedios a ${fechaCorte}, elaborados a partir de los registros contables de la sociedad. Balance comparado con el cierre del ejercicio ${añoAnterior}; cuenta de resultados comparada con ${comparativoCompleto ? `el ejercicio ${añoAnterior} completo` : 'el mismo periodo del ejercicio anterior'}. Importes expresados en euros.`
     : `Estados financieros del ejercicio ${año}, elaborados a partir de los registros contables de la sociedad. Importes expresados en euros.`
 
   // Portal al <body>: el documento vive fuera del árbol de la app, y el CSS
   // de impresión (index.css) oculta #root cuando este documento está presente
   return createPortal(
-    <div className="ccaa-print-doc text-black text-[10.5pt]">
+    <div className={`ccaa-print-doc text-black text-[10.5pt] ${saltoPagina ? 'break-before-page' : ''}`}>
       {/* ===== BALANCE ===== */}
       <Membrete titulo={tituloBalance} subtitulo="(Importes en euros)" />
       <table className="w-full border-collapse">
@@ -192,7 +192,7 @@ export default function ImpresionCCAA({ cuentasAnuales, año, mesHasta, conDesgl
             <tr className="text-[9.5pt]">
               <th className="text-left font-medium pb-1"></th>
               <th className="text-right font-semibold pb-1 w-28">{corte ? `${periodoPyG} ${año}` : año}</th>
-              <th className="text-right font-semibold pb-1 w-28">{corte ? `${periodoPyG} ${añoAnterior}` : añoAnterior}</th>
+              <th className="text-right font-semibold pb-1 w-28">{corte ? (comparativoCompleto ? `Ejercicio ${añoAnterior}` : `${periodoPyG} ${añoAnterior}`) : añoAnterior}</th>
             </tr>
           </thead>
           <tbody>{filasPyG}</tbody>

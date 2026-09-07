@@ -69,7 +69,7 @@ function RatioCard({ label, value, valueAnt, formato, ideal, tooltip, color }) {
   )
 }
 
-export default function TablaPyGCCAA({ cuentasAnuales: ccaaProp, mesHasta = 12 }) {
+export default function TablaPyGCCAA({ cuentasAnuales: ccaaProp, mesHasta = 12, comparativoCompleto = false }) {
   const { cuentasAnuales: ccaaCtx, añoActual, planCuentas } = useData()
   const cuentasAnuales = ccaaProp ?? ccaaCtx
   const [expanded, setExpanded] = useState(new Set())
@@ -78,7 +78,7 @@ export default function TablaPyGCCAA({ cuentasAnuales: ccaaProp, mesHasta = 12 }
   const corte = mesHasta < 12
   const periodo = corte ? `ene–${MONTHS_SHORT[mesHasta - 1].toLowerCase()}` : ''
   const cabActual = corte ? `${periodo} ${añoActual}` : añoActual
-  const cabAnterior = corte ? `${periodo} ${añoAnterior}` : añoAnterior
+  const cabAnterior = corte ? (comparativoCompleto ? `${añoAnterior} completo` : `${periodo} ${añoAnterior}`) : añoAnterior
   const pygActual = cuentasAnuales?.pyg?.[añoActual] || {}
   const pygAnterior = cuentasAnuales?.pyg?.[añoAnterior] || {}
   const balActual = cuentasAnuales?.balance?.[añoActual] || {}
