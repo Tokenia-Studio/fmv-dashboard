@@ -9,7 +9,7 @@ import Header from './components/Layout/Header'
 import Footer from './components/Layout/Footer'
 import Sidebar from './components/Layout/Sidebar'
 import PyGTab from './components/PyG/PyGTab'
-import PyGSkeleton from './components/PyG/PyGSkeleton'
+import TabSkeleton from './components/UI/TabSkeleton'
 import ServiciosTab from './components/ServiciosExt/ServiciosTab'
 import FinanciacionTab from './components/Financiacion/FinanciacionTab'
 import ProveedoresTab from './components/Proveedores/ProveedoresTab'
@@ -171,14 +171,14 @@ function App() {
   }
 
   // Recarga completa desde Supabase (arranque de la app o recargar datos):
-  // con PyG activa se pinta su skeleton en el contenido en vez del overlay
-  // bloqueante. Subir/borrar ficheros sueltos sigue usando el overlay.
-  const skeletonPyG = loading && recargaCompleta && tabActiva === 'pyg'
+  // se pinta el skeleton de la pestaña activa en el contenido en vez del
+  // overlay bloqueante. Subir/borrar ficheros sueltos sigue usando el overlay.
+  const mostrarSkeleton = loading && recargaCompleta
 
   // Renderizar pestaña activa
   const renderTab = () => {
-    if (skeletonPyG) {
-      return <PyGSkeleton />
+    if (mostrarSkeleton) {
+      return <TabSkeleton tab={tabActiva} />
     }
 
     // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)
@@ -225,7 +225,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Loading overlay */}
-      {loading && !skeletonPyG && (
+      {loading && !mostrarSkeleton && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-8 text-center shadow-2xl min-w-[320px]">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-fmv-900 rounded-xl mb-4 p-2.5">
