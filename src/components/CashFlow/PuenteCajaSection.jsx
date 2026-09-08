@@ -26,7 +26,7 @@ function bucketDeCuenta(cuenta) {
 }
 
 export default function PuenteCajaSection() {
-  const { puenteCaja, añoActual, movimientos, proveedores } = useData()
+  const { puenteCaja, añoActual, movimientos, proveedores, clientes } = useData()
   const [periodo, setPeriodo] = useState('año') // 'año' | 1..12
 
   const datosWaterfall = useMemo(() => {
@@ -81,7 +81,8 @@ export default function PuenteCajaSection() {
     exportarLibroMovimientos(
       [{ nombre, movimientos: movsBucket }],
       `Puente_${nombre.replace(/[^a-zA-Z0-9]+/g, '_')}_${mesKey ? mesKeyToNombre(mesKey) : añoActual}`,
-      proveedores
+      proveedores,
+      clientes
     )
   }
 

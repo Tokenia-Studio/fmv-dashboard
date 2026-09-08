@@ -7,6 +7,7 @@ import React, { createContext, useContext, useReducer, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { EXCEL_COLUMN_PATTERNS, findColumn } from '../utils/constants'
 import { supabase, db, storage } from '../lib/supabase'
+import { nombreTercero } from '../utils/exportExcel'
 import {
   calcularPyG,
   calcularTotalesPyG,
@@ -40,6 +41,7 @@ const initialState = {
   movimientos: [],
   proveedores: {},
   proveedoresCuentas: {},  // {codigo: cuenta_habitual}
+  clientes: {},            // {codigo: nombre} maestro de clientes BC (cuentas 43x/44x)
 
   // Anos disponibles y archivos cargados
   años: [],
@@ -139,6 +141,9 @@ function dataReducer(state, action) {
 
     case 'LOAD_PROVEEDORES_CUENTAS':
       return { ...state, proveedoresCuentas: action.payload }
+
+    case 'LOAD_CLIENTES':
+      return { ...state, clientes: action.payload }
 
     case 'SET_DATOS_CALCULADOS':
       return {
@@ -272,6 +277,7 @@ export function DataProvider({ children }) {
         movimientosPorAño,
         archivosResult,
         proveedoresResult,
+        clientesResult,
         presupuestosResult,
         mapeoResult,
         pedidosResult,
@@ -296,6 +302,7 @@ export function DataProvider({ children }) {
         })),
         db.archivosCargados.getAll(),
         db.proveedores.getAll(),
+        db.clientes.getAll(),
         db.presupuestos.getByYear(añoActual),
         db.mapeoGrupoCuenta.getAll(),
         db.pedidosCompra.getByYear(añoActual),
@@ -353,6 +360,12 @@ export function DataProvider({ children }) {
         })
       }
       dispatch({ type: 'LOAD_PROVEEDORES', payload: proveedores })
+
+      // Clientes (si la tabla no existe aún, error y se sigue sin maestro)
+      const clientes = {}
+      if (clientesResult.error) console.error('Error cargando clientes:', clientesResult.error)
+      if (clientesResult.data) clientesResult.data.forEach(c => { clientes[c.codigo] = c.nombre })
+      dispatch({ type: 'LOAD_CLIENTES', payload: clientes })
       dispatch({ type: 'LOAD_PROVEEDORES_CUENTAS', payload: proveedoresCuentas })
 
       // Validación
@@ -762,6 +775,44 @@ export function DataProvider({ children }) {
     }
   }
 
+  // Funcion para cargar maestro de clientes (mismo formato que proveedores: Nº + Nombre)
+  const cargarClientes = async (file) => {
+    dispatch({ type: 'SET_LOADING', payload: true, message: 'Cargando clientes...' })
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer, { type: 'array' })
+      const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const json = XLSX.utils.sheet_to_json(sheet)
+
+      const clientes = {}
+      json.forEach(row => {
+        const codigo = row['Nº'] ?? row['N°'] ?? row['Codigo'] ?? row['codigo'] ?? row['N']
+        const nombre = row['Nombre'] ?? row['nombre'] ?? row['NOMBRE']
+        if (codigo !== undefined && nombre) {
+          clientes[String(codigo).trim()] = String(nombre).trim()
+        }
+      })
+
+      if (Object.keys(clientes).length === 0) {
+        throw new Error('No se encontraron clientes: el fichero debe tener columnas Nº y Nombre')
+      }
+
+      const { error } = await db.clientes.upsert(clientes)
+      if (error) {
+        console.error('Error guardando clientes en Supabase:', error)
+        throw new Error(`No se pudo guardar en Supabase: ${error.message}`)
+      }
+
+      dispatch({ type: 'LOAD_CLIENTES', payload: clientes })
+      dispatch({ type: 'SET_LOADING', payload: false })
+      return { success: true, count: Object.keys(clientes).length }
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message })
+      return { success: false, error: error.message }
+    }
+  }
+
   // Funcion para formatear numero en formato espanol (sin decimales para Excel)
   const formatoEspañol = (num) => {
     if (typeof num !== 'number' || isNaN(num)) return num
@@ -797,7 +848,7 @@ export function DataProvider({ children }) {
       Haber: m.haber,
       Neto: m.neto,
       Documento: m.documento,
-      Proveedor: state.proveedores[m.codProcedencia] || m.codProcedencia
+      Tercero: nombreTercero(m, state.proveedores, state.clientes)
     }))
     exportarExcel(movsFiltrados, nombreArchivo)
   }
@@ -1600,6 +1651,7 @@ export function DataProvider({ children }) {
     dispatch,
     cargarDiario,
     cargarProveedores,
+    cargarClientes,
     cargarPresupuesto,
     cargarPresupuestosDesdeSupabase,
     cargarDatosDesdeSupabase,

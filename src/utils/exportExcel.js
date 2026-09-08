@@ -5,8 +5,22 @@
 
 import * as XLSX from 'xlsx'
 
+// Prefijos de cuentas cuyo "Cód. procedencia" es un número de CLIENTE en BC.
+// El resto (40x, 41x, 60x, 62x…) son números de proveedor. BC numera ambas
+// series por separado, así que el mismo código significa terceros distintos.
+const PREFIJOS_CLIENTE = ['43', '44']
+
+// Nombre del tercero de un movimiento según el tipo de cuenta
+export function nombreTercero(m, proveedores = {}, clientes = {}) {
+  const cod = m.codProcedencia
+  if (!cod) return ''
+  const esCliente = PREFIJOS_CLIENTE.some(p => String(m.cuenta || '').startsWith(p))
+  const maestro = esCliente ? clientes : proveedores
+  return maestro[cod] || cod
+}
+
 // Hoja de movimientos con formato de número español en Debe/Haber/Neto
-export function hojaMovimientos(movs, proveedores = {}) {
+export function hojaMovimientos(movs, proveedores = {}, clientes = {}) {
   const filas = movs.map(m => ({
     Fecha: m.fecha instanceof Date
       ? m.fecha.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -17,14 +31,14 @@ export function hojaMovimientos(movs, proveedores = {}) {
     Haber: m.haber,
     Neto: m.haber - m.debe,
     Documento: m.documento,
-    Proveedor: proveedores[m.codProcedencia] || m.codProcedencia || ''
+    Tercero: nombreTercero(m, proveedores, clientes)
   }))
   filas.push({
     Fecha: '', Cuenta: '', Descripcion: 'TOTAL',
     Debe: movs.reduce((s, m) => s + m.debe, 0),
     Haber: movs.reduce((s, m) => s + m.haber, 0),
     Neto: movs.reduce((s, m) => s + (m.haber - m.debe), 0),
-    Documento: '', Proveedor: ''
+    Documento: '', Tercero: ''
   })
   const ws = XLSX.utils.json_to_sheet(filas)
   const range = XLSX.utils.decode_range(ws['!ref'])
@@ -44,11 +58,11 @@ function nombreHoja(nombre) {
 }
 
 // Libro con una hoja por bloque: hojas = [{ nombre, movimientos }]
-export function exportarLibroMovimientos(hojas, nombreArchivo, proveedores = {}) {
+export function exportarLibroMovimientos(hojas, nombreArchivo, proveedores = {}, clientes = {}) {
   const wb = XLSX.utils.book_new()
   hojas.forEach(h => {
     if (h.movimientos && h.movimientos.length > 0) {
-      XLSX.utils.book_append_sheet(wb, hojaMovimientos(h.movimientos, proveedores), nombreHoja(h.nombre))
+      XLSX.utils.book_append_sheet(wb, hojaMovimientos(h.movimientos, proveedores, clientes), nombreHoja(h.nombre))
     }
   })
   if (wb.SheetNames.length === 0) return false

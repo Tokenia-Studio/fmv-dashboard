@@ -11,6 +11,7 @@ export default function UploadTab() {
   const {
     cargarDiario,
     cargarProveedores,
+    cargarClientes,
     cargarAlbaranes,
     cargarPedidos,
     borrarAlbaranes,
@@ -18,6 +19,7 @@ export default function UploadTab() {
     limpiarDatos,
     movimientos,
     proveedores,
+    clientes,
     albaranesFacturas,
     pedidosCompra,
     validacion,
@@ -63,13 +65,17 @@ export default function UploadTab() {
       } else {
         setMensaje({ tipo: 'error', texto: result.error })
       }
+    } else if (tipo === 'clientes') {
+      const result = await cargarClientes(file)
+      if (result.success) {
+        setMensaje({ tipo: 'success', texto: `Cargados ${result.count.toLocaleString()} clientes` })
+      } else {
+        setMensaje({ tipo: 'error', texto: result.error })
+      }
     } else {
       const result = await cargarProveedores(file)
       if (result.success) {
-        setMensaje({
-          tipo: 'success',
-          texto: `Cargados ${result.count.toLocaleString()} proveedores/clientes`
-        })
+        setMensaje({ tipo: 'success', texto: `Cargados ${result.count.toLocaleString()} proveedores` })
       } else {
         setMensaje({ tipo: 'error', texto: result.error })
       }
@@ -95,7 +101,7 @@ export default function UploadTab() {
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Carga de Diario */}
         <div className="card overflow-hidden">
           <div className="card-header">
@@ -176,6 +182,44 @@ export default function UploadTab() {
                 <li>Nº (código)</li>
                 <li>Nombre</li>
               </ul>
+            </div>
+          </div>
+        </div>
+        {/* Carga de Clientes */}
+        <div className="card overflow-hidden">
+          <div className="card-header">
+            <h3 className="font-bold text-white">Cargar Maestro Clientes</h3>
+          </div>
+
+          <div className="p-4">
+            <div
+              className="p-8 border-2 border-dashed rounded-xl text-center cursor-pointer
+                        border-gray-300 hover:border-purple-400 hover:bg-gray-50 transition-all"
+              onClick={() => document.getElementById('clientes-input').click()}
+            >
+              <input
+                id="clientes-input"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => e.target.files[0] && handleFile(e.target.files[0], 'clientes')}
+                className="hidden"
+              />
+
+              <ClipboardList size={40} className="mx-auto mb-3 text-gray-300" />
+              <p className="font-medium text-gray-700 mb-1">
+                Cargar lista de clientes
+              </p>
+              <p className="text-sm text-gray-500">Click para seleccionar</p>
+              <p className="text-xs text-gray-400 mt-2">Excel (.xlsx)</p>
+            </div>
+
+            <div className="mt-4 text-xs text-gray-500">
+              <p className="font-medium mb-1">Columnas requeridas:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                <li>Nº (código)</li>
+                <li>Nombre</li>
+              </ul>
+              <p className="mt-2">Necesario para que los exports de cuentas 43x/44x (Cash Flow, Financiación) muestren el nombre del cliente y no el de un proveedor con el mismo número.</p>
             </div>
           </div>
         </div>
@@ -415,9 +459,9 @@ export default function UploadTab() {
               </div>
 
               <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500 uppercase">Proveedores</p>
+                <p className="text-xs text-gray-500 uppercase">Proveedores / Clientes</p>
                 <p className="text-xl font-bold text-gray-800">
-                  {Object.keys(proveedores).length.toLocaleString()}
+                  {Object.keys(proveedores).length.toLocaleString()} / {Object.keys(clientes).length.toLocaleString()}
                 </p>
               </div>
 
@@ -529,7 +573,7 @@ export default function UploadTab() {
           <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
             <li>Exporta el <strong>diario contable</strong> desde tu ERP en formato Excel</li>
             <li>Arrastra o selecciona el archivo en el área de carga</li>
-            <li>Opcionalmente, carga el <strong>maestro de proveedores</strong> para ver nombres</li>
+            <li>Opcionalmente, carga los <strong>maestros de proveedores y clientes</strong> para ver nombres en los exports</li>
             <li>Navega por las pestañas para analizar los datos</li>
           </ol>
         </div>

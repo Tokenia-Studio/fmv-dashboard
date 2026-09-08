@@ -15,7 +15,7 @@ import CustomTooltip from '../UI/CustomTooltip'
 import { useData } from '../../context/DataContext'
 
 export default function FlujosDeuda({ datos, año, proyeccion, deudaInicial = 0 }) {
-  const { movimientos, proveedores } = useData()
+  const { movimientos, proveedores, clientes } = useData()
 
   // Click en barra, cifra o fila → exportar los movimientos de deuda (17x/52x)
   // del mes, separados por naturaleza. parte: 'nueva' | 'amortizacion' | 'todo'
@@ -43,7 +43,7 @@ export default function FlujosDeuda({ datos, año, proyeccion, deudaInicial = 0 
     }
 
     const sufijo = parte === 'nueva' ? 'NuevaFin' : parte === 'amortizacion' ? 'Amortizacion' : 'Deuda'
-    exportarLibroMovimientos(hojas, `${sufijo}_${mesKeyToNombre(mesKey)}_${año}`, proveedores)
+    exportarLibroMovimientos(hojas, `${sufijo}_${mesKeyToNombre(mesKey)}_${año}`, proveedores, clientes)
   }
 
   // Solo meses reales (los futuros no aportan nada aquí)

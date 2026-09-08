@@ -220,6 +220,27 @@ export const db = {
     }
   },
 
+  // --- CLIENTES ---
+  // Maestro de clientes de BC (Nº + Nombre). Los códigos de procedencia
+  // de las cuentas 43x/44x se resuelven aquí, no contra proveedores.
+  clientes: {
+    upsert: async (clientes) => {
+      const rows = Object.entries(clientes).map(([codigo, nombre]) => ({ codigo, nombre }))
+      const { data, error } = await supabase
+        .from('clientes')
+        .upsert(rows, { onConflict: 'codigo', ignoreDuplicates: false })
+      return { data, error }
+    },
+
+    getAll: async () => {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('nombre', { ascending: true })
+      return { data, error }
+    }
+  },
+
   // --- CONFIGURACION ---
   config: {
     // Guardar configuracion
