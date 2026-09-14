@@ -531,16 +531,43 @@ export const ACCOUNT_GROUPS_3 = {
 // construcción siempre que ninguna cuenta quede sin bucket (cajón 'otros').
 // El orden importa: se aplica el primer prefijo que coincida (más específico primero).
 export const CASHFLOW_BUCKETS = [
-  { id: 'beneficio', label: 'Beneficio del periodo', descripcion: 'Resultado según PyG (ingresos − gastos)', prefijos: ['6', '7'] },
-  { id: 'amortizaciones', label: 'Amortizaciones (no es caja)', descripcion: 'Gasto contable que no sale del banco', prefijos: ['28', '29'] },
-  { id: 'clientes', label: 'Clientes y deudores', descripcion: 'Vendido pero aún no cobrado', prefijos: ['43', '44'] },
-  { id: 'existencias', label: 'Existencias', descripcion: 'Dinero convertido en material y obra en curso', prefijos: ['3'] },
-  { id: 'proveedores', label: 'Proveedores y acreedores', descripcion: 'Comprado pero aún no pagado', prefijos: ['40', '41'] },
-  { id: 'publicas', label: 'Hacienda y Seg. Social', descripcion: 'Impuestos y cotizaciones pendientes o pagados', prefijos: ['47'] },
-  { id: 'inversiones', label: 'Inversiones (CAPEX)', descripcion: 'Compra de maquinaria, instalaciones y equipos', prefijos: ['2'] },
-  { id: 'financiacion', label: 'Financiación bancaria', descripcion: 'Préstamos recibidos menos cuotas devueltas', prefijos: ['17', '52', '51', '50'] },
+  // descripcion: texto neutro (fila de la tabla). descPos / descNeg: qué significa
+  // el importe según su signo (+ entra dinero en el banco, − sale). Se usan en
+  // los tooltips para que "Clientes +300K" no se lea como "vendido y no cobrado".
+  { id: 'beneficio', label: 'Beneficio del periodo', descripcion: 'Resultado según PyG (ingresos − gastos)', prefijos: ['6', '7'],
+    descPos: 'Beneficio según PyG: el negocio genera dinero',
+    descNeg: 'Pérdida según PyG: el negocio consume dinero' },
+  { id: 'amortizaciones', label: 'Amortizaciones (no es caja)', descripcion: 'Gasto contable que no sale del banco', prefijos: ['28', '29'],
+    descPos: 'Gasto contable que no sale del banco: se devuelve al beneficio',
+    descNeg: 'Reversión de amortizaciones o deterioros (ingreso contable sin entrada de dinero)' },
+  { id: 'clientes', label: 'Clientes y deudores', descripcion: 'Variación del saldo pendiente de cobro', prefijos: ['43', '44'],
+    descPos: 'Cobrado más de lo facturado: baja el saldo de clientes y entra dinero en el banco',
+    descNeg: 'Facturado pero aún no cobrado: sube el saldo de clientes y ese dinero no ha entrado' },
+  { id: 'existencias', label: 'Existencias', descripcion: 'Variación del almacén y la obra en curso', prefijos: ['3'],
+    descPos: 'Se ha consumido stock sin reponerlo: baja el almacén y libera dinero',
+    descNeg: 'Dinero convertido en material y obra en curso: sube el almacén' },
+  { id: 'proveedores', label: 'Proveedores y acreedores', descripcion: 'Variación del saldo pendiente de pago', prefijos: ['40', '41'],
+    descPos: 'Comprado pero aún no pagado: sube el saldo de proveedores y el dinero sigue en el banco',
+    descNeg: 'Pagado más de lo comprado: baja el saldo de proveedores y sale dinero del banco' },
+  { id: 'publicas', label: 'Hacienda y Seg. Social', descripcion: 'Variación de saldos con Hacienda y Seg. Social', prefijos: ['47'],
+    descPos: 'Impuestos y cotizaciones devengados pendientes de pago (o devoluciones cobradas)',
+    descNeg: 'Pagado a Hacienda y Seg. Social más de lo devengado en el periodo' },
+  { id: 'inversiones', label: 'Inversiones (CAPEX)', descripcion: 'Compra o venta de maquinaria, instalaciones y equipos', prefijos: ['2'],
+    descPos: 'Venta o baja de activos: entra dinero',
+    descNeg: 'Compra de maquinaria, instalaciones y equipos: sale dinero' },
+  { id: 'financiacion', label: 'Financiación bancaria', descripcion: 'Préstamos recibidos menos cuotas devueltas', prefijos: ['17', '52', '51', '50'],
+    descPos: 'Préstamos o líneas dispuestas por encima de las cuotas devueltas',
+    descNeg: 'Cuotas devueltas por encima de la financiación nueva recibida' },
   { id: 'otros', label: 'Socios y otros', descripcion: 'Reservas, dividendos y otras partidas', prefijos: [] } // cajón residual
 ]
+
+// Texto explicativo de un bucket según el signo de su importe
+export function descripcionBucket(bucket, valor) {
+  if (!bucket) return ''
+  if (valor > 0 && bucket.descPos) return bucket.descPos
+  if (valor < 0 && bucket.descNeg) return bucket.descNeg
+  return bucket.descripcion
+}
 
 // Prefijo de cuentas de tesorería (el lado "real" del puente)
 export const CASHFLOW_TESORERIA_PREFIJO = '57'

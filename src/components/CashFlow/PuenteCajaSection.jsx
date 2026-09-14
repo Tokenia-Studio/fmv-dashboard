@@ -11,7 +11,7 @@ import {
 } from 'recharts'
 import { useData } from '../../context/DataContext'
 import { formatCurrency, formatCompact, mesKeyToNombre } from '../../utils/formatters'
-import { MONTHS_SHORT, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO } from '../../utils/constants'
+import { MONTHS_SHORT, CASHFLOW_BUCKETS, CASHFLOW_TESORERIA_PREFIJO, descripcionBucket } from '../../utils/constants'
 import { exportarLibroMovimientos } from '../../utils/exportExcel'
 
 const COLOR_ENTRA = '#22c55e'
@@ -33,7 +33,11 @@ export default function PuenteCajaSection() {
     if (!puenteCaja) return []
     const valorDe = (b) => periodo === 'año' ? b.total : b.meses[periodo]
     const items = puenteCaja.buckets
-      .map(b => ({ id: b.id, nombre: b.label, descripcion: b.descripcion, valor: valorDe(b) }))
+      .map(b => {
+        const valor = valorDe(b)
+        const def = CASHFLOW_BUCKETS.find(c => c.id === b.id)
+        return { id: b.id, nombre: b.label, descripcion: descripcionBucket(def, valor), valor }
+      })
       .filter(i => Math.abs(i.valor) >= 0.005)
 
     let acumulado = 0
@@ -50,7 +54,7 @@ export default function PuenteCajaSection() {
     filas.push({
       id: 'delta',
       nombre: 'Δ Tesorería',
-      descripcion: 'Lo que de verdad varió el banco',
+      descripcion: acumulado >= 0 ? 'El banco ha subido: entra más dinero del que sale' : 'El banco ha bajado: sale más dinero del que entra',
       valor: acumulado,
       base: Math.min(0, acumulado),
       tramo: Math.abs(acumulado),
@@ -225,7 +229,7 @@ export default function PuenteCajaSection() {
             <tbody>
               {puenteCaja.buckets.filter(b => Math.abs(b.total) >= 0.005).map(b => (
                 <tr key={b.id} className="table-row">
-                  <td className="p-2 font-medium whitespace-nowrap" title={b.descripcion}>{b.label}</td>
+                  <td className="p-2 font-medium whitespace-nowrap" title={descripcionBucket(CASHFLOW_BUCKETS.find(c => c.id === b.id), b.total)}>{b.label}</td>
                   {mesesConDatos.map(m => (
                     <td
                       key={m}
