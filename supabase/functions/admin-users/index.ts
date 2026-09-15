@@ -10,6 +10,7 @@
 // Acciones (POST JSON, cabecera Authorization: Bearer <jwt del admin>):
 //   invite { email, app, role, redirectTo, centros?, taller? }
 //   resend { user_id, redirectTo }
+//   set_password { user_id, password }   (usuarios sin buzón: dirección fija la contraseña y se la da en persona)
 //   delete { user_id }
 //
 // Despliegue: ver README.md en esta carpeta.
@@ -21,6 +22,7 @@ import {
   filaRol,
   type PeticionInvite,
   type PeticionResend,
+  type PeticionSetPassword,
   type PeticionDelete,
 } from "./logic.ts";
 
@@ -82,6 +84,8 @@ Deno.serve(async (req: Request) => {
         return json(await invitar(admin, v.peticion));
       case "resend":
         return json(await reenviar(admin, v.peticion));
+      case "set_password":
+        return json(await fijarPassword(admin, v.peticion));
       case "delete":
         return json(await borrar(admin, v.peticion, caller.id));
     }
@@ -178,6 +182,24 @@ async function reenviar(admin: SupabaseClient, p: PeticionResend) {
     ? `Invitación reenviada a ${u.email}.`
     : `Enlace para establecer contraseña enviado a ${u.email}.`;
   return { user_id: u.id, enviado: r.enviado, mensaje };
+}
+
+/**
+ * Dirección fija la contraseña de una cuenta y se la comunica en persona.
+ * Pensado para usuarios de taller sin buzón de correo (el enlace de invitación
+ * o de recuperación nunca les llega). Confirma el email de paso, para que la
+ * cuenta pueda entrar aunque nunca haya pulsado un enlace. La contraseña no se
+ * guarda ni se registra en ningún sitio: solo la ve quien la ha escrito.
+ */
+async function fijarPassword(admin: SupabaseClient, p: PeticionSetPassword) {
+  const { data, error } = await admin.auth.admin.getUserById(p.user_id);
+  if (error || !data?.user) throw new Error("Cuenta no encontrada");
+  const { error: updError } = await admin.auth.admin.updateUserById(p.user_id, {
+    password: p.password,
+    email_confirm: true,
+  });
+  if (updError) throw new Error(`No se pudo establecer la contraseña: ${updError.message}`);
+  return { user_id: p.user_id, mensaje: `Contraseña establecida para ${data.user.email}. Comunícasela en persona: no se envía por correo.` };
 }
 
 async function borrar(admin: SupabaseClient, p: PeticionDelete, callerId: string) {

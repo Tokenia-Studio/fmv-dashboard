@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { CheckCircle2, XCircle, MailPlus, Clock } from 'lucide-react'
+import { CheckCircle2, XCircle, MailPlus, Clock, KeyRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 // Configuración de apps y roles.
@@ -189,6 +189,127 @@ function SelectorCentros({ anchorEl, seleccionados, onToggle, onClose }) {
   )
 }
 
+// Contraseña legible para dictar en persona: 3 sílabas + 4 dígitos (p.ej. "kotema-4821").
+// Sin letras/dígitos ambiguos (l, 1, o, 0). Solo es una propuesta: dirección puede escribir otra.
+const PASSWORD_MIN = 8
+function generarPassword() {
+  const cons = 'bcdfghjkmnprstvz'
+  const voc = 'aeiu'
+  const rnd = (n) => crypto.getRandomValues(new Uint32Array(1))[0] % n
+  let p = ''
+  for (let i = 0; i < 3; i++) p += cons[rnd(cons.length)] + voc[rnd(voc.length)]
+  p += '-'
+  for (let i = 0; i < 4; i++) p += String(2 + rnd(8))
+  return p
+}
+
+// Modal para que dirección fije la contraseña de una cuenta (usuarios sin buzón
+// de correo, a los que el enlace de invitación nunca llega). Se comunica en
+// persona; el Dashboard no la guarda en ningún sitio.
+function ModalPassword({ usuario, onGuardar, onClose }) {
+  const [password, setPassword] = useState(() => generarPassword())
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState(null)
+  const [hecho, setHecho] = useState(false)
+
+  const valida = password.length >= PASSWORD_MIN && !/\s/.test(password)
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    if (!valida) return
+    setGuardando(true)
+    setError(null)
+    try {
+      await onGuardar(password)
+      setHecho(true)
+    } catch (err) {
+      setError(err.message)
+    }
+    setGuardando(false)
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={hecho ? onClose : undefined}>
+      <form
+        onSubmit={guardar}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden"
+      >
+        <div className="card-header flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-white" />
+          <h3 className="font-bold text-white">Establecer contraseña</h3>
+        </div>
+        <div className="p-4 space-y-3 text-sm">
+          <p className="text-gray-700">
+            Cuenta: <strong>{usuario.email}</strong>
+          </p>
+          {hecho ? (
+            <>
+              <div className="rounded border border-green-200 bg-green-50 p-3 text-green-800">
+                Contraseña guardada. Apúntala ahora: no se vuelve a mostrar ni se envía por correo.
+              </div>
+              <div className="font-mono text-lg tracking-wide text-center bg-gray-50 border border-gray-200 rounded p-3 select-all">
+                {password}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-500">
+                Para usuarios sin correo: el enlace de invitación no les llega, así que dirección fija la
+                contraseña y se la comunica en persona. Para cambiarla más adelante, vuelve a usar este botón.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="flex-1 border border-gray-300 rounded px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPassword(generarPassword())}
+                  className="px-3 py-2 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+                  title="Proponer otra contraseña"
+                >
+                  Generar
+                </button>
+              </div>
+              {!valida && (
+                <p className="text-xs text-red-600">Mínimo {PASSWORD_MIN} caracteres y sin espacios.</p>
+              )}
+              {error && <p className="text-xs text-red-600">{error}</p>}
+            </>
+          )}
+        </div>
+        <div className="px-4 pb-4 flex justify-end gap-2">
+          {hecho ? (
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700">
+              Cerrar
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={!valida || guardando}
+                className="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {guardando ? 'Guardando…' : 'Guardar contraseña'}
+              </button>
+            </>
+          )}
+        </div>
+      </form>
+    </div>,
+    document.body
+  )
+}
+
 export default function GestionUsuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [loading, setLoading] = useState(true)
@@ -197,6 +318,7 @@ export default function GestionUsuarios() {
   const [nuevoBtnEl, setNuevoBtnEl] = useState(null)   // botón de centros del formulario (ancla del desplegable)
   const btnCentrosRefs = useRef({})                     // botones de centros por user_id en la tabla
   const [reenviando, setReenviando] = useState(null)
+  const [usuarioPassword, setUsuarioPassword] = useState(null) // fila cuya contraseña fija dirección
 
   // Filtros
   const [filtroEmail, setFiltroEmail] = useState('')
@@ -376,6 +498,11 @@ export default function GestionUsuarios() {
     setReenviando(null)
   }
 
+  const fijarPassword = async (u, password) => {
+    const data = await llamarAdminUsers({ action: 'set_password', user_id: u.user_id, password })
+    avisar('success', data?.mensaje || 'Contraseña establecida', 6000)
+  }
+
   const eliminarAcceso = async (userId, app, email) => {
     // Contar cuántos accesos tiene este usuario
     const accesosUsuario = usuarios.filter(u => u.user_id === userId)
@@ -434,6 +561,13 @@ export default function GestionUsuarios() {
 
   return (
     <div className="space-y-6">
+      {usuarioPassword && (
+        <ModalPassword
+          usuario={usuarioPassword}
+          onGuardar={(password) => fijarPassword(usuarioPassword, password)}
+          onClose={() => setUsuarioPassword(null)}
+        />
+      )}
       {/* Invitar usuario */}
       <div className="card overflow-hidden">
         <div className="card-header">
@@ -702,6 +836,13 @@ export default function GestionUsuarios() {
                             {reenviando === u.user_id ? 'Enviando…' : 'Reenviar invitación'}
                           </button>
                         )}
+                        <button
+                          onClick={() => setUsuarioPassword(u)}
+                          className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded mr-1"
+                          title="Fijar la contraseña a mano (usuarios sin correo)"
+                        >
+                          Contraseña
+                        </button>
                         <button
                           onClick={() => eliminarAcceso(u.user_id, u.app, u.email)}
                           className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded"

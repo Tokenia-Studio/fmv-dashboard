@@ -1,7 +1,7 @@
 // Lógica pura de la Edge Function admin-users (sin Deno ni Supabase) para poder
 // probarla con `node --test` desde el repo. index.ts la importa.
 
-export type Accion = "invite" | "resend" | "delete";
+export type Accion = "invite" | "resend" | "set_password" | "delete";
 
 export type PeticionInvite = {
   action: "invite";
@@ -13,8 +13,9 @@ export type PeticionInvite = {
   taller: number | null;
 };
 export type PeticionResend = { action: "resend"; user_id: string; redirectTo: string };
+export type PeticionSetPassword = { action: "set_password"; user_id: string; password: string };
 export type PeticionDelete = { action: "delete"; user_id: string };
-export type Peticion = PeticionInvite | PeticionResend | PeticionDelete;
+export type Peticion = PeticionInvite | PeticionResend | PeticionSetPassword | PeticionDelete;
 
 export type Validacion = { ok: true; peticion: Peticion } | { ok: false; error: string };
 
@@ -22,6 +23,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SLUG_RE = /^[a-z][a-z0-9_-]{1,30}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CENTRO_RE = /^[A-Z0-9_]{1,10}$/;
+// Contraseña fijada por dirección (usuarios de taller sin buzón de correo).
+// Supabase acepta hasta 72 caracteres; el mínimo lo marca la política del proyecto (>= 6), aquí 8.
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 72;
 
 function redirectValido(url: unknown): url is string {
   if (typeof url !== "string") return false;
@@ -66,6 +71,15 @@ export function validarPeticion(body: unknown): Validacion {
     if (typeof b.user_id !== "string" || !UUID_RE.test(b.user_id)) return { ok: false, error: "Usuario no válido" };
     if (!redirectValido(b.redirectTo)) return { ok: false, error: "URL de la aplicación no válida" };
     return { ok: true, peticion: { action, user_id: b.user_id, redirectTo: b.redirectTo } };
+  }
+
+  if (action === "set_password") {
+    if (typeof b.user_id !== "string" || !UUID_RE.test(b.user_id)) return { ok: false, error: "Usuario no válido" };
+    const password = typeof b.password === "string" ? b.password : "";
+    if (password.length < PASSWORD_MIN) return { ok: false, error: `La contraseña debe tener al menos ${PASSWORD_MIN} caracteres` };
+    if (password.length > PASSWORD_MAX) return { ok: false, error: `La contraseña no puede superar ${PASSWORD_MAX} caracteres` };
+    if (/s/.test(password)) return { ok: false, error: "La contraseña no puede contener espacios" };
+    return { ok: true, peticion: { action, user_id: b.user_id, password } };
   }
 
   if (action === "delete") {

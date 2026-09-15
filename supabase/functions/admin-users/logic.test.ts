@@ -52,6 +52,18 @@ test("resend y delete exigen uuid; acción desconocida falla", () => {
   assert.equal(validarPeticion(null).ok, false);
 });
 
+test("set_password: uuid y contraseña de 8 a 72 caracteres sin espacios", () => {
+  const id = "3f2a1b4c-5d6e-4f70-8a9b-0c1d2e3f4a5b";
+  const v = validarPeticion({ action: "set_password", user_id: id, password: "Plegado-2026" });
+  assert.equal(v.ok, true);
+  if (v.ok && v.peticion.action === "set_password") assert.equal(v.peticion.password, "Plegado-2026");
+  assert.equal(validarPeticion({ action: "set_password", user_id: "1", password: "Plegado-2026" }).ok, false);
+  assert.equal(validarPeticion({ action: "set_password", user_id: id, password: "corta1" }).ok, false);
+  assert.equal(validarPeticion({ action: "set_password", user_id: id, password: "con espacio1" }).ok, false);
+  assert.equal(validarPeticion({ action: "set_password", user_id: id, password: "x".repeat(73) }).ok, false);
+  assert.equal(validarPeticion({ action: "set_password", user_id: id }).ok, false);
+});
+
 test("decidirEnvio según estado de la cuenta", () => {
   assert.equal(decidirEnvio(null), "invitar");
   assert.equal(decidirEnvio({ email_confirmed_at: null, last_sign_in_at: null }), "reinvitar");

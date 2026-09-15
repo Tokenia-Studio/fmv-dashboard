@@ -1,6 +1,6 @@
 # admin-users (Edge Function)
 
-Alta, reenvío de invitación y borrado de cuentas desde Dashboard → Usuarios. Ver cabecera de `index.ts`.
+Alta, reenvío de invitación, contraseña fijada por dirección (usuarios sin correo) y borrado de cuentas desde Dashboard → Usuarios. Ver cabecera de `index.ts`.
 
 ## Desplegar (lo hace Carlos)
 

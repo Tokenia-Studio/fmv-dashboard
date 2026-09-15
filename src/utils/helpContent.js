@@ -367,7 +367,7 @@ export const HELP_CONTENT = {
       },
       {
         titulo: 'Notas',
-        contenido: 'Solo los usuarios con rol "Dirección" pueden gestionar otros usuarios. Las invitaciones se envían por email. Nota: el servicio de email tiene un límite de 3-4 envíos por hora.'
+        contenido: 'Solo los usuarios con rol "Dirección" pueden gestionar otros usuarios. Las invitaciones se envían por email. Nota: el servicio de email tiene un límite de 3-4 envíos por hora. Para usuarios sin buzón de correo (taller), el botón "Contraseña" de su fila permite a Dirección fijar la contraseña y comunicársela en persona.'
       }
     ]
   }
