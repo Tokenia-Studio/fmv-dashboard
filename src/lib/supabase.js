@@ -220,6 +220,37 @@ export const db = {
     }
   },
 
+  // --- SALDOS DE AÑOS CERRADOS ---
+  // Movimientos agregados por (mes, cuenta) de los ejercicios cerrados. Se leen
+  // con sesión (RLS: rol en el Dashboard); hasta el 23/09/2026 iban en el bundle.
+  // Los genera `npm run snapshot` (scripts/generate-snapshot.js).
+  saldosCerrados: {
+    getByYear: async (año) => {
+      const filas = []
+      for (let desde = 0; ; desde += 1000) {
+        const { data, error } = await supabase
+          .from('saldos_cerrados')
+          .select('fecha, cuenta, grupo, subcuenta, debe, haber, neto, descripcion, mes, año')
+          .eq('año', año)
+          .order('id', { ascending: true })
+          .range(desde, desde + 999)
+        if (error) return { data: null, error }
+        filas.push(...data)
+        if (data.length < 1000) break
+      }
+      // Misma forma que un movimiento del diario (lo que esperan las funciones de cálculo)
+      const data = filas.map((m) => ({
+        ...m,
+        debe: Number(m.debe),
+        haber: Number(m.haber),
+        neto: Number(m.neto),
+        codProcedencia: null,
+        documento: null,
+      }))
+      return { data, error: null }
+    }
+  },
+
   // --- CLIENTES ---
   // Maestro de clientes de BC (Nº + Nombre). Los códigos de procedencia
   // de las cuentas 43x/44x se resuelven aquí, no contra proveedores.

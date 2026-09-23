@@ -24,14 +24,12 @@ import {
 } from '../utils/calculations'
 import { ACCOUNT_GROUPS_3, MAPEO_GRUPO_CUENTA_DEFAULT, TABS_POR_ROL } from '../utils/constants'
 
-// Snapshots de años cerrados — movimientos agregados por (mes, cuenta).
-// Generar con: npm run snapshot
-// Las pestañas siguen funcionando igual; se sacrifica drill-down al detalle de movimiento.
-import saldos2022 from '../data/saldos_2022.json'
-import saldos2023 from '../data/saldos_2023.json'
-import saldos2024 from '../data/saldos_2024.json'
-const SNAPSHOTS = { 2022: saldos2022, 2023: saldos2023, 2024: saldos2024 }
-const AÑOS_SNAPSHOT = Object.keys(SNAPSHOTS).map(Number)
+// Años cerrados: en vez del diario entero se leen sus movimientos agregados por
+// (mes, cuenta) de la tabla `saldos_cerrados` (con sesión y RLS). Generar con:
+// npm run snapshot -- <año>. Se sacrifica el drill-down al detalle de movimiento.
+// Hasta el 23/09/2026 iban como JSON dentro del bundle, descargable sin login.
+// Si un año no está en la tabla (o la tabla no existe), se lee su diario completo.
+const AÑOS_SNAPSHOT = [2022, 2023, 2024]
 
 const DataContext = createContext(null)
 
@@ -269,7 +267,7 @@ export function DataProvider({ children }) {
       const añosVivos = años.filter(a => !AÑOS_SNAPSHOT.includes(a))
       const añosCongelados = años.filter(a => AÑOS_SNAPSHOT.includes(a))
       const msgCarga = añosCongelados.length > 0
-        ? `Cargando ${añosVivos.length} ejercicios vivos (${añosCongelados.length} desde snapshot)...`
+        ? `Cargando ${añosVivos.length} ejercicios vivos (${añosCongelados.length} cerrados, agregados)...`
         : `Cargando ${años.length} ejercicios contables...`
       dispatch({ type: 'SET_LOADING', payload: true, message: msgCarga })
 
@@ -285,20 +283,25 @@ export function DataProvider({ children }) {
         trabajadoresResult,
         calendariosResult
       ] = await Promise.all([
-        // Movimientos: años cerrados desde snapshot (instantaneo), año vivo desde Supabase
+        // Movimientos: años cerrados agregados (saldos_cerrados), años vivos del diario completo
         Promise.all(años.map(año => {
-          if (AÑOS_SNAPSHOT.includes(año)) {
-            // Snapshot estatico — sin red. Las funciones de calculo lo tragan
-            // como si fueran movimientos brutos (validado en scripts/validate-snapshot.js)
-            return Promise.resolve(SNAPSHOTS[año].movimientos)
-          }
-          return db.movimientos.getByYear(año).then(({ data, error }) => {
+          const diarioCompleto = () => db.movimientos.getByYear(año).then(({ data, error }) => {
             if (error) {
               console.error(`Error cargando movimientos de ${año}:`, error)
               return []
             }
             return data || []
           })
+          if (AÑOS_SNAPSHOT.includes(año)) {
+            // Saldos agregados del año cerrado. Las funciones de cálculo los tragan
+            // como si fueran movimientos brutos (validado en scripts/validate-snapshot.js)
+            return db.saldosCerrados.getByYear(año).then(({ data, error }) => {
+              if (!error && data && data.length > 0) return data
+              if (error) console.warn(`Saldos cerrados de ${año} no disponibles, se lee el diario:`, error.message)
+              return diarioCompleto()
+            })
+          }
+          return diarioCompleto()
         })),
         db.archivosCargados.getAll(),
         db.proveedores.getAll(),
