@@ -255,15 +255,18 @@ function traspasoDelMes(porCuenta, parejas) {
 /**
  * Calcula datos de financiación
  */
-export function calcularFinanciacion(movimientos, saldos, año) {
+export function calcularFinanciacion(movimientos, saldos, año, tiposGuardados = {}) {
   const meses = []
   const parejas = { ...detectarParejasTraspaso(movimientos), ...PAREJAS_PRESTAMOS_MANUAL }
 
-  // Cuentas 52x vigiladas por concepto: el objetivo operativo es llevarlas a 0
-  const cuentasConfirming = Object.keys(TIPOS_FINANCIACION_MANUAL)
-    .filter(c => c.startsWith('52') && TIPOS_FINANCIACION_MANUAL[c] === 'Confirming proveedores')
-  const cuentasFinImpuestos = Object.keys(TIPOS_FINANCIACION_MANUAL)
-    .filter(c => c.startsWith('52') && TIPOS_FINANCIACION_MANUAL[c] === 'Financiación impuestos')
+  // Cuentas 52x vigiladas por concepto: el objetivo operativo es llevarlas a 0.
+  // Misma prioridad que el desplegable de Deuda viva: lo guardado en Supabase
+  // (tabla tipos_financiacion) manda sobre el mapa por defecto de constants.
+  const tipos = { ...TIPOS_FINANCIACION_MANUAL, ...tiposGuardados }
+  const cuentasConfirming = Object.keys(tipos)
+    .filter(c => c.startsWith('52') && tipos[c] === 'Confirming proveedores')
+  const cuentasFinImpuestos = Object.keys(tipos)
+    .filter(c => c.startsWith('52') && tipos[c] === 'Financiación impuestos')
 
   // Deuda con la que arranca el año (arrastre de ejercicios anteriores):
   // sin ella la tabla de flujos no cuadra a ojo (inicial + neto = final)

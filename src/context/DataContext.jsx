@@ -513,7 +513,7 @@ export function DataProvider({ children }) {
       const totalesPyG = calcularTotalesPyG(pyg)
       const excludeSubcuentas = state.userRole === 'compras' ? ['629'] : []
       const serviciosExt = calcularServiciosExt(state.movimientos, state.añoActual, excludeSubcuentas)
-      const financiacion = calcularFinanciacion(state.movimientos, saldos, state.añoActual)
+      const financiacion = calcularFinanciacion(state.movimientos, saldos, state.añoActual, state.tiposFinanciacion)
       const pagosProveedores = calcularPagosProveedores(state.movimientos, state.proveedores, state.añoActual)
       const cashFlow = calcularCashFlow(state.movimientos, saldos, state.añoActual)
       const puenteCaja = calcularPuenteCaja(state.movimientos, state.añoActual)
@@ -534,7 +534,7 @@ export function DataProvider({ children }) {
       console.error('Error en calculos:', error)
       dispatch({ type: 'SET_ERROR', payload: error.message })
     }
-  }, [state.movimientos, state.añoActual, state.proveedores, state.presupuestos, state.userRole])
+  }, [state.movimientos, state.añoActual, state.proveedores, state.presupuestos, state.userRole, state.tiposFinanciacion])
 
   // Funcion para parsear Excel del diario y guardar en Supabase
   const cargarDiario = async (file) => {
