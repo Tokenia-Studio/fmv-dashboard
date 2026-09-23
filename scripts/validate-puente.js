@@ -1,18 +1,26 @@
 // ============================================
 // VALIDATE PUENTE - Comprueba que el puente beneficio → caja
 // (calcularPuenteCaja) cuadra al céntimo con la variación real
-// de tesorería (57) en los snapshots de años cerrados.
+// de tesorería (57) en los saldos de años cerrados (tabla saldos_cerrados,
+// leída con la clave de servicio del .env).
 //
 // Uso: node --loader ./scripts/loader.mjs scripts/validate-puente.js [año]
 // ============================================
 
 import { readFileSync } from 'fs'
+import { createClient } from '@supabase/supabase-js'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 import { calcularPuenteCaja } from '../src/utils/calculations.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
+const envContent = readFileSync(resolve(ROOT, '.env'), 'utf-8')
+const supabase = createClient(
+  envContent.match(/VITE_SUPABASE_URL\s*=\s*(.+)/)?.[1]?.trim(),
+  envContent.match(/SERVICE\s*ROL\s*=\s*(.+)/)?.[1]?.trim(),
+  { auth: { persistSession: false } }
+)
 
 const añoArg = process.argv[2] ? parseInt(process.argv[2]) : null
 const años = añoArg ? [añoArg] : [2022, 2023, 2024]
@@ -22,8 +30,9 @@ const fmt = (n) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximum
 let fallos = 0
 
 for (const año of años) {
-  const snapshot = JSON.parse(readFileSync(resolve(ROOT, `src/data/saldos_${año}.json`), 'utf-8'))
-  const movs = snapshot.movimientos
+  const { data, error } = await supabase.from('saldos_cerrados').select('*').eq('año', año).order('id').range(0, 9999)
+  if (error) throw error
+  const movs = data.map(m => ({ ...m, debe: Number(m.debe), haber: Number(m.haber), neto: Number(m.neto) }))
 
   // Precondición: el diario debe cuadrar (todos los asientos completos)
   const sumaDiario = movs.reduce((s, m) => s + (m.debe - m.haber), 0)

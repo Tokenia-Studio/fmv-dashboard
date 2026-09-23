@@ -1,6 +1,6 @@
 // ============================================
-// VALIDATE SNAPSHOT - Comprueba que los cálculos sobre el JSON
-// agregado dan exactamente el mismo resultado que sobre los
+// VALIDATE SNAPSHOT - Comprueba que los cálculos sobre los saldos
+// agregados de la tabla saldos_cerrados dan exactamente el mismo resultado que sobre los
 // movimientos brutos descargados de Supabase.
 //
 // Uso: node scripts/validate-snapshot.js [año]
@@ -80,9 +80,11 @@ async function validar(año) {
   const raw = await fetchAllMovimientos(año)
   console.log(`   ${raw.length} movimientos brutos`)
 
-  console.log('2. Cargando snapshot agregado...')
-  const snapPath = resolve(ROOT, `src/data/saldos_${año}.json`)
-  const snap = JSON.parse(readFileSync(snapPath, 'utf-8'))
+  console.log('2. Cargando saldos agregados (tabla saldos_cerrados)...')
+  const { data: filasSnap, error: errSnap } = await supabase
+    .from('saldos_cerrados').select('*').eq('año', año).order('id').range(0, 9999)
+  if (errSnap) throw errSnap
+  const snap = { movimientos: filasSnap.map(m => ({ ...m, debe: Number(m.debe), haber: Number(m.haber), neto: Number(m.neto), codProcedencia: null, documento: null })) }
   console.log(`   ${snap.movimientos.length} movimientos agregados (snapshot)`)
 
   const errors = []

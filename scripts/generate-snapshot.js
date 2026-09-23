@@ -1,50 +1,62 @@
 // ============================================
-// GENERATE SNAPSHOT - Años cerrados a JSON estatico
+// GENERATE SNAPSHOT - Años cerrados a la tabla saldos_cerrados
 // ============================================
 //
-// Lee todos los movimientos de un año desde Supabase y genera un fichero
-// JSON con los movimientos AGREGADOS por (mes, cuenta_9digits).
+// Lee todos los movimientos de un año desde Supabase, los AGREGA por
+// (mes, cuenta_9digitos) y los guarda en `public.saldos_cerrados`. El Dashboard
+// lee esa tabla (con sesión y rol) en lugar de descargar el diario entero de
+// los años cerrados.
 //
-// El JSON resultante es compatible con todas las funciones de calculations.js
-// porque preserva los campos clave: mes, cuenta, grupo, subcuenta, debe, haber,
-// fecha (ultimo dia del mes), descripcion (nombre cuenta).
+// Hasta el 23-sep-2026 el resultado se escribía en src/data/saldos_<año>.json y
+// viajaba dentro del JavaScript público: cualquiera con la URL lo descargaba sin
+// iniciar sesión. Por eso ahora va a una tabla con RLS
+// (sql/saldos_cerrados_2026-09-23.sql) y el bundle no lleva ningún saldo.
 //
 // Lo que NO se preserva (asumido innecesario para años cerrados):
 //   - codProcedencia: solo se usa en pestaña Proveedores y filtra por año actual
 //   - documento: solo se usa en exportaciones de drill-down
 //   - fecha exacta: se usa solo para ordenar saldos; la suma por mes es invariante
 //
-// Uso:
-//   node scripts/generate-snapshot.js          # genera 2023 y 2024
-//   node scripts/generate-snapshot.js 2024     # genera solo 2024
+// Uso (la clave de servicio se lee de .env, línea «SERVICE ROL=…»; nunca VITE_):
+//   npm run snapshot -- 2024                          regenera 2024 desde el diario
+//   npm run snapshot -- 2022 2023 2024 --desde-json   carga única desde los JSON antiguos
+//   npm run snapshot -- 2024 --seco                   calcula y comprueba sin escribir
 //
-// Output: src/data/saldos_<año>.json
+// Si algo falla a mitad de un año, ese año se borra entero de la tabla: la app,
+// al no encontrarlo, lee el diario completo de ese año (más lento, mismos importes).
 // ============================================
 
 import { createClient } from '@supabase/supabase-js'
-import { readFileSync, writeFileSync, mkdirSync, statSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, resolve } from 'path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
+const TABLA = 'saldos_cerrados'
 
 // --- Cargar .env ---
 const envContent = readFileSync(resolve(ROOT, '.env'), 'utf-8')
 const SUPABASE_URL = envContent.match(/VITE_SUPABASE_URL\s*=\s*(.+)/)?.[1]?.trim()
 const SERVICE_ROLE = envContent.match(/SERVICE\s*ROL\s*=\s*(.+)/)?.[1]?.trim()
-  || envContent.match(/VITE_SUPABASE_ANON_KEY\s*=\s*(.+)/)?.[1]?.trim()
 
 if (!SUPABASE_URL || !SERVICE_ROLE) {
+  // Sin la clave de servicio no se puede escribir en saldos_cerrados (la app solo lee)
   console.error('ERROR: faltan VITE_SUPABASE_URL o SERVICE ROL en .env')
   process.exit(1)
 }
 
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
 
 // --- Args ---
-const argYear = process.argv[2] ? parseInt(process.argv[2]) : null
-const AÑOS_OBJETIVO = argYear ? [argYear] : [2023, 2024]
+const args = process.argv.slice(2)
+const DESDE_JSON = args.includes('--desde-json')
+const SECO = args.includes('--seco')
+const AÑOS_OBJETIVO = args.filter((a) => /^\d{4}$/.test(a)).map(Number)
+if (!AÑOS_OBJETIVO.length) {
+  console.error('Indica los años: npm run snapshot -- 2024   (o 2022 2023 2024)')
+  process.exit(1)
+}
 
 // --- Descargar movimientos por año ---
 async function fetchAllMovimientos(año) {
@@ -92,7 +104,7 @@ function agregar(movimientos) {
     if (!row.descripcion && m.descripcion) row.descripcion = m.descripcion
   }
 
-  // Añadir fecha (ultimo dia del mes), neto, año, codProcedencia=null
+  // Fecha (último día del mes), neto y año
   return Array.from(agg.values()).map(row => {
     const [yyyy, mm] = row.mes.split('-')
     const lastDay = new Date(Number(yyyy), Number(mm), 0).getDate()
@@ -104,9 +116,7 @@ function agregar(movimientos) {
       debe: Math.round(row.debe * 100) / 100,
       haber: Math.round(row.haber * 100) / 100,
       neto: Math.round((row.debe - row.haber) * 100) / 100,
-      codProcedencia: null,
       descripcion: row.descripcion,
-      documento: null,
       mes: row.mes,
       año: Number(yyyy)
     }
@@ -114,83 +124,92 @@ function agregar(movimientos) {
 }
 
 // --- Verificacion: totales debe/haber deben coincidir ---
+const suma = (arr, f) => arr.reduce((s, x) => s + Number(x[f] || 0), 0)
 function verificar(originales, agregados) {
-  const sum = (arr, f) => arr.reduce((s, x) => s + Number(x[f] || 0), 0)
-  const debeOrig = sum(originales, 'debe')
-  const haberOrig = sum(originales, 'haber')
-  const debeAgg = sum(agregados, 'debe')
-  const haberAgg = sum(agregados, 'haber')
+  const debeOrig = suma(originales, 'debe')
+  const haberOrig = suma(originales, 'haber')
+  const debeAgg = suma(agregados, 'debe')
+  const haberAgg = suma(agregados, 'haber')
   const tolDebe = Math.abs(debeOrig - debeAgg)
   const tolHaber = Math.abs(haberOrig - haberAgg)
-  const ok = tolDebe < 1 && tolHaber < 1  // tolerancia 1 EUR por redondeos
-  return {
-    ok,
-    debeOrig, debeAgg, tolDebe,
-    haberOrig, haberAgg, tolHaber
+  return { ok: tolDebe < 1 && tolHaber < 1, debeOrig, debeAgg, tolDebe, haberOrig, haberAgg, tolHaber }
+}
+
+// --- Filas del año: desde el diario o desde el JSON antiguo (carga única) ---
+async function filasDelAño(año) {
+  if (DESDE_JSON) {
+    const fichero = resolve(ROOT, `src/data/saldos_${año}.json`)
+    if (!existsSync(fichero)) throw new Error(`no existe ${fichero}`)
+    const snap = JSON.parse(readFileSync(fichero, 'utf-8'))
+    const filas = snap.movimientos.map(({ codProcedencia, documento, ...m }) => m)
+    const t = snap.totales
+    if (Math.abs(suma(filas, 'debe') - t.debe) > 0.01 || Math.abs(suma(filas, 'haber') - t.haber) > 0.01)
+      throw new Error('el JSON no cuadra con sus propios totales')
+    console.log(`  Desde JSON: ${filas.length} filas (generado ${snap.generado})`)
+    return filas
+  }
+  const originales = await fetchAllMovimientos(año)
+  if (originales.length === 0) throw new Error(`sin movimientos en Supabase para ${año}`)
+  const agregados = agregar(originales)
+  console.log(`  Originales: ${originales.length} · agregados: ${agregados.length}`)
+  const v = verificar(originales, agregados)
+  if (!v.ok) {
+    throw new Error(`descuadre: debe ${v.debeOrig.toFixed(2)} vs ${v.debeAgg.toFixed(2)}, haber ${v.haberOrig.toFixed(2)} vs ${v.haberAgg.toFixed(2)}`)
+  }
+  console.log('  ✓ Totales debe/haber cuadran (dif <1 EUR)')
+  return agregados
+}
+
+async function borrarAño(año) {
+  const { error } = await supabase.from(TABLA).delete().eq('año', año)
+  if (error) throw error
+}
+
+async function escribirAño(año, filas) {
+  await borrarAño(año)
+  try {
+    for (let i = 0; i < filas.length; i += 500) {
+      const { error } = await supabase.from(TABLA).insert(filas.slice(i, i + 500))
+      if (error) throw error
+    }
+    // Comprobación contra lo escrito: mismas filas y mismos totales
+    const { data, error } = await supabase.from(TABLA).select('debe, haber').eq('año', año).range(0, 9999)
+    if (error) throw error
+    if (data.length !== filas.length) throw new Error(`escritas ${data.length} de ${filas.length} filas`)
+    if (Math.abs(suma(data, 'debe') - suma(filas, 'debe')) > 0.01 || Math.abs(suma(data, 'haber') - suma(filas, 'haber')) > 0.01)
+      throw new Error('los totales escritos no cuadran')
+  } catch (err) {
+    await borrarAño(año).catch(() => {})
+    throw err
   }
 }
 
 // --- Main ---
 async function main() {
   console.log('═══════════════════════════════════════')
-  console.log('  GENERADOR SNAPSHOT FMV')
+  console.log('  SNAPSHOT FMV → tabla saldos_cerrados')
   console.log('═══════════════════════════════════════')
-  console.log(`Años objetivo: ${AÑOS_OBJETIVO.join(', ')}`)
+  console.log(`Años: ${AÑOS_OBJETIVO.join(', ')} · origen: ${DESDE_JSON ? 'JSON antiguos' : 'diario de Supabase'}${SECO ? ' · EN SECO (no escribe)' : ''}`)
 
-  const outDir = resolve(ROOT, 'src/data')
-  mkdirSync(outDir, { recursive: true })
-
+  let fallos = 0
   for (const año of AÑOS_OBJETIVO) {
     console.log(`\n--- Año ${año} ---`)
-    let originales
     try {
-      originales = await fetchAllMovimientos(año)
+      const filas = await filasDelAño(año)
+      console.log(`  Debe ${suma(filas, 'debe').toFixed(2)} · Haber ${suma(filas, 'haber').toFixed(2)}`)
+      if (SECO) continue
+      await escribirAño(año, filas)
+      console.log(`  ✓ ${filas.length} filas en ${TABLA}`)
     } catch (err) {
-      console.error(`  ERROR descargando ${año}:`, err.message)
-      continue
+      fallos++
+      console.error(`  ✗ ${año}: ${err.message}. No queda nada de ${año} en ${TABLA}: la app leerá su diario completo.`)
     }
-
-    if (originales.length === 0) {
-      console.log(`  ⚠ Sin movimientos en Supabase para ${año}. Skip.`)
-      continue
-    }
-
-    const agregados = agregar(originales)
-    const ratio = (agregados.length / originales.length * 100).toFixed(1)
-    console.log(`  Originales: ${originales.length}`)
-    console.log(`  Agregados:  ${agregados.length} (${ratio}% del original)`)
-
-    const v = verificar(originales, agregados)
-    if (!v.ok) {
-      console.error(`  ✗ DESCUADRE en ${año}!`)
-      console.error(`    Debe:  ${v.debeOrig.toFixed(2)} vs ${v.debeAgg.toFixed(2)} (dif: ${v.tolDebe.toFixed(2)})`)
-      console.error(`    Haber: ${v.haberOrig.toFixed(2)} vs ${v.haberAgg.toFixed(2)} (dif: ${v.tolHaber.toFixed(2)})`)
-      console.error(`  Snapshot NO escrito`)
-      continue
-    }
-    console.log(`  ✓ Totales debe/haber cuadran (dif <1 EUR)`)
-
-    const snapshot = {
-      año,
-      generado: new Date().toISOString(),
-      movimientosOriginales: originales.length,
-      movimientosAgregados: agregados.length,
-      totales: {
-        debe: Math.round(v.debeAgg * 100) / 100,
-        haber: Math.round(v.haberAgg * 100) / 100
-      },
-      movimientos: agregados
-    }
-
-    const outFile = resolve(outDir, `saldos_${año}.json`)
-    writeFileSync(outFile, JSON.stringify(snapshot))
-    const sizeKB = (statSync(outFile).size / 1024).toFixed(1)
-    console.log(`  ✓ ${outFile.replace(ROOT, '.')} (${sizeKB} KB)`)
   }
 
   console.log('\n═══════════════════════════════════════')
-  console.log('  COMPLETADO')
+  console.log(fallos ? `  TERMINADO CON ${fallos} AÑO(S) SIN CARGAR` : '  COMPLETADO')
   console.log('═══════════════════════════════════════')
+  if (fallos) process.exit(1)
 }
 
 main().catch(err => {

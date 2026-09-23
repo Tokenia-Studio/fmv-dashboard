@@ -2,15 +2,17 @@
 // HORIZONTE AMORTIZACION - Cuadros de amortización de los préstamos
 // Proyecta el capital pendiente de cada préstamo bancario hasta su
 // última cuota, para ver cuándo queda la deuda a cero.
-// Los datos salen de los cuadros oficiales de cada entidad
-// (src/data/cuadrosAmortizacion.js), NO de la contabilidad.
+// Los datos salen de los cuadros oficiales de cada entidad, NO de la
+// contabilidad. Viven en `configuracion` (clave 'cuadros_amortizacion') y se
+// leen con sesión: hasta el 23/09/2026 iban en el JavaScript público
+// (src/data/cuadrosAmortizacion.js). Se actualizan con sql/cuadros_amortizacion_*.sql.
 // ============================================
 
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { CUADROS_AMORTIZACION, FECHA_INICIO_CUADROS } from '../../data/cuadrosAmortizacion'
+import { db } from '../../lib/supabase'
 import { formatCurrency, formatCompact } from '../../utils/formatters'
 
 const COLORES = ['#1a365d', '#0ea5e9', '#f97316', '#8b5cf6', '#22c55e', '#ef4444']
@@ -66,10 +68,37 @@ function TooltipHorizonte({ active, payload, label }) {
 }
 
 export default function HorizonteAmortizacion() {
+  const [cuadros, setCuadros] = useState(undefined) // undefined: cargando · null: no disponibles
+
+  useEffect(() => {
+    let vivo = true
+    db.config.get('cuadros_amortizacion').then(({ data, error }) => {
+      if (!vivo) return
+      if (error || !data?.prestamos?.length) {
+        if (error) console.warn('Cuadros de amortización no disponibles:', error.message)
+        setCuadros(null)
+      } else setCuadros(data)
+    })
+    return () => { vivo = false }
+  }, [])
+
+  if (!cuadros) {
+    return (
+      <div className="card overflow-hidden">
+        <div className="card-header"><h3 className="font-bold text-white">Horizonte de amortización de préstamos</h3></div>
+        <p className="p-4 text-sm text-gray-500">
+          {cuadros === undefined ? 'Cargando cuadros de amortización…' : 'Cuadros de amortización pendientes de cargar (sql/cuadros_amortizacion_2026-09-23.sql).'}
+        </p>
+      </div>
+    )
+  }
+  return <HorizonteCuadros prestamos={cuadros.prestamos} fechaInicio={cuadros.fechaInicio} />
+}
+
+function HorizonteCuadros({ prestamos, fechaInicio }) {
   const [vista, setVista] = useState('mensual')
 
   const { serieMensual, serieAnual, ticks, resumen, porAño } = useMemo(() => {
-    const prestamos = CUADROS_AMORTIZACION
 
     // Índice mes -> {capital, intereses} de cada préstamo
     const indice = prestamos.map(p => {
@@ -90,7 +119,7 @@ export default function HorizonteAmortizacion() {
     // Recorrido mes a mes desde el saldo de partida hasta la última cuota
     const pendiente = prestamos.map(p => p.pendienteInicio)
     const filas = []
-    let mes = FECHA_INICIO_CUADROS
+    let mes = fechaInicio
 
     // Punto de partida: saldo a 31/12/2025, antes de pagar ninguna cuota
     filas.push({
@@ -154,7 +183,7 @@ export default function HorizonteAmortizacion() {
     }
 
     return { serieMensual: filas, serieAnual, ticks, resumen, porAño: años }
-  }, [])
+  }, [prestamos, fechaInicio])
 
   const datos = vista === 'mensual' ? serieMensual : serieAnual
 
@@ -215,7 +244,7 @@ export default function HorizonteAmortizacion() {
             />
             <Tooltip content={<TooltipHorizonte />} />
             <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-            {CUADROS_AMORTIZACION.map((p, i) => (
+            {prestamos.map((p, i) => (
               <Area
                 key={p.id}
                 type="monotone"
@@ -281,7 +310,7 @@ export default function HorizonteAmortizacion() {
 
         {/* Préstamos incluidos */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-          {CUADROS_AMORTIZACION.map((p, i) => {
+          {prestamos.map((p, i) => {
             const ultima = p.cuotas[p.cuotas.length - 1]
             return (
               <div key={p.id} className="border border-gray-200 rounded-lg p-3">

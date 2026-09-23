@@ -31,3 +31,6 @@ npm-debug.log*
 !public/ayuda/**/*.png
 
 .vercel
+
+# Contratos y PDF de FMV (confidenciales): nunca al repositorio. La carga va al bucket privado.
+Mantenimientos/
