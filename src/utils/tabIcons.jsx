@@ -4,7 +4,7 @@
 import {
   BarChart3, Wrench, Landmark, Truck, Wallet, Target, BookOpen,
   Users, ShoppingCart, Building2, Upload, UserCog,
-  CircleDollarSign, Settings
+  CircleDollarSign, Settings, ClipboardCheck, FilePenLine, FolderCheck
 } from 'lucide-react'
 
 export const TAB_ICONS = {
@@ -18,11 +18,14 @@ export const TAB_ICONS = {
   personal: Users,
   presupuestoCompras: ShoppingCart,
   inversiones: Building2,
+  contratosEquipos: ClipboardCheck,
+  contratosServicios: FilePenLine,
   cargar: Upload,
   usuarios: UserCog
 }
 
 export const SECTION_ICONS = {
   finanzas: CircleDollarSign,
+  contratos: FolderCheck,
   admin: Settings
 }

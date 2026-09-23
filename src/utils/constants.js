@@ -103,21 +103,30 @@ export const TABS = [
   { id: 'inversiones', label: 'Ppto Inversiones' }, // Pestaña propia rol compras (direccion la ve dentro de Presupuesto)
   // { id: 'seguimientoEstructuras', label: 'Seg. Estructuras' }, // Movido a app independiente FMV Producción
   // { id: 'planificacionProduccion', label: 'Planif. Producción' }, // Movido a app independiente FMV Producción
+  { id: 'contratosEquipos', label: 'Equipos y mantenimiento' },
+  { id: 'contratosServicios', label: 'Servicios y arrendamientos' },
   { id: 'cargar', label: 'Cargar' },
   { id: 'usuarios', label: 'Usuarios' }
 ]
+
+// Módulo de contratos y mantenimiento: visible solo en desarrollo local hasta el
+// lanzamiento (arquitectura §7). Lanzarlo = poner `true` aquí, en el último commit
+// de la fase, que es el que lleva a la vez menú, pestañas y `case` de App.jsx.
+export const MODULO_CONTRATOS_VISIBLE = import.meta.env?.DEV === true  // fuera de Vite (scripts de Node) no hay env: oculto
+const conContratos = (tabs) => (MODULO_CONTRATOS_VISIBLE ? tabs : [])
 
 // Secciones de navegación para sidebar (rol direccion)
 export const NAVIGATION_SECTIONS = {
   finanzas: { label: 'Finanzas', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', 'presupuestoCompras'] },
   // produccion: { label: 'Producción', tabs: [] }, // Movido a app independiente FMV Producción
+  contratos: { label: 'Contratos', tabs: ['contratosEquipos', 'contratosServicios'] },
   admin: { label: 'Administración', tabs: ['cargar', 'usuarios'] }
 }
 
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', 'cargar', 'usuarios'],
-  compras: ['servicios', 'proveedores', 'presupuestoCompras', 'inversiones', 'cargar']
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', ...conContratos(['contratosEquipos', 'contratosServicios']), 'cargar', 'usuarios'],
+  compras: ['servicios', 'proveedores', 'presupuestoCompras', 'inversiones', ...conContratos(['contratosEquipos']), 'cargar']
 }
 
 // Umbrales semáforo para Seguimiento Estructuras (% desviación)

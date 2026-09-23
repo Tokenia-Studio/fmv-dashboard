@@ -9,6 +9,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const [expandedSections, setExpandedSections] = useState({
     finanzas: true,
     produccion: true,
+    contratos: true,
     admin: true
   })
 

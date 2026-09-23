@@ -23,6 +23,7 @@ import PersonalTab from './components/Personal/PersonalTab'
 // import PlanificacionProduccionTab from './components/PlanificacionProduccion/PlanificacionProduccionTab' // Movido a app independiente
 import GestionUsuarios from './components/Admin/GestionUsuarios'
 import UploadTab from './components/Upload/UploadTab'
+import ContratosTab from './components/Contratos/ContratosTab'
 import LoginScreen from './components/Auth/LoginScreen'
 import { esEnlaceDeAcceso } from './lib/authUrl'
 import UpdateBanner from './components/UI/UpdateBanner'
@@ -181,8 +182,9 @@ function App() {
       return <TabSkeleton tab={tabActiva} />
     }
 
-    // Si no hay datos financieros, mostrar carga (excepto seg. estructuras y usuarios)
-    if (movimientos.length === 0 && tabActiva !== 'cargar' && tabActiva !== 'presupuestoCompras' && tabActiva !== 'personal' && tabActiva !== 'usuarios') {
+    // Si no hay datos financieros, mostrar carga (excepto las pestañas que no usan el diario)
+    const noUsanDiario = ['cargar', 'presupuestoCompras', 'personal', 'usuarios', 'contratosEquipos', 'contratosServicios']
+    if (movimientos.length === 0 && !noUsanDiario.includes(tabActiva)) {
       return <UploadTab />
     }
 
@@ -211,6 +213,12 @@ function App() {
       //   return <SeguimientoEstructurasTab />
       // case 'planificacionProduccion': // Movido a app independiente
       //   return <PlanificacionProduccionTab />
+      // Módulo de contratos: solo llega aquí si la pestaña está en TABS_POR_ROL del rol
+      // (MODULO_CONTRATOS_VISIBLE); la base de datos filtra además por rol y vista.
+      case 'contratosEquipos':
+        return <ContratosTab vista="compras_fabrica" />
+      case 'contratosServicios':
+        return userRole === 'direccion' ? <ContratosTab vista="administracion" /> : <PyGTab />
       case 'cargar':
         return <UploadTab />
       case 'usuarios':
