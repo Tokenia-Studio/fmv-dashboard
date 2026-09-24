@@ -347,6 +347,108 @@ export const HELP_CONTENT = {
     ]
   },
 
+  contratosEquipos: {
+    titulo: 'Equipos y mantenimiento',
+    descripcion: 'Qué equipo está en regla, cuándo toca su próxima revisión o calibración y qué contrato la cubre. Sustituye a la carpeta del servidor, al Excel de soldadura y al correo.',
+    secciones: [
+      {
+        titulo: 'Cómo está pensado',
+        contenido: 'El eje es el equipo, no el contrato. De cada equipo cuelgan sus obligaciones (calibración, revisión, inspección, certificación) con su periodicidad. Cada obligación necesita un documento de origen (contrato, pedido PCP o factura si no hay contrato) y un documento de cierre (certificado, parte o informe que prueba que se hizo). Si falta alguno, la app crea una tarea. El calendario no se mantiene a mano: al registrar una realizada, la siguiente fecha se calcula sola.'
+      },
+      {
+        titulo: 'Pantallas',
+        tabla: {
+          cabeceras: ['Pantalla', 'Para qué sirve'],
+          filas: [
+            ['Panel', 'Lo urgente de un vistazo. Cada cifra abre la lista de equipos que la componen.'],
+            ['Equipos', 'Lista con filtros (tipo, nave, situación, no aptos, sin documento de cierre). Desde aquí se dan de alta equipos y grupos, se registran varias realizadas a la vez y se exporta a Excel.'],
+            ['Contratos', 'Los contratos de esta vista, con su vencimiento y la fecha límite para avisar al proveedor.'],
+            ['Calendario', 'Lo que toca en los próximos 12 meses, lo atrasado y lo que no tiene fecha. Solo se consulta: todo sale de contratos y obligaciones.'],
+            ['Tareas', 'Lo que falta para cerrar el inventario. Las automáticas desaparecen solas al resolver la causa; se les puede poner responsable, nota y «posponer hasta».'],
+            ['Documentos', 'Todos los PDF, que se abren con un enlace temporal (el almacenamiento es privado).'],
+            ['Proveedores', 'Contratos e importe anual por proveedor, con su nº de proveedor de Business Central.']
+          ]
+        }
+      },
+      {
+        titulo: 'Qué significa cada situación',
+        tabla: {
+          cabeceras: ['Situación', 'Cuándo sale'],
+          filas: [
+            ['Fuera de plazo', 'La próxima fecha ya ha pasado. Una fecha con precisión de mes («abril de 2027») no cuenta como fuera de plazo hasta que acaba el mes.'],
+            ['Próximos 60 días', 'Toca en menos de 60 días: momento de pedirla.'],
+            ['En plazo', 'La próxima fecha está a más de 60 días.'],
+            ['Sin fecha fijada', 'Hay periodicidad, pero no consta ninguna realizada ni fecha prevista. La app no inventa fechas: indique la última realizada o la primera prevista.'],
+            ['Sin plan de mantenimiento', 'Equipo marcado para decidir si se contrata una revisión (o si la cubre el arrendador).'],
+            ['No apto', 'La última realizada dio resultado no apto. Sigue señalado hasta que se registre una nueva realizada apta o se dé de baja.'],
+            ['De baja', 'No genera obligaciones ni aparece como pendiente. Se ve marcando «Incluir bajas».']
+          ]
+        }
+      },
+      {
+        titulo: 'Registrar una revisión o calibración',
+        contenido: 'En la ficha del equipo o del grupo, botón «Registrar realizada»: fecha (no se admite una fecha futura), resultado y, si lo tiene, el certificado en PDF. Si no lo tiene aún, se guarda igual y nace la tarea de reclamarlo. En los grupos (extintores, eslingas) el resultado se marca unidad a unidad. Para un pedido con varias calibraciones: en Equipos, filtre y pulse «Registrar varias». Un registro erróneo no se borra: se anula y queda en el historial.'
+      },
+      {
+        titulo: 'Leer un PDF con IA',
+        contenido: '«Leer PDF» (contratos y facturas) y «Certificados (IA)» (calibraciones, admite varios a la vez) proponen los campos a partir del documento. Los campos propuestos se distinguen de los tecleados y los dudosos van señalados; lo que el documento no dice queda vacío. Nada se guarda hasta que usted revisa y confirma. Si la lectura falla, el formulario se rellena a mano.'
+      },
+      {
+        titulo: 'Quién ve qué',
+        contenido: 'Compras y Dirección ven y editan esta vista, importes incluidos. Los contratos de Servicios y arrendamientos solo los ve Dirección, salvo los que cubren un equipo de esta vista (por ejemplo, un renting), que aparecen enlazados en la ficha del equipo. Estos permisos se aplican en la base de datos, no solo en la pantalla.'
+      },
+      {
+        titulo: 'Exportar a Excel',
+        contenido: 'El botón «Excel» de Equipos descarga lo que está filtrado en tres hojas: Equipos, Obligaciones (cada revisión o calibración con su última fecha, su resultado y el documento que la prueba: sirve como listado para la auditoría EN 15085) y Unidades de grupos. En Contratos, «Excel» descarga los contratos filtrados con el total anual. Las fechas conocidas solo por mes o año salen como texto.'
+      }
+    ]
+  },
+
+  contratosServicios: {
+    titulo: 'Servicios y arrendamientos',
+    descripcion: 'Qué servicios indirectos se pagan, hasta cuándo y cuándo hay que decidir: seguros, arrendamientos y renting, consultoría, licencias, telecomunicaciones, suministros, seguridad.',
+    secciones: [
+      {
+        titulo: 'El objetivo',
+        contenido: 'Que ningún contrato se renueve por silencio. Para cada contrato la app calcula cuándo vence y la fecha límite para avisar al proveedor (vencimiento menos días de preaviso), y lo pone en el Panel y en el Calendario con el importe anual al lado.'
+      },
+      {
+        titulo: 'Estados del calendario de un contrato',
+        tabla: {
+          cabeceras: ['Estado', 'Cuándo sale'],
+          filas: [
+            ['Plazo de aviso abierto', 'Ya pasó la fecha límite de aviso y el contrato no ha vencido: si no se avisa, se renueva.'],
+            ['Decidir en 90 días', 'La fecha límite de aviso (o el vencimiento, si no hay preaviso) llega en menos de 90 días.'],
+            ['Vencido sin cerrar', 'Pasó la fecha de fin sin registrar ninguna decisión.'],
+            ['En plazo', 'Hay margen de sobra.'],
+            ['Sin vencimiento conocido', 'Falta la fecha de fin o no se puede deducir. La app no calcula nada: complete la ficha.'],
+            ['Histórico', 'Contrato histórico, sustituido o puntual: se conserva, pero no avisa ni suma en los totales.']
+          ]
+        }
+      },
+      {
+        titulo: 'Contratos sin fecha de fin',
+        contenido: 'Con prórroga tácita y fecha de inicio, el contrato vence en el próximo aniversario del inicio. El periodo de renovación no es el del pago: un renting que se paga cada mes suele renovarse por años. Si el contrato no dice cada cuánto se renueva, se supone anual y, si se paga por meses, sale la tarea «Confirmar periodo de renovación»; el periodo real se indica en «Cada (meses)» al editar el contrato. Si falta el preaviso, no se inventa: sin fecha límite de aviso, el contrato avisa desde 90 días antes del vencimiento.'
+      },
+      {
+        titulo: 'Cerrar un vencimiento',
+        contenido: 'En la ficha del contrato, «Registrar decisión»: renovado hasta una fecha, renegociado o cancelado, y si procede el nuevo documento (renovación, carta de baja u oferta aceptada), que pasa a ser el documento de origen. El vencimiento se recalcula.'
+      },
+      {
+        titulo: 'Vista de cada contrato',
+        contenido: 'La carga inicial propuso la vista de cada contrato según su categoría y la marca como «propuesta». Solo Dirección puede cambiarla o confirmarla, desde «Editar» en la ficha del contrato. Un renting o alquiler se ve aquí como contrato y en Equipos y mantenimiento como equipo, enlazados y sin duplicar datos.'
+      },
+      {
+        titulo: 'Importes',
+        contenido: 'Los importes van sin IVA. El importe anual se normaliza a 12 meses a partir del importe y su periodicidad (o se teclea si no se puede calcular). Si compras declaró un importe distinto, la ficha muestra la discrepancia. «Excel» en Contratos descarga los contratos filtrados con el total anual de los que suman.'
+      },
+      {
+        titulo: 'Quién ve esta pestaña',
+        contenido: 'Solo Dirección. El rol Compras no ve estos contratos salvo los que cubren un equipo suyo. Los permisos se aplican en la base de datos.'
+      }
+    ]
+  },
+
   usuarios: {
     titulo: 'Gestión de Usuarios',
     descripcion: 'Administración de usuarios del dashboard: alta, baja y asignación de roles.',

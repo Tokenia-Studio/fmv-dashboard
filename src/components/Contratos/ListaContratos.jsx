@@ -3,11 +3,12 @@
 // ============================================
 
 import React, { useState } from 'react'
-import { Plus, FileSearch } from 'lucide-react'
+import { Plus, FileSearch, Download } from 'lucide-react'
 import { useContratos } from '../../context/ContratosContext'
 import { sumaEnTotales, textoFecha, textoDia } from '../../utils/contratosVista'
 import { Tarjeta, Tabla, Fila, Td, Sec, Vacio, Badge, Pendiente, Boton, eur, EST_CONTRATO, EST_DOCUMENTAL } from './ui'
 import FormContrato from './FormContrato'
+import { filasExcelContratos, descargarLibro } from '../../utils/contratosExport'
 import LectorDocumento from './LectorDocumento'
 
 export default function ListaContratos() {
@@ -52,6 +53,7 @@ export default function ListaContratos() {
           <>
             {lectorActivo && <Boton variante="claro" onClick={() => setLector(true)} title="Sube el PDF y la app propone la ficha"><FileSearch size={14} /> Leer PDF</Boton>}
             <Boton variante="claro" onClick={() => setNuevo(true)}><Plus size={14} /> Nuevo contrato</Boton>
+            <Boton variante="claro" onClick={() => descargarLibro(vista === 'administracion' ? 'Contratos_Administracion_FMV' : 'Contratos_Compras_FMV', [{ nombre: 'Contratos', filas: filasExcelContratos(filas) }])} disabled={!filas.length} title="Descarga en Excel los contratos filtrados"><Download size={14} /> Excel</Boton>
           </>
         }>
         <div className="flex flex-wrap items-center gap-2 p-3 border-b border-gray-100">

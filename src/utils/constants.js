@@ -109,10 +109,13 @@ export const TABS = [
   { id: 'usuarios', label: 'Usuarios' }
 ]
 
-// Módulo de contratos y mantenimiento: visible solo en desarrollo local hasta el
-// lanzamiento (arquitectura §7). Lanzarlo = poner `true` aquí, en el último commit
-// de la fase, que es el que lleva a la vez menú, pestañas y `case` de App.jsx.
-export const MODULO_CONTRATOS_VISIBLE = import.meta.env?.DEV === true  // fuera de Vite (scripts de Node) no hay env: oculto
+// Módulo de contratos y mantenimiento: visible en desarrollo local y en la preview del
+// piloto con Sachi y Daniel (Carlos, 24/09/2026), donde Vercel define
+// VITE_MODULO_CONTRATOS=si SOLO en el entorno Preview. No es un secreto: solo enciende la
+// pestaña; los datos los protegen las políticas de la base de datos.
+// Lanzarlo = poner `true` aquí, en el último commit de la fase (arquitectura §7).
+export const MODULO_CONTRATOS_VISIBLE =
+  import.meta.env?.DEV === true || import.meta.env?.VITE_MODULO_CONTRATOS === 'si'  // fuera de Vite (scripts de Node) no hay env: oculto
 const conContratos = (tabs) => (MODULO_CONTRATOS_VISIBLE ? tabs : [])
 
 // Secciones de navegación para sidebar (rol direccion)

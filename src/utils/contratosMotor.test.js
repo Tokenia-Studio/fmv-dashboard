@@ -113,9 +113,33 @@ describe('contratos (POC)', () => {
     expect(r.estado).toBe('historico');
   });
 
-  test('sin fecha fin ni prórroga tácita anual: sin vencimiento', () => {
+  test('sin fecha fin y sin prórroga tácita: sin vencimiento', () => {
     expect(M.calcularContrato({ inicio: '2025-01-01', renovacion: 'expresa', periodicidad: 'anual', vivo: true }, HOY).estado).toBe('sinvenc');
-    expect(M.calcularContrato({ inicio: '2025-01-01', renovacion: 'tácita', periodicidad: 'mes', vivo: true }, HOY).estado).toBe('sinvenc');
+    expect(M.calcularContrato({ renovacion: 'tácita', periodicidad: 'mes', vivo: true }, HOY).estado).toBe('sinvenc');
+  });
+
+  test('prórroga tácita que se paga cada mes: se renueva por años, no por meses (C07, C31, C39)', () => {
+    const r = M.calcularContrato({ inicio: '2024-01-01', renovacion: 'tácita', periodicidad: 'mes', preaviso: 30, vivo: true }, HOY);
+    expect(iso(r.vence.d)).toBe('2027-01-01');
+    expect(iso(r.avisar)).toBe('2026-12-02');
+    expect(r.como).toBe('Prórroga tácita anual');
+  });
+
+  test('prórroga tácita sin periodicidad de pago (C44, seguro): también anual', () => {
+    expect(iso(M.calcularContrato({ inicio: '2023-03-01', renovacion: 'tácita', vivo: true }, HOY).vence.d)).toBe('2027-03-01');
+  });
+
+  test('periodo de renovación indicado: manda sobre el anual', () => {
+    const r = M.calcularContrato({ inicio: '2024-01-01', renovacion: 'tácita', renovacionMeses: 36, preaviso: 90, vivo: true }, HOY);
+    expect(iso(r.vence.d)).toBe('2027-01-01');
+    expect(r.como).toBe('Prórroga tácita cada 36 meses');
+    const s = M.calcularContrato({ inicio: '2025-03-15', renovacion: 'tácita', renovacionMeses: 6, vivo: true }, HOY);
+    expect(iso(s.vence.d)).toBe('2027-03-15'); // 15/09/2026 ya pasó el 21/09
+  });
+
+  test('aniversario de un día 31: no se arrastra el recorte de los meses cortos', () => {
+    const r = M.calcularContrato({ inicio: '2020-01-31', renovacion: 'tácita', renovacionMeses: 1, vivo: true }, new Date(2026, 2, 5));
+    expect(iso(r.vence.d)).toBe('2026-03-31');
   });
 
   test('dentro del preaviso pasa a «avisar»', () => {

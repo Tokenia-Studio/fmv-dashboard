@@ -135,6 +135,9 @@ test("nº de serie: casa exacto tras normalizar; parciales solo si no hay exacto
 test("origen: solo el Dashboard publicado, sus previsualizaciones y localhost", () => {
   assert.equal(origenPermitido("https://fmv-dashboard-v2.vercel.app"), true);
   assert.equal(origenPermitido("https://fmv-dashboard-v2-4p3u25nks-tokenia-studios-projects.vercel.app"), true);
+  assert.equal(origenPermitido("https://fmv-dashboard-v2-git-modulo-contratos-tokenia-studios-projects.vercel.app"), true);
+  assert.equal(origenPermitido("https://fmv-dashboard-v2-git-x-otro-equipo.vercel.app"), false);
+  assert.equal(origenPermitido("https://fmv-dashboard-v2-git-modulo-contratos-tokenia-studios-projects.vercel.app.evil.com"), false);
   assert.equal(origenPermitido("http://localhost:3001"), true);
   assert.equal(origenPermitido("https://evil.example.com"), false);
   assert.equal(origenPermitido("https://fmv-dashboard-v2.vercel.app.evil.com"), false);

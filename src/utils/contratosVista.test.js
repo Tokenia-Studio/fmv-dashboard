@@ -474,3 +474,30 @@ describe('lector: no duplicar equipos que ya existen', () => {
     expect(equipoExistente({ nombre: 'Plegadora Amada', tipo: 'Maquinaria' }, m)).toBeNull();
   });
 });
+
+describe('prórroga tácita con pago mensual (QA 24/09/2026)', () => {
+  const base = datosBase();
+  base.contratos.push(
+    { id: 7, codigo: 'C07', proveedor_nombre: 'Renting', proveedor_codigo: '7', categoria: 'Renting', vista: 'administracion', objeto: 'Equipo', importe: 100, periodicidad: 'mes', importe_anual: 1200, inicio: '2024-01-01', inicio_precision: 'dia', fin: null, renovacion: 'tácita', preaviso_dias: 30, estado_documental: 'Vigente', vivo: true },
+    { id: 8, codigo: 'C08', proveedor_nombre: 'Con periodo', proveedor_codigo: '8', categoria: 'Renting', vista: 'administracion', objeto: 'Equipo', importe: 100, periodicidad: 'mes', importe_anual: 1200, inicio: '2024-01-01', inicio_precision: 'dia', fin: null, renovacion: 'tácita', renovacion_meses: 36, preaviso_dias: 90, estado_documental: 'Vigente', vivo: true },
+  );
+  const m = construirModelo(base, HOY);
+  const tarea = (id) => m.tareasAutomaticas.find((t) => t.clave === `renovacion:contrato:${id}`);
+
+  it('ya no sale «sin vencimiento»: vence en el aniversario y pide confirmar el periodo', () => {
+    expect(textoFecha(m.contrato(7).calc.vence)).toBe('01/01/2027');
+    expect(m.contrato(7).calc.estado).not.toBe('sinvenc');
+    expect(tarea(7)?.tipo).toBe('Confirmar periodo de renovación');
+    expect(tarea(7)?.vista).toBe('administracion');
+  });
+
+  it('con el periodo indicado, lo usa y no pide confirmarlo', () => {
+    expect(textoFecha(m.contrato(8).calc.vence)).toBe('01/01/2027');
+    expect(m.contrato(8).calc.como).toBe('Prórroga tácita cada 36 meses');
+    expect(tarea(8)).toBeUndefined();
+  });
+
+  it('pago anual con prórroga tácita: el año se da por bueno, sin tarea', () => {
+    expect(tarea(2)).toBeUndefined();
+  });
+});

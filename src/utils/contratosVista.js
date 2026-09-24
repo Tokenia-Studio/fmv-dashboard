@@ -425,7 +425,11 @@ export function derivarTareasAutomaticas(m) {
     if (c.calc.estado === 'historico' || !sumaEnTotales(c)) continue;
     const s = { tipo: 'contrato', id: c.id, nombre: `${c.codigo ? c.codigo + ' · ' : ''}${c.proveedor_nombre}` };
     if (c.calc.estado === 'vencido') push(`vencido:contrato:${c.id}`, 'Vencido sin cerrar', `Venció en ${fmt(c.calc.vence)} sin decisión registrada`, s, c.vista);
-    if (c.calc.estado === 'sinvenc') push(`vencimiento:contrato:${c.id}`, 'Sin vencimiento conocido', 'Falta la fecha fin (o el inicio de una prórroga tácita anual)', s, c.vista);
+    if (c.calc.estado === 'sinvenc') push(`vencimiento:contrato:${c.id}`, 'Sin vencimiento conocido', 'Falta la fecha fin (o, si la prórroga es tácita, la fecha de inicio)', s, c.vista);
+    // Prórroga tácita sin fin ni periodo: el motor supone anual. Si además se paga por meses
+    // (o no consta cómo), el año es una suposición que hay que confirmar con el papel.
+    if (c.renovacion === 'tácita' && !c.fin && c.inicio && c.renovacion_meses == null && c.periodicidad !== 'anual')
+      push(`renovacion:contrato:${c.id}`, 'Confirmar periodo de renovación', 'Prórroga tácita sin fecha fin: se ha supuesto que se renueva cada año. Confirmarlo en el contrato e indicarlo en la ficha', s, c.vista);
     if (c.preaviso_dias == null && c.renovacion !== 'expresa' && c.estado_documental !== 'Sin contrato')
       push(`preaviso:contrato:${c.id}`, 'Confirmar preaviso', 'No consta el preaviso: se avisa a 90 días del vencimiento', s, c.vista);
     if (!c.origenOk) push(`origen:contrato:${c.id}`, 'Falta documento de origen', c.estado_documental === 'Sin contrato' ? 'Sin contrato: subir la factura que hace de documento de origen' : 'No hay contrato, oferta ni póliza subidos', s, c.vista);

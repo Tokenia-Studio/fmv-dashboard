@@ -279,12 +279,17 @@ export function casarPorSerie(serieLeida: unknown, equipos: EquipoSerie[]): { ex
   return { exactos: [], parciales: parciales.slice(0, 10) };
 }
 
-/** Origen permitido para llamar a la función: el Dashboard publicado y el entorno local. */
+/**
+ * Origen permitido para llamar a la función: el Dashboard publicado, sus despliegues
+ * (URL con hash y URL fija de cada rama, p. ej. la preview del piloto de contratos) y
+ * el entorno local. El sufijo del equipo de Vercel solo lo pueden emitir sus proyectos.
+ */
 export function origenPermitido(origen: string | null): boolean {
   if (!origen) return false;
   return (
     origen === "https://fmv-dashboard-v2.vercel.app" ||
     /^https:\/\/fmv-dashboard-v2-[a-z0-9]+-tokenia-studios-projects\.vercel\.app$/.test(origen) ||
+    /^https:\/\/fmv-dashboard-v2-git-[a-z0-9-]+-tokenia-studios-projects\.vercel\.app$/.test(origen) ||
     /^http:\/\/localhost:30\d\d$/.test(origen)
   );
 }

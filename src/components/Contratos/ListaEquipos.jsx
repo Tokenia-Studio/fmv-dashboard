@@ -3,9 +3,10 @@
 // ============================================
 
 import React, { useMemo, useState } from 'react'
-import { Plus, Layers, ClipboardCheck, FileSearch } from 'lucide-react'
+import { Plus, Layers, ClipboardCheck, FileSearch, Download } from 'lucide-react'
 import { useContratos } from '../../context/ContratosContext'
 import { filasEquipos, textoFecha } from '../../utils/contratosVista'
+import { filasExcelEquipos, filasExcelObligaciones, filasExcelUnidades, descargarLibro } from '../../utils/contratosExport'
 import { Tarjeta, Tabla, Fila, Td, Sec, Vacio, Badge, Pendiente, Boton, EST_OBLIGACION } from './ui'
 import FormEquipo from './FormEquipo'
 import FormGrupo from './FormGrupo'
@@ -45,6 +46,14 @@ export default function ListaEquipos() {
   // Registrar varias a la vez: obligaciones vivas de los equipos filtrados (US-003, «16 calibraciones de un mismo pedido»)
   const obligacionesFiltradas = filas.flatMap((x) => (x.tipo === 'grupo' ? modelo.grupo(x.id)?.obligaciones || [] : modelo.equipo(x.id)?.obligaciones.filter((o) => o.equipo_id === x.id) || [])).filter((o) => o.viva)
 
+  // Exporta lo filtrado: equipos, sus obligaciones (listado de calibraciones con su certificado, P8) y las unidades de los grupos
+  const exportar = () =>
+    descargarLibro('Equipos_FMV', [
+      { nombre: 'Equipos', filas: filasExcelEquipos(filas, modelo) },
+      { nombre: 'Obligaciones', filas: filasExcelObligaciones(filas, modelo) },
+      { nombre: 'Unidades de grupos', filas: filasExcelUnidades(filas, modelo) },
+    ])
+
   return (
     <div className="space-y-4">
       <Tarjeta
@@ -62,6 +71,7 @@ export default function ListaEquipos() {
             </Boton>
             <Boton variante="claro" onClick={() => setFormulario({ tipo: 'grupo' })}><Layers size={14} /> Nuevo grupo</Boton>
             <Boton variante="claro" onClick={() => setFormulario({ tipo: 'equipo' })}><Plus size={14} /> Nuevo equipo</Boton>
+            <Boton variante="claro" onClick={exportar} disabled={!filas.length} title="Descarga en Excel los equipos filtrados, sus obligaciones y las unidades de los grupos"><Download size={14} /> Excel</Boton>
           </>
         }
       >

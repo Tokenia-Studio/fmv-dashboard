@@ -64,7 +64,7 @@ export default function FichaContrato({ id }) {
           <Campo etiqueta="Importe anual (sin IVA)">{c.importe_anual != null ? eur(c.importe_anual) : <Pendiente>Sin importe conocido</Pendiente>}</Campo>
           <Campo etiqueta="Inicio">{c.inicio ? fechaFila(c.inicio, c.inicio_precision) : <Pendiente>No consta</Pendiente>}</Campo>
           <Campo etiqueta="Vence">{c.calc.vence ? <>{textoFecha(c.calc.vence)} <span className="font-normal text-gray-500">· {c.calc.como}</span></> : <Pendiente>Sin vencimiento conocido</Pendiente>}</Campo>
-          <Campo etiqueta="Renovación y preaviso">{valor(c.renovacion, 'No consta')} · {c.preaviso_dias != null ? `${c.preaviso_dias} días` : <Pendiente>preaviso no consta</Pendiente>}</Campo>
+          <Campo etiqueta="Renovación y preaviso">{valor(c.renovacion, 'No consta')}{c.renovacion === 'tácita' && !c.fin && (c.renovacion_meses ? ` cada ${c.renovacion_meses} meses` : <span className="font-normal text-gray-500"> (anual supuesta)</span>)} · {c.preaviso_dias != null ? `${c.preaviso_dias} días` : <Pendiente>preaviso no consta</Pendiente>}</Campo>
           <Campo etiqueta="Fecha límite de aviso (calculada)">{c.calc.avisar ? <><strong>{textoDia(c.calc.avisar)}</strong> <Badge color={color}>{texto}</Badge></> : <><Pendiente>No calculable</Pendiente> <Badge color={color}>{texto}</Badge></>}</Campo>
         </div>
       </Tarjeta>

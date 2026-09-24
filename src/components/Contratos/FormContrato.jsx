@@ -24,10 +24,10 @@ import { Modal, Etiqueta, Entrada, Selector, EntradaFecha, PieFormulario, Aviso,
 
 const CAMPOS = [
   'codigo', 'proveedor_nombre', 'proveedor_codigo', 'proveedor_corto', 'categoria', 'objeto', 'nave', 'referencia', 'importe', 'periodicidad',
-  'importe_anual', 'importe_declarado', 'inicio', 'inicio_precision', 'fin', 'fin_precision', 'renovacion', 'preaviso_dias',
+  'importe_anual', 'importe_declarado', 'inicio', 'inicio_precision', 'fin', 'fin_precision', 'renovacion', 'renovacion_meses', 'preaviso_dias',
   'estado_documental', 'cuenta_gasto', 'observaciones', 'vista', 'vista_confirmada',
 ]
-const NUMERICOS = ['importe', 'importe_anual', 'importe_declarado', 'preaviso_dias']
+const NUMERICOS = ['importe', 'importe_anual', 'importe_declarado', 'preaviso_dias', 'renovacion_meses']
 
 export default function FormContrato({ contrato, propuesta, documento, onClose, onGuardado }) {
   const { modelo, vista, recargar, esDireccion, maestroProveedores } = useContratos()
@@ -121,6 +121,8 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
     }
     for (const k of NUMERICOS) {
       if (f[k] !== '' && f[k] != null && isNaN(Number(String(f[k]).replace(',', '.')))) return setError('Hay un importe o un preaviso que no es un número.')
+    if (f.renovacion_meses !== '' && f.renovacion_meses != null && !(Number.isInteger(Number(f.renovacion_meses)) && Number(f.renovacion_meses) >= 1 && Number(f.renovacion_meses) <= 120))
+      return setError('La renovación va en meses enteros, de 1 a 120 (12 = anual).')
     }
     if (f.inicio && f.fin && f.fin < f.inicio) return setError('La fecha fin es anterior al inicio.')
     if (nuevos.some((n) => !n.nombre.trim())) return setError('Hay un equipo nuevo sin nombre.')
@@ -231,8 +233,8 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
             <datalist id="ctr-proveedores">{proveedores.map((p) => <option key={p.codigo} value={p.nombre}>{p.codigo}</option>)}</datalist>
           </Etiqueta>
           <Etiqueta texto={T('Nº proveedor BC', 'proveedor_codigo')} ayuda="Se rellena al elegir un proveedor del maestro."><Entrada {...campo('proveedor_codigo')} /></Etiqueta>
-          <Etiqueta texto="Nombre corto" ayuda="El que va en el nombre de los ficheros: Chubb, Gruaspuente. Sin espacios ni acentos.">
-            <Entrada {...campo('proveedor_corto')} placeholder={proveedorCortoPropuesto(f.proveedor_nombre) || 'Chubb'} />
+          <Etiqueta texto="Nombre corto" ayuda="El que va en el nombre de los ficheros, sin forma jurídica, espacios ni acentos: «Talleres García, S.L.» → TalleresGarcia.">
+            <Entrada {...campo('proveedor_corto')} placeholder={proveedorCortoPropuesto(f.proveedor_nombre) || 'TalleresGarcia'} />
           </Etiqueta>
           <Etiqueta texto={T('Categoría *', 'categoria')}>
             <Entrada value={f.categoria} onChange={cambiarCategoria} list="ctr-categorias" />
@@ -276,9 +278,14 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
           <div />
 
           <Etiqueta texto={T('Inicio', 'inicio')}><EntradaFecha fecha={f.inicio} precision={f.inicio_precision} onChange={(d, p) => { poner('inicio', d || ''); poner('inicio_precision', p) }} /></Etiqueta>
-          <Etiqueta texto={T('Fin', 'fin')} ayuda="Sin fin y con prórroga tácita anual: vence en el aniversario del inicio."><EntradaFecha fecha={f.fin} precision={f.fin_precision} onChange={(d, p) => { poner('fin', d || ''); poner('fin_precision', p) }} /></Etiqueta>
-          <div className="grid grid-cols-2 gap-2">
+          <Etiqueta texto={T('Fin', 'fin')} ayuda="Sin fin y con prórroga tácita: vence en el aniversario del inicio (cada año, salvo que se indique otro periodo)."><EntradaFecha fecha={f.fin} precision={f.fin_precision} onChange={(d, p) => { poner('fin', d || ''); poner('fin_precision', p) }} /></Etiqueta>
+          <div className={`grid gap-2 ${f.renovacion === 'tácita' ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <Etiqueta texto={T('Renovación', 'renovacion')}><Selector opciones={RENOVACIONES} vacio="—" {...campo('renovacion')} /></Etiqueta>
+            {f.renovacion === 'tácita' && (
+              <Etiqueta texto="Cada (meses)" ayuda="Periodo de cada prórroga, no del pago. Vacío = anual.">
+                <Entrada type="number" min="1" max="120" placeholder="12" {...campo('renovacion_meses')} />
+              </Etiqueta>
+            )}
             <Etiqueta texto={T('Preaviso (días)', 'preaviso_dias')}><Entrada type="number" min="0" {...campo('preaviso_dias')} /></Etiqueta>
           </div>
 

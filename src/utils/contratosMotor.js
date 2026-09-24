@@ -143,9 +143,10 @@ export function calcularObligacion(o, historial, hoy) {
 
 /**
  * La renovación de un contrato es una obligación más. Vence en su fecha fin o, si es
- * de prórroga tácita anual sin fecha fin, en el próximo aniversario del inicio.
+ * de prórroga tácita sin fecha fin, en el próximo aniversario del inicio (cada
+ * `renovacionMeses`, 12 si no consta).
  *
- * @param {object} c  { inicio, fin, renovacion, periodicidad, preaviso, vivo }
+ * @param {object} c  { inicio, fin, renovacion, renovacionMeses, periodicidad, preaviso, vivo }
  *                    Fechas como texto; `preaviso` en días; `vivo` false = histórico.
  * @returns {{ vence, como, avisar, estado }}
  *   estado: 'historico' | 'sinvenc' | 'vencido' | 'avisar' | 'proximo' | 'ok'
@@ -159,11 +160,16 @@ export function calcularContrato(c, hoy) {
   if (fin) {
     vence = fin;
     como = 'Fin de contrato';
-  } else if (c.renovacion === 'tácita' && inicio && c.periodicidad === 'anual') {
-    let d = inicio.d;
-    while (d <= hoy) d = sumarMeses(d, 12);
+  } else if (c.renovacion === 'tácita' && inicio) {
+    // El periodo de renovación no es la periodicidad del pago: un renting que se paga cada
+    // mes suele renovarse por años. Sin periodo indicado se supone anual (Carlos, 24/09/2026)
+    // y la app pide confirmarlo con una tarea.
+    const meses = c.renovacionMeses || 12;
+    let k = 1;
+    let d = sumarMeses(inicio.d, meses);
+    while (d <= hoy) d = sumarMeses(inicio.d, meses * ++k); // siempre desde el inicio: sin arrastrar el día 31
     vence = { d, p: inicio.p };
-    como = 'Prórroga tácita anual';
+    como = meses === 12 ? 'Prórroga tácita anual' : `Prórroga tácita cada ${meses} meses`;
   }
 
   const avisar = vence && c.preaviso != null ? sumarDias(vence.d, -c.preaviso) : null;
@@ -238,6 +244,7 @@ export function contratoDesdeFila(fila) {
     inicio: aTexto(fila.inicio, fila.inicio_precision),
     fin: aTexto(fila.fin, fila.fin_precision),
     renovacion: fila.renovacion || null,
+    renovacionMeses: fila.renovacion_meses ?? null,
     periodicidad: fila.periodicidad || null,
     preaviso: fila.preaviso_dias ?? null,
     vivo: fila.vivo !== false,

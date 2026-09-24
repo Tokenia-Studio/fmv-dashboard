@@ -95,7 +95,7 @@ export default function FormDocumento({ destino = {}, onClose }) {
             <EntradaFecha fecha={f.fecha} precision={f.fecha_precision} onChange={(d, p) => { poner('fecha', d || ''); poner('fecha_precision', p) }} />
           </Etiqueta>
           <Etiqueta texto="Referencia" ayuda="Nº de contrato, póliza o nº de serie."><Entrada {...campo('referencia')} /></Etiqueta>
-          <Etiqueta texto="Proveedor (nombre corto)" ayuda="Sin forma jurídica ni espacios: Chubb, Gruaspuente."><Entrada {...campo('proveedorCorto')} /></Etiqueta>
+          <Etiqueta texto="Proveedor (nombre corto)" ayuda="Sin forma jurídica ni espacios: «Talleres García, S.L.» → TalleresGarcia."><Entrada {...campo('proveedorCorto')} /></Etiqueta>
           <Etiqueta texto="Qué cubre (3-5 palabras)"><Entrada {...campo('objeto')} /></Etiqueta>
           {libre && (
             <>
