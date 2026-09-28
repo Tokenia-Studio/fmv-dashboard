@@ -2,12 +2,13 @@
 // CONTRATOS - piezas visuales comunes del módulo
 // ============================================
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FileText, X } from 'lucide-react'
 import { contratosDb } from '../../lib/contratosDb'
 import { textoFecha } from '../../utils/contratosVista'
 import { parseFecha } from '../../utils/contratosMotor'
+import { bloquearScrollPagina } from '../../utils/bloqueoScroll'
 
 export const EST_OBLIGACION = {
   fuera: ['rojo', 'Fuera de plazo'],
@@ -181,17 +182,24 @@ export function BotonPdf({ doc, texto }) {
   )
 }
 
+/**
+ * Ventana emergente. Nunca más alta que la pantalla: el título queda fijo arriba,
+ * el pie del formulario (`PieFormulario`) fijo abajo y solo se desplaza el contenido.
+ * El fondo no tiene scroll propio: antes su barra, junto a la de la página, cerraba
+ * la ventana al pincharla (portátil de Daniel, Edge, 28/09/2026).
+ */
 export function Modal({ titulo, onClose, children, ancho = 'max-w-2xl' }) {
+  useEffect(() => bloquearScrollPagina(), [])
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" onMouseDown={onClose}>
-      <div onMouseDown={(e) => e.stopPropagation()} className={`bg-white rounded-lg shadow-xl w-full ${ancho} my-8 overflow-hidden`}>
-        <div className="card-header flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className={`bg-white rounded-lg shadow-xl w-full ${ancho} max-h-full flex flex-col overflow-hidden`}>
+        <div className="card-header flex items-center justify-between shrink-0">
           <h3 className="font-bold text-white">{titulo}</h3>
           <button type="button" onClick={onClose} className="text-white/80 hover:text-white" aria-label="Cerrar">
             <X size={18} />
           </button>
         </div>
-        {children}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">{children}</div>
       </div>
     </div>,
     document.body,
@@ -251,7 +259,7 @@ export function EntradaFecha({ fecha, precision, onChange, max }) {
 
 export function PieFormulario({ onCancelar, guardando, error, textoGuardar = 'Guardar', children }) {
   return (
-    <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center justify-end gap-2">
+    <div className="sticky bottom-0 px-4 py-3 border-t border-gray-100 bg-gray-50 flex flex-wrap items-center justify-end gap-2">
       {error && <p className="text-sm text-red-600 mr-auto">{error}</p>}
       {children}
       <Boton variante="secundario" onClick={onCancelar}>Cancelar</Boton>

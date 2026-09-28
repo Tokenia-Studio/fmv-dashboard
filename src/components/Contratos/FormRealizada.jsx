@@ -107,7 +107,7 @@ export default function FormRealizada({ obligaciones, onClose }) {
             </div>
           )}
 
-          <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+          <div className="space-y-2">
             {obligaciones.map((o) => {
               const fila = filas[o.id]
               const unidades = o.grupo_id ? (modelo.grupo(o.grupo_id)?.unidades || []).filter((u) => u.estado !== 'baja') : []
