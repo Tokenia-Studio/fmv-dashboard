@@ -3,15 +3,19 @@
 // ============================================
 
 import React, { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { FileSearch, Trash2 } from 'lucide-react'
 import { useContratos } from '../../context/ContratosContext'
 import { contratosDb } from '../../lib/contratosDb'
-import { etiquetaTipoDocumento } from '../../utils/contratosVista'
+import { etiquetaTipoDocumento, tipoLecturaDeDocumento } from '../../utils/contratosVista'
 import { Tabla, Fila, Td, Sec, Vacio, Badge, Pendiente, BotonPdf, fechaFila } from './ui'
 
 const ROL = { origen: ['azul', 'Origen'], cierre: ['verde', 'Cierre'], otro: ['gris', 'Otro'] }
 
-export default function TablaDocumentos({ docs, vacio = 'Sin documentos.', conEnlaces = true, conBorrar = false, max }) {
+/**
+ * @param resaltar  id del documento recién subido: se señala para que se vea dónde ha quedado
+ * @param onLeer    (documento) → leerlo con IA; solo se ofrece en los tipos que el lector sabe leer
+ */
+export default function TablaDocumentos({ docs, vacio = 'Sin documentos.', conEnlaces = true, conBorrar = false, max, resaltar, onLeer }) {
   const { modelo, abrir, recargar } = useContratos()
   const [borrando, setBorrando] = useState(null)
   const [error, setError] = useState(null)
@@ -38,13 +42,19 @@ export default function TablaDocumentos({ docs, vacio = 'Sin documentos.', conEn
           const ob = d.obligacion_id ? modelo.obligacion(d.obligacion_id) : null
           const cs = d.contratosIds.map((id) => modelo.contrato(id)).filter(Boolean)
           return (
-            <Fila key={d.id}>
+            <Fila key={d.id} className={d.id === resaltar ? '!bg-green-50' : ''}>
               <Td className="whitespace-nowrap">{d.fecha ? fechaFila(d.fecha, d.fecha_precision) : <Pendiente>Sin fecha</Pendiente>}</Td>
               <Td><Badge color={ROL[d.rol]?.[0]}>{ROL[d.rol]?.[1] || d.rol}</Badge></Td>
               <Td>{etiquetaTipoDocumento(d.tipo)}</Td>
               <Td>
                 <BotonPdf doc={d} texto={d.descripcion || d.nombre_original} />
+                {d.id === resaltar && <> <Badge color="verde">Recién subido</Badge></>}
                 <Sec>{d.ruta}{d.referencia ? ` · ref. ${d.referencia}` : ''}{d.legible === false ? ' · no legible' : ''}</Sec>
+                {onLeer && tipoLecturaDeDocumento(d.tipo) && (
+                  <button type="button" className="mt-0.5 inline-flex items-center gap-1 text-xs text-fmv-700 hover:underline" onClick={() => onLeer(d)} title="Lee este PDF con IA y propone los datos del contrato. No cambia nada hasta que lo confirmas.">
+                    <FileSearch size={12} /> Leer con IA
+                  </button>
+                )}
               </Td>
               {conEnlaces && (
                 <Td>

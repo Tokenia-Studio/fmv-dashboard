@@ -9,6 +9,11 @@
 // revisar») y `documento` (el PDF, que se sube con su nombre definitivo al guardar).
 // En el alta se pueden crear los equipos que cubre (flujo 3) y su revisión de
 // mantenimiento. Nada se guarda hasta pulsar Guardar.
+//
+// Con `contrato` Y `propuesta` (se ha leído un PDF desde la ficha de un contrato que
+// ya existe, piloto del 05/10/2026): lo que estaba vacío llega relleno y marcado «IA»;
+// lo que ya tenía otro valor NO se cambia, se enseña debajo de su campo («El PDF dice…»)
+// y solo entra si la persona pulsa «Usar». El PDF ya está guardado: aquí no se sube.
 
 import React, { useMemo, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
@@ -20,7 +25,19 @@ import {
   importeAnualDe, vistaPropuesta, siguienteCodigo, proveedorCortoPropuesto, slugBloque, codigoProveedorBC,
   regimenPorCategoria, tipoEquipoPropuesto, etiquetaRevision, componerNombreFichero, equipoExistente,
 } from '../../utils/contratosVista'
-import { Modal, Etiqueta, Entrada, Selector, EntradaFecha, PieFormulario, Aviso, Badge, useCampos, useGuardar, eur } from './ui'
+import { Modal, Etiqueta, Entrada, Selector, EntradaFecha, PieFormulario, Aviso, Badge, useCampos, useGuardar, eur, fechaFila } from './ui'
+
+const NOMBRE_CAMPO = { referencia: 'referencia', importe: 'importe', periodicidad: 'periodicidad', inicio: 'inicio', fin: 'fin', renovacion: 'renovación', preaviso_dias: 'preaviso', observaciones: 'observaciones' }
+
+/** Lo que dice el PDF de un campo, tal como se le enseña a la persona. */
+function textoLeido(d) {
+  const v = d.aplicar
+  if (d.campo === 'importe') return `${eur(v.importe)}${v.periodicidad ? ` · ${PERIODICIDADES.find((p) => p.valor === v.periodicidad)?.etiqueta.toLowerCase() || v.periodicidad}` : ''}`
+  if (d.campo === 'inicio' || d.campo === 'fin') return fechaFila(v[d.campo], v[`${d.campo}_precision`])
+  if (d.campo === 'preaviso_dias') return `${v.preaviso_dias} días`
+  if (d.anadir) return d.leido.replace(/^Leído del PDF: /, '')
+  return String(v[d.campo])
+}
 
 const CAMPOS = [
   'codigo', 'proveedor_nombre', 'proveedor_codigo', 'proveedor_corto', 'categoria', 'objeto', 'nave', 'referencia', 'importe', 'periodicidad',
@@ -32,9 +49,11 @@ const NUMERICOS = ['importe', 'importe_anual', 'importe_declarado', 'preaviso_di
 export default function FormContrato({ contrato, propuesta, documento, onClose, onGuardado }) {
   const { modelo, vista, recargar, esDireccion, maestroProveedores } = useContratos()
   const leido = propuesta?.valores || {}
-  const marcas = propuesta?.marcas || {}
+  const [marcas, setMarcas] = useState(propuesta?.marcas || {})
+  // Contrato que ya existe: lo que el PDF dice distinto de la ficha, pendiente de que la persona decida
+  const [pendientes, setPendientes] = useState((contrato && propuesta?.diferencias) || [])
   const inicial = contrato
-    ? Object.fromEntries(CAMPOS.map((k) => [k, contrato[k] ?? (k === 'vista_confirmada' ? false : '')]))
+    ? { ...Object.fromEntries(CAMPOS.map((k) => [k, contrato[k] ?? (k === 'vista_confirmada' ? false : '')])), ...leido }
     : {
         codigo: siguienteCodigo(modelo.contratos),
         vista: esDireccion ? (leido.categoria ? vistaPropuesta(leido.categoria) : vista) : 'compras_fabrica',
@@ -92,6 +111,25 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
 
   const IA = ({ c }) => (marcas[c] ? <Badge color={marcas[c] === 'dudoso' ? 'ambar' : 'azul'} title="Leído del PDF: revísalo antes de guardar">{marcas[c] === 'dudoso' ? 'IA · revisar' : 'IA'}</Badge> : null)
   const T = (texto, c) => <>{texto} <IA c={c} /></>
+
+  const usar = (d) => {
+    Object.entries(d.aplicar).forEach(([k, v]) => poner(k, v))
+    const marca = d.dudoso ? 'dudoso' : 'propuesto'
+    setMarcas((m) => ({ ...m, [d.campo]: marca, ...(d.aplicar.periodicidad ? { periodicidad: marca } : {}) }))
+    setPendientes((l) => l.filter((x) => x !== d))
+  }
+  /** Debajo de un campo: lo que dice el PDF cuando no coincide con lo que ya tenía la ficha. */
+  const Dif = ({ c }) => {
+    const d = pendientes.find((x) => x.campo === c)
+    if (!d) return null
+    return (
+      <span className="mt-1 block rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+        {d.anadir ? 'El PDF añade: ' : 'El PDF dice: '}<strong>{textoLeido(d)}</strong>{d.dudoso ? ' (lectura dudosa)' : ''}{' '}
+        <button type="button" className="font-semibold underline" onClick={() => usar(d)}>{d.anadir ? 'Añadir' : 'Usar'}</button>
+      </span>
+    )
+  }
+  const rellenados = contrato && propuesta ? [...Object.keys(propuesta.marcas || {}), ...(leido.observaciones ? ['observaciones'] : [])].map((k) => NOMBRE_CAMPO[k] || k) : []
 
   const cambiarProveedor = (e) => {
     const nombre = e.target.value
@@ -214,12 +252,25 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
     if (hecho) (onGuardado || onClose)(hecho)
   }
 
-  const titulo = contrato ? `Editar ${contrato.codigo || contrato.proveedor_nombre}` : documento ? 'Nuevo contrato desde PDF' : 'Nuevo contrato'
+  const titulo = contrato ? `${propuesta ? 'Completar' : 'Editar'} ${contrato.codigo || contrato.proveedor_nombre}${propuesta ? ' con el PDF' : ''}` : documento ? 'Nuevo contrato desde PDF' : 'Nuevo contrato'
   return (
     <Modal titulo={titulo} onClose={cerrar} ancho="max-w-3xl">
       <form onSubmit={enviar}>
         <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {propuesta && (
+          {propuesta && contrato && (
+            <div className="sm:col-span-3 space-y-2">
+              <Aviso color="azul">
+                Leído <strong>{propuesta.nombre}</strong>.{' '}
+                {rellenados.length > 0
+                  ? <>Se {rellenados.length === 1 ? 'ha rellenado un dato que estaba vacío' : `han rellenado ${rellenados.length} datos que estaban vacíos`} ({rellenados.join(', ')}): {rellenados.length === 1 ? 'va marcado' : 'van marcados'} <Badge color="azul">IA</Badge> o <Badge color="ambar">IA · revisar</Badge>.{' '}</>
+                  : 'El PDF no aporta ningún dato que estuviera vacío en la ficha. '}
+                {propuesta.diferencias?.length > 0 && <>{propuesta.diferencias.length === 1 ? 'Hay un dato que no coincide' : `Hay ${propuesta.diferencias.length} datos que no coinciden`} con lo que ya tenía la ficha: {propuesta.diferencias.length === 1 ? 'está señalado' : 'están señalados'} en ámbar debajo de su campo y no se {propuesta.diferencias.length === 1 ? 'cambia' : 'cambian'} si no pulsas «Usar».{' '}</>}
+                Nada se guarda hasta que pulses Guardar.
+              </Aviso>
+              {propuesta.avisos?.length > 0 && <Aviso>{propuesta.avisos.map((a, i) => <div key={i}>{a}</div>)}</Aviso>}
+            </div>
+          )}
+          {propuesta && !contrato && (
             <div className="sm:col-span-3 space-y-2">
               <Aviso color="azul">
                 Datos leídos del PDF <strong>{documento?.fichero?.name}</strong>. Los marcados <Badge color="azul">IA</Badge> vienen del documento y los <Badge color="ambar">IA · revisar</Badge> son dudosos: compruébalos antes de guardar. Lo que el documento no dice está vacío.
@@ -258,10 +309,10 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
             <Entrada {...campo('nave')} list="ctr-naves-contrato" />
             <datalist id="ctr-naves-contrato">{NAVES.map((t) => <option key={t} value={t} />)}</datalist>
           </Etiqueta>
-          <Etiqueta texto={T('Referencia', 'referencia')} ayuda="Nº de contrato, póliza u oferta."><Entrada {...campo('referencia')} /></Etiqueta>
+          <Etiqueta texto={T('Referencia', 'referencia')} ayuda="Nº de contrato, póliza u oferta."><Entrada {...campo('referencia')} /><Dif c="referencia" /></Etiqueta>
           <Etiqueta texto={T('Estado documental *', 'estado_documental')}><Selector opciones={ESTADOS_DOCUMENTALES} {...campo('estado_documental')} /></Etiqueta>
 
-          <Etiqueta texto={T('Importe (sin IVA)', 'importe')}><Entrada inputMode="decimal" {...campo('importe')} /></Etiqueta>
+          <Etiqueta texto={T('Importe (sin IVA)', 'importe')}><Entrada inputMode="decimal" {...campo('importe')} /><Dif c="importe" /></Etiqueta>
           <Etiqueta texto={T('Periodicidad del importe', 'periodicidad')}><Selector opciones={PERIODICIDADES.map((p) => ({ valor: p.valor, etiqueta: p.etiqueta }))} vacio="—" {...campo('periodicidad')} /></Etiqueta>
           <Etiqueta texto="Importe anual" ayuda={anualManual ? 'Tecleado a mano.' : anualCalculado != null ? 'Calculado a 12 meses.' : 'No se puede normalizar: tecléalo o déjalo pendiente.'}>
             {anualManual ? (
@@ -277,19 +328,19 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
           <Etiqueta texto="Cuenta de gasto BC" ayuda="Necesaria para el cruce con lo contabilizado (fase 3)."><Entrada {...campo('cuenta_gasto')} placeholder="62200000" /></Etiqueta>
           <div />
 
-          <Etiqueta texto={T('Inicio', 'inicio')}><EntradaFecha fecha={f.inicio} precision={f.inicio_precision} onChange={(d, p) => { poner('inicio', d || ''); poner('inicio_precision', p) }} /></Etiqueta>
-          <Etiqueta texto={T('Fin', 'fin')} ayuda="Sin fin y con prórroga tácita: vence en el aniversario del inicio (cada año, salvo que se indique otro periodo)."><EntradaFecha fecha={f.fin} precision={f.fin_precision} onChange={(d, p) => { poner('fin', d || ''); poner('fin_precision', p) }} /></Etiqueta>
+          <Etiqueta texto={T('Inicio', 'inicio')}><EntradaFecha fecha={f.inicio} precision={f.inicio_precision} onChange={(d, p) => { poner('inicio', d || ''); poner('inicio_precision', p) }} /><Dif c="inicio" /></Etiqueta>
+          <Etiqueta texto={T('Fin', 'fin')} ayuda="Sin fin y con prórroga tácita: vence en el aniversario del inicio (cada año, salvo que se indique otro periodo)."><EntradaFecha fecha={f.fin} precision={f.fin_precision} onChange={(d, p) => { poner('fin', d || ''); poner('fin_precision', p) }} /><Dif c="fin" /></Etiqueta>
           <div className={`grid gap-2 ${f.renovacion === 'tácita' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            <Etiqueta texto={T('Renovación', 'renovacion')}><Selector opciones={RENOVACIONES} vacio="—" {...campo('renovacion')} /></Etiqueta>
+            <Etiqueta texto={T('Renovación', 'renovacion')}><Selector opciones={RENOVACIONES} vacio="—" {...campo('renovacion')} /><Dif c="renovacion" /></Etiqueta>
             {f.renovacion === 'tácita' && (
               <Etiqueta texto="Cada (meses)" ayuda="Periodo de cada prórroga, no del pago. Vacío = anual.">
                 <Entrada type="number" min="1" max="120" placeholder="12" {...campo('renovacion_meses')} />
               </Etiqueta>
             )}
-            <Etiqueta texto={T('Preaviso (días)', 'preaviso_dias')}><Entrada type="number" min="0" {...campo('preaviso_dias')} /></Etiqueta>
+            <Etiqueta texto={T('Preaviso (días)', 'preaviso_dias')}><Entrada type="number" min="0" {...campo('preaviso_dias')} /><Dif c="preaviso_dias" /></Etiqueta>
           </div>
 
-          <Etiqueta texto="Observaciones" className="sm:col-span-3"><textarea className="input text-sm" rows={3} {...campo('observaciones')} /></Etiqueta>
+          <Etiqueta texto="Observaciones" className="sm:col-span-3"><textarea className="input text-sm" rows={3} {...campo('observaciones')} /><Dif c="observaciones" /></Etiqueta>
 
           <div className="sm:col-span-3">
             <span className="block text-xs font-medium text-gray-600 mb-1">Equipos que cubre</span>

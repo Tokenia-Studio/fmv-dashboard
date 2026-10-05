@@ -23,6 +23,8 @@ import {
   tipoEquipoPropuesto,
   etiquetaRevision,
   equipoExistente,
+  propuestaSobreContrato,
+  tipoLecturaDeDocumento,
 } from './contratosVista.js';
 
 const HOY = new Date(2026, 8, 23); // 23/09/2026
@@ -444,6 +446,96 @@ describe('lector asistido: de la propuesta a la ficha', () => {
     expect(etiquetaRevision(12)).toBe('Revisión anual');
     expect(etiquetaRevision(4)).toBe('Revisión cada 4 meses');
     expect(etiquetaRevision(6, 'Inspección')).toBe('Inspección semestral');
+  });
+});
+
+describe('lector sobre un contrato que ya existe (piloto 05/10/2026)', () => {
+  // Como C06 tras la carga inicial: el contrato existe, pero sin fechas ni condiciones
+  const vacio = { id: 6, codigo: 'C06', proveedor_nombre: 'Nippon Gases', categoria: 'Mantenimiento', objeto: 'Tanque de gases', nave: 'Gavilanes 21', referencia: null, importe: null, periodicidad: 'anual', inicio: null, fin: null, renovacion: 'no consta', preaviso_dias: null, observaciones: null };
+  const leer = (campos, tipo = 'contrato') => fichaDesdePropuesta({ tipo, campos });
+
+  it('rellena lo que estaba vacío, lo marca y no toca proveedor, categoría, objeto ni nave', () => {
+    const r = propuestaSobreContrato(vacio, leer({
+      proveedor_nombre: { valor: 'NIPPON GASES ESPAÑA S.L.U.', dudoso: false },
+      objeto: { valor: 'Cesión de depósito criogénico', dudoso: false },
+      categoria: { valor: 'Renting', dudoso: false },
+      nave: { valor: 'Águilas 7-13', dudoso: true },
+      referencia: { valor: 'CT-4471', dudoso: false },
+      inicio: { valor: '2024-03-01', dudoso: false, precision: 'dia' },
+      fin: { valor: '2029-02-01', dudoso: true, precision: 'mes' },
+      renovacion: { valor: 'tácita', dudoso: false },
+      preaviso_dias: { valor: 90, dudoso: false },
+    }));
+    expect(r.valores).toEqual({ referencia: 'CT-4471', inicio: '2024-03-01', inicio_precision: 'dia', fin: '2029-02-01', fin_precision: 'mes', renovacion: 'tácita', preaviso_dias: 90 });
+    expect(r.marcas).toEqual({ referencia: 'propuesto', inicio: 'propuesto', fin: 'dudoso', renovacion: 'propuesto', preaviso_dias: 'propuesto' });
+    expect(r.diferencias).toEqual([]);
+  });
+
+  it('lo que ya tenía otro valor no se cambia: va a diferencias; lo que coincide no hace ruido', () => {
+    const lleno = { ...vacio, referencia: 'Contrato 144074 (no está en carpeta)', inicio: '2025-07-07', inicio_precision: 'dia', fin: '2027-07-07', fin_precision: 'dia', renovacion: 'tácita', preaviso_dias: 90 };
+    const r = propuestaSobreContrato(lleno, leer({
+      referencia: { valor: '144074', dudoso: false },
+      inicio: { valor: '2025-07-07', dudoso: false, precision: 'dia' },
+      fin: { valor: '2026-07-07', dudoso: false, precision: 'dia' },
+      renovacion: { valor: 'Tácita', dudoso: false },
+      preaviso_dias: { valor: 30, dudoso: true },
+    }));
+    expect(r.valores).toEqual({});
+    expect(r.coinciden).toEqual(['referencia', 'inicio', 'renovacion']);
+    expect(r.diferencias).toEqual([
+      { campo: 'fin', actual: { fin: '2027-07-07', fin_precision: 'dia' }, aplicar: { fin: '2026-07-07', fin_precision: 'dia' }, dudoso: false },
+      { campo: 'preaviso_dias', actual: { preaviso_dias: 90 }, aplicar: { preaviso_dias: 30 }, dudoso: true },
+    ]);
+  });
+
+  it('el importe viaja con su periodicidad', () => {
+    const campos = { importe: { valor: 738.74, dudoso: false }, periodicidad: { valor: 'mes', dudoso: false } };
+    // sin importe: se rellenan los dos, aunque la ficha trajera «anual» por defecto
+    expect(propuestaSobreContrato(vacio, leer(campos)).valores).toEqual({ importe: 738.74, periodicidad: 'mes' });
+    // mismo importe pero otra periodicidad: es una diferencia, y «Usar» cambia los dos
+    const r = propuestaSobreContrato({ ...vacio, importe: 738.74, periodicidad: 'anual' }, leer(campos));
+    expect(r.diferencias).toEqual([{ campo: 'importe', actual: { importe: 738.74, periodicidad: 'anual' }, aplicar: { importe: 738.74, periodicidad: 'mes' }, dudoso: false }]);
+    expect(propuestaSobreContrato({ ...vacio, importe: '738.74', periodicidad: 'mes' }, leer(campos)).coinciden).toEqual(['importe']);
+    // el PDF da el importe sin decir cada cuánto: la periodicidad de la ficha no se toca
+    expect(propuestaSobreContrato(vacio, leer({ importe: { valor: 100, dudoso: false } })).valores).toEqual({ importe: 100 });
+  });
+
+  it('«no consta» leído no propone nada, y una fecha con otra precisión es una diferencia', () => {
+    const r = propuestaSobreContrato({ ...vacio, renovacion: 'tácita', inicio: '2026-04-01', inicio_precision: 'mes' }, leer({
+      renovacion: { valor: 'no consta', dudoso: false },
+      inicio: { valor: '2026-04-01', dudoso: false, precision: 'dia' },
+    }));
+    expect(r.valores).toEqual({});
+    expect(r.diferencias.map((d) => d.campo)).toEqual(['inicio']);
+  });
+
+  it('factura: solo importe y periodo cubierto; ni su número ni «Sin contrato» pisan la ficha', () => {
+    const r = propuestaSobreContrato(vacio, leer({
+      proveedor_nombre: { valor: 'Ibérica del Cable', dudoso: false },
+      concepto: { valor: 'Revisión de eslingas', dudoso: false },
+      numero_factura: { valor: 'F-77', dudoso: false },
+      importe_sin_iva: { valor: 320, dudoso: false },
+      periodo_inicio: { valor: '2026-04-10', dudoso: false, precision: 'dia' },
+    }, 'factura'), 'factura');
+    expect(r.valores).toEqual({ importe: 320, inicio: '2026-04-10', inicio_precision: 'dia' });
+    expect(r.diferencias).toEqual([]);
+  });
+
+  it('la nota del lector no pisa las observaciones: se rellena si no había y se ofrece añadir si había', () => {
+    const campos = { observaciones: { valor: 'IPC anual, mínimo 3 %', dudoso: false } };
+    expect(propuestaSobreContrato(vacio, leer(campos)).valores).toEqual({ observaciones: 'Leído del PDF: IPC anual, mínimo 3 %' });
+    const r = propuestaSobreContrato({ ...vacio, observaciones: 'FALTA el contrato del tanque.' }, leer(campos));
+    expect(r.valores).toEqual({});
+    expect(r.diferencias).toHaveLength(1);
+    expect(r.diferencias[0]).toMatchObject({ campo: 'observaciones', anadir: true, aplicar: { observaciones: 'FALTA el contrato del tanque.\nLeído del PDF: IPC anual, mínimo 3 %' } });
+    // segunda lectura del mismo PDF: no vuelve a ofrecer lo que ya está añadido
+    expect(propuestaSobreContrato({ ...vacio, observaciones: r.diferencias[0].aplicar.observaciones }, leer(campos)).diferencias).toEqual([]);
+  });
+
+  it('qué tipos de documento sabe leer el lector para un contrato', () => {
+    expect(['contrato', 'presupuesto', 'renovacion', 'poliza'].map(tipoLecturaDeDocumento)).toEqual(['contrato', 'contrato', 'contrato', 'contrato']);
+    expect(tipoLecturaDeDocumento('factura')).toBe('factura');
+    expect(['parte_visita', 'certificado', 'anexo', 'otro', undefined].map(tipoLecturaDeDocumento)).toEqual([null, null, null, null, null]);
   });
 });
 

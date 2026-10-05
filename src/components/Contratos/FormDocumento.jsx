@@ -5,15 +5,23 @@
 // (AAAA-MM-DD_Proveedor_Tipo_Objeto[_Ref].pdf): la persona no lo teclea.
 // PENDIENTE DE CARLOS: confirmar o tachar que la app componga el nombre (US-009).
 // Si se tacha, basta con guardar con el nombre original: el resto no cambia.
+//
+// Desde la ficha de un contrato, un documento de origen (contrato, oferta, renovación,
+// póliza o factura) se puede además leer con IA para completar esa ficha (piloto del
+// 05/10/2026). El PDF se guarda SIEMPRE primero; la lectura viene después y la lleva
+// la ficha (`onSubido`), así que cancelarla o que falle no pierde el documento.
 
 import React, { useMemo, useState } from 'react'
 import { useContratos } from '../../context/ContratosContext'
 import { contratosDb } from '../../lib/contratosDb'
-import { TIPOS_DOCUMENTO, componerNombreFichero, proveedorCortoPropuesto, slugBloque, sumaEnTotales } from '../../utils/contratosVista'
+import { TIPOS_DOCUMENTO, componerNombreFichero, proveedorCortoPropuesto, slugBloque, sumaEnTotales, tipoLecturaDeDocumento } from '../../utils/contratosVista'
 import { Modal, Etiqueta, Entrada, Selector, EntradaFecha, PieFormulario, useCampos, useGuardar } from './ui'
 
-export default function FormDocumento({ destino = {}, onClose }) {
-  const { modelo, recargar, puedeEditarContrato } = useContratos()
+/**
+ * @param onSubido  (documento, { fichero, leer }) → tras guardar; `leer` = la persona ha pedido leerlo con IA
+ */
+export default function FormDocumento({ destino = {}, onClose, onSubido }) {
+  const { modelo, recargar, puedeEditarContrato, lectorActivo } = useContratos()
   const { contrato, equipo, obligacion } = destino
   const libre = !contrato && !equipo && !obligacion
 
@@ -34,7 +42,10 @@ export default function FormDocumento({ destino = {}, onClose }) {
     equipo_id: '',
   })
   const [fichero, setFichero] = useState(null)
+  const [leer, setLeer] = useState(true)
   const { guardando, error, setError, guardar } = useGuardar(recargar)
+  // Solo se ofrece leer donde la lectura tiene dónde ir: la ficha de un contrato que la persona puede editar
+  const sePuedeLeer = !!(onSubido && contrato && lectorActivo && puedeEditarContrato(contrato) && tipoLecturaDeDocumento(f.tipo))
 
   const contratosEnlazables = modelo.contratos.filter((c) => puedeEditarContrato(c) && sumaEnTotales(c))
   const nombre = useMemo(
@@ -75,7 +86,9 @@ export default function FormDocumento({ destino = {}, onClose }) {
     }
     const ruta = `${slugBloque(f.proveedorCorto)}/${nombre}`
     const hecho = await guardar(() => contratosDb.subirDocumento(fichero, ruta, ficha, contratosIds))
-    if (hecho) onClose()
+    if (!hecho) return
+    onClose()
+    onSubido?.(hecho, { fichero, leer: sePuedeLeer && leer })
   }
 
   const titulo = contrato ? `${contrato.codigo || ''} ${contrato.proveedor_nombre}` : obligacion ? `${obligacion.etiqueta} · ${obligacion.sujeto.nombre}` : equipo ? equipo.nombre : ''
@@ -110,12 +123,23 @@ export default function FormDocumento({ destino = {}, onClose }) {
           <label className="sm:col-span-2 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={!!f.legible} onChange={campo('legible').onChange} /> Legible (desmárcalo si el escaneo no se lee)
           </label>
+          {sePuedeLeer && (
+            <label className="sm:col-span-2 flex items-start gap-2 rounded border border-fmv-200 bg-fmv-50 px-3 py-2 text-sm">
+              <input type="checkbox" className="mt-0.5" checked={leer} onChange={(e) => setLeer(e.target.checked)} />
+              <span>
+                Leer el PDF con IA y proponer los datos de este contrato
+                <span className="block text-xs text-gray-500">
+                  El PDF se guarda primero. Después la app lo lee (se envía a la IA de Anthropic, que no lo usa para entrenar modelos) y te enseña qué rellenaría y qué no coincide con la ficha: no cambia nada hasta que lo confirmas.
+                </span>
+              </span>
+            </label>
+          )}
           <div className="sm:col-span-2 rounded bg-gray-50 border border-gray-200 px-3 py-2 text-xs">
             <span className="text-gray-500">Se guardará como </span>
             <span className="font-mono break-all">{slugBloque(f.proveedorCorto) || '…'}/{nombre}</span>
           </div>
         </div>
-        <PieFormulario onCancelar={onClose} guardando={guardando} error={error} textoGuardar="Subir" />
+        <PieFormulario onCancelar={onClose} guardando={guardando} error={error} textoGuardar={sePuedeLeer && leer ? 'Subir y leer' : 'Subir'} />
       </form>
     </Modal>
   )

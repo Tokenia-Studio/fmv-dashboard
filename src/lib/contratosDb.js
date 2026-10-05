@@ -262,6 +262,32 @@ export const contratosDb = {
     return { ruta, ...data }
   },
 
+  /**
+   * Lee un documento que ya está guardado en su ficha (o que se acaba de subir: entonces
+   * llega `fichero` y no hace falta bajarlo). La función de servidor solo lee de la carpeta
+   * temporal de quien llama, así que se le pasa una copia y se borra al terminar, lea o no.
+   * El documento definitivo no se toca.
+   */
+  leerGuardado: async (doc, tipo, fichero = null) => {
+    let pdf = fichero
+    if (!pdf) {
+      const { data, error } = await supabase.storage.from(BUCKET).download(doc.ruta)
+      fallo(error, 'abrir el PDF')
+      pdf = new File([data], doc.ruta.split('/').pop(), { type: 'application/pdf' })
+    }
+    let temporal
+    try {
+      const r = await contratosDb.leerDocumento(pdf, tipo)
+      temporal = r.ruta
+      return r
+    } catch (err) {
+      temporal = err.ruta
+      throw err
+    } finally {
+      await contratosDb.borrarTemporal(temporal)
+    }
+  },
+
   /** Borra el PDF temporal de lectura (solo puede quien lo subió). */
   borrarTemporal: async (ruta) => {
     if (!ruta || !ruta.startsWith('_lectura/')) return

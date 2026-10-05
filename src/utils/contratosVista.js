@@ -78,17 +78,19 @@ export const ESTADOS_TAREA = ['Abierta', 'En curso', 'Resuelta'];
 /**
  * Tipos detallados de documento (los del inventario, que son los que trae la carga
  * inicial) con su rol por defecto y el bloque Tipo del nombre de fichero según la
- * tabla de correspondencia del encargo a Daniel (22/09/2026).
+ * tabla de correspondencia del encargo a Daniel (22/09/2026). `lectura` es lo que
+ * el lector asistido sabe sacar de ese tipo para la ficha de un contrato; sin ella,
+ * el documento se guarda pero no se lee.
  */
 export const TIPOS_DOCUMENTO = [
-  { valor: 'contrato', etiqueta: 'Contrato', rol: 'origen', bloque: 'Contrato' },
-  { valor: 'presupuesto', etiqueta: 'Oferta / presupuesto', rol: 'origen', bloque: 'Oferta' },
-  { valor: 'renovacion', etiqueta: 'Renovación', rol: 'origen', bloque: 'Contrato' },
+  { valor: 'contrato', etiqueta: 'Contrato', rol: 'origen', bloque: 'Contrato', lectura: 'contrato' },
+  { valor: 'presupuesto', etiqueta: 'Oferta / presupuesto', rol: 'origen', bloque: 'Oferta', lectura: 'contrato' },
+  { valor: 'renovacion', etiqueta: 'Renovación', rol: 'origen', bloque: 'Contrato', lectura: 'contrato' },
   { valor: 'anexo', etiqueta: 'Anexo', rol: 'origen', bloque: 'Contrato' },
   { valor: 'domiciliacion', etiqueta: 'Domiciliación', rol: 'origen', bloque: 'Contrato' },
-  { valor: 'poliza', etiqueta: 'Póliza', rol: 'origen', bloque: 'Poliza' },
+  { valor: 'poliza', etiqueta: 'Póliza', rol: 'origen', bloque: 'Poliza', lectura: 'contrato' },
   { valor: 'pedido', etiqueta: 'Pedido', rol: 'origen', bloque: 'Otro' },
-  { valor: 'factura', etiqueta: 'Factura (cuando no hay contrato)', rol: 'origen', bloque: 'Factura' },
+  { valor: 'factura', etiqueta: 'Factura (cuando no hay contrato)', rol: 'origen', bloque: 'Factura', lectura: 'factura' },
   { valor: 'parte_visita', etiqueta: 'Parte de visita', rol: 'cierre', bloque: 'Parte' },
   { valor: 'informe_revision', etiqueta: 'Informe de revisión', rol: 'cierre', bloque: 'Informe' },
   { valor: 'certificado', etiqueta: 'Certificado', rol: 'cierre', bloque: 'Certificado' },
@@ -98,6 +100,8 @@ export const TIPOS_DOCUMENTO = [
 ];
 const TIPO_DOC = Object.fromEntries(TIPOS_DOCUMENTO.map((t) => [t.valor, t]));
 export const etiquetaTipoDocumento = (valor) => TIPO_DOC[valor]?.etiqueta || String(valor || '').replace(/_/g, ' ');
+/** 'contrato' | 'factura' si el lector asistido puede leer ese tipo de documento; si no, null. */
+export const tipoLecturaDeDocumento = (valor) => TIPO_DOC[valor]?.lectura || null;
 
 // ── Importes ─────────────────────────────────────────────────────────────────
 
@@ -732,6 +736,79 @@ export function fichaDesdePropuesta(propuesta, maestro = {}) {
   const fdoc = propuesta?.tipo === 'factura' ? c.fecha : c.fecha_documento;
   const documento = fdoc?.valor ? { fecha: fdoc.valor, precision: fdoc.precision || 'dia' } : { fecha: null, precision: null };
   return { valores, marcas, avisos: propuesta?.avisos || [], documento };
+}
+
+// Condiciones que el PDF puede fijar en un contrato que ya existe. Una factura solo
+// da importe y periodo cubierto: su número no es la referencia del contrato.
+const CONDICIONES_LEIDAS = {
+  contrato: ['referencia', 'importe', 'inicio', 'fin', 'renovacion', 'preaviso_dias'],
+  factura: ['importe', 'inicio', 'fin'],
+};
+const sinDato = (campo, v) => v == null || v === '' || (campo === 'renovacion' && v === 'no consta');
+const soloLetrasYNumeros = (s) => slugBloque(s).toLowerCase().replace(/-/g, '');
+
+/**
+ * Propuesta del lector sobre un contrato que YA existe (se lee su PDF desde la ficha).
+ * Entra la ficha de `fichaDesdePropuesta`. Proveedor, categoría, objeto y nave son de
+ * la ficha y no se tocan: solo las condiciones. Lo que estaba vacío se rellena y se
+ * marca; lo que ya tenía otro valor NO se cambia: va en `diferencias` para que la
+ * persona decida (`aplicar` son los campos que se pondrían). El importe y su
+ * periodicidad van juntos: 300 «al mes» no es lo mismo que 300 «al año».
+ */
+export function propuestaSobreContrato(contrato, ficha, tipoLectura = 'contrato') {
+  const leido = ficha?.valores || {};
+  const marcasLeidas = ficha?.marcas || {};
+  const valores = {};
+  const marcas = {};
+  const diferencias = [];
+  const coinciden = [];
+
+  for (const campo of CONDICIONES_LEIDAS[tipoLectura] || []) {
+    if (!marcasLeidas[campo] || sinDato(campo, leido[campo])) continue;
+    const dudoso = marcasLeidas[campo] === 'dudoso';
+    const esFecha = campo === 'inicio' || campo === 'fin';
+    // Lo que se escribiría y lo que hay hoy, con los campos que acompañan al principal
+    const aplicar = { [campo]: leido[campo] };
+    const actual = { [campo]: contrato[campo] ?? null };
+    if (esFecha) {
+      aplicar[`${campo}_precision`] = leido[`${campo}_precision`] || 'dia';
+      actual[`${campo}_precision`] = contrato[`${campo}_precision`] || 'dia';
+    }
+    if (campo === 'importe' && marcasLeidas.periodicidad && leido.periodicidad) {
+      aplicar.periodicidad = leido.periodicidad;
+      actual.periodicidad = contrato.periodicidad ?? null;
+    }
+
+    if (sinDato(campo, contrato[campo])) {
+      Object.assign(valores, aplicar);
+      marcas[campo] = dudoso ? 'dudoso' : 'propuesto';
+      if (aplicar.periodicidad) marcas.periodicidad = marcasLeidas.periodicidad;
+      continue;
+    }
+    let igual;
+    if (esFecha) igual = String(contrato[campo]).slice(0, 10) === String(leido[campo]).slice(0, 10) && actual[`${campo}_precision`] === aplicar[`${campo}_precision`];
+    else if (campo === 'importe') igual = Math.abs(Number(contrato.importe) - Number(leido.importe)) < 0.005 && (!aplicar.periodicidad || aplicar.periodicidad === contrato.periodicidad);
+    else if (campo === 'preaviso_dias') igual = Number(contrato.preaviso_dias) === Number(leido.preaviso_dias);
+    else if (campo === 'referencia') {
+      // «Contrato 144074 (no está en carpeta)» y «144074» son la misma referencia
+      const a = soloLetrasYNumeros(contrato.referencia);
+      const b = soloLetrasYNumeros(leido.referencia);
+      igual = !!a && !!b && (a.includes(b) || b.includes(a));
+    } else igual = String(contrato[campo]).trim().toLowerCase() === String(leido[campo]).trim().toLowerCase();
+
+    if (igual) coinciden.push(campo);
+    else diferencias.push({ campo, actual, aplicar, dudoso });
+  }
+
+  // La nota que deja el lector (IPC, penalizaciones…) no pisa las observaciones que ya hubiera: se añade
+  if (leido.observaciones) {
+    const previas = String(contrato.observaciones || '').trim();
+    if (!previas) valores.observaciones = leido.observaciones;
+    else if (!previas.includes(leido.observaciones)) {
+      diferencias.push({ campo: 'observaciones', anadir: true, actual: { observaciones: previas }, aplicar: { observaciones: `${previas}\n${leido.observaciones}` }, leido: leido.observaciones, dudoso: false });
+    }
+  }
+  return { valores, marcas, diferencias, coinciden, avisos: ficha?.avisos || [] };
 }
 
 /** Equipos que menciona un contrato → equipos nuevos propuestos para el formulario. */

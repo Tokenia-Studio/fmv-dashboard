@@ -1,11 +1,16 @@
 // ============================================
 // CONTRATOS - Ficha del contrato (US-005, US-006, US-007)
 // ============================================
+// Los documentos van al final de la ficha: arriba hay un enlace que baja hasta ellos
+// y el que se acaba de subir queda señalado (piloto del 05/10/2026: se subió un
+// contrato y, al no moverse nada en pantalla, pareció que no se había guardado).
+// Desde aquí se lee también un PDF de origen para completar ESTE contrato (US-014).
 
-import React, { useState } from 'react'
-import { Pencil, Plus, Upload, Gavel } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { Pencil, Plus, Upload, Gavel, FileText, ArrowDown } from 'lucide-react'
 import { useContratos } from '../../context/ContratosContext'
-import { textoFecha, textoDia, hayDiscrepancia, VISTAS } from '../../utils/contratosVista'
+import { contratosDb } from '../../lib/contratosDb'
+import { textoFecha, textoDia, hayDiscrepancia, VISTAS, tipoLecturaDeDocumento, fichaDesdePropuesta, propuestaSobreContrato } from '../../utils/contratosVista'
 import { Tarjeta, Campo, Tabla, Fila, Td, Sec, Vacio, Aviso, Badge, Pendiente, Boton, eur, valor, fechaFila, EST_CONTRATO, EST_DOCUMENTAL, EST_OBLIGACION } from './ui'
 import { Cabecera } from './FichaEquipo'
 import BloqueObligacion from './BloqueObligacion'
@@ -14,14 +19,45 @@ import FormContrato from './FormContrato'
 import FormObligacion from './FormObligacion'
 import FormDocumento from './FormDocumento'
 import FormDecision from './FormDecision'
+import { LecturaEnCurso } from './LectorDocumento'
 
 export default function FichaContrato({ id }) {
-  const { modelo, vista, cerrarFicha, abrir, puedeEditarContrato } = useContratos()
+  const { modelo, vista, cerrarFicha, abrir, puedeEditarContrato, lectorActivo, maestroProveedores } = useContratos()
   const [form, setForm] = useState(null)
+  const [recienSubido, setRecienSubido] = useState(null) // id del documento que se acaba de subir
+  const [lectura, setLectura] = useState(null)           // { fase: 'leyendo' | 'error', nombre, mensaje }
+  const [propuesta, setPropuesta] = useState(null)       // lo leído del PDF, para completar este contrato
+  const refDocumentos = useRef(null)
+  const irADocumentos = () => refDocumentos.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // Tras subir un documento se baja hasta él (cuando la ficha ya lo ha pintado)
+  useEffect(() => { if (recienSubido) irADocumentos() }, [recienSubido])
+
   const c = modelo.contrato(id)
   if (!c) return <Aviso>Contrato no encontrado o sin permiso para verlo. <button className="underline" onClick={cerrarFicha}>Volver</button></Aviso>
 
   const editable = puedeEditarContrato(c)
+  const cerrarForm = () => { setForm(null); setPropuesta(null) }
+
+  // Lee un documento de origen ya guardado y abre la ficha con lo que propone. La lectura
+  // se lanza desde el clic (no desde un efecto): cada una cuesta dinero y no debe repetirse.
+  const leer = async (doc, fichero = null) => {
+    const tipo = tipoLecturaDeDocumento(doc.tipo)
+    if (!tipo) return
+    const nombre = doc.descripcion || doc.nombre_original
+    setLectura({ fase: 'leyendo', nombre })
+    try {
+      const r = await contratosDb.leerGuardado(doc, tipo, fichero)
+      setPropuesta({ ...propuestaSobreContrato(c, fichaDesdePropuesta(r.propuesta, maestroProveedores), tipo), nombre })
+      setLectura(null)
+      setForm('editar')
+    } catch (err) {
+      setLectura({ fase: 'error', nombre, mensaje: err.message })
+    }
+  }
+  const alSubir = (doc, { fichero, leer: quiereLeer }) => {
+    setRecienSubido(doc.id)
+    if (quiereLeer) leer(doc, fichero)
+  }
   const [color, texto] = EST_CONTRATO[c.calc.estado]
   const equipos = c.equiposIds.map((eid) => modelo.equipo(eid)).filter(Boolean)
   const tareas = modelo.tareas.filter((t) => t.contrato_id === c.id)
@@ -44,7 +80,11 @@ export default function FichaContrato({ id }) {
             </>
           )
         }
-      />
+      >
+        <button type="button" onClick={irADocumentos} className="mt-1 inline-flex items-center gap-1 text-sm text-fmv-700 hover:underline" title="Baja hasta los documentos de este contrato">
+          <FileText size={14} /> {c.docs.length ? `Documentos (${c.docs.length})` : 'Sin documentos todavía'} <ArrowDown size={12} />
+        </button>
+      </Cabecera>
 
       {!editable && <Aviso color="azul">Este contrato lo gestiona <strong>{VISTAS[c.vista]}</strong>. Lo ves porque cubre un equipo de tu vista; para cambiarlo, habla con dirección.</Aviso>}
       {c.vista !== vista && editable && <Aviso color="azul">Contrato de la vista <strong>{VISTAS[c.vista]}</strong>, enlazado a un equipo de esta.</Aviso>}
@@ -117,9 +157,11 @@ export default function FichaContrato({ id }) {
         </Tarjeta>
       )}
 
-      <Tarjeta titulo="Documentos" nota={`${c.docs.filter((d) => d.rol === 'origen').length} de origen · ${c.docs.filter((d) => d.rol === 'cierre').length} de cierre`}>
-        <TablaDocumentos docs={c.docs} vacio="No hay documentos subidos para este contrato." />
-      </Tarjeta>
+      <div ref={refDocumentos} className="scroll-mt-4">
+        <Tarjeta titulo="Documentos" nota={`${c.docs.filter((d) => d.rol === 'origen').length} de origen · ${c.docs.filter((d) => d.rol === 'cierre').length} de cierre`}>
+          <TablaDocumentos docs={c.docs} vacio="No hay documentos subidos para este contrato." resaltar={recienSubido} onLeer={editable && lectorActivo ? (d) => leer(d) : undefined} />
+        </Tarjeta>
+      </div>
 
       {tareas.length > 0 && (
         <Tarjeta titulo="Tareas sobre este contrato">
@@ -132,10 +174,11 @@ export default function FichaContrato({ id }) {
       )}
       {!equipos.length && !c.obligacionesPropias.length && c.vista === 'compras_fabrica' && <Vacio>Este contrato no está enlazado a ningún equipo ni tiene obligaciones propias.</Vacio>}
 
-      {form === 'editar' && <FormContrato contrato={c} onClose={() => setForm(null)} />}
+      {form === 'editar' && <FormContrato contrato={c} propuesta={propuesta} onClose={cerrarForm} />}
       {form === 'obligacion' && <FormObligacion nueva={{ contrato_id: c.id, proveedor_nombre: c.proveedor_nombre }} onClose={() => setForm(null)} />}
-      {form === 'documento' && <FormDocumento destino={{ contrato: c }} onClose={() => setForm(null)} />}
+      {form === 'documento' && <FormDocumento destino={{ contrato: c }} onClose={() => setForm(null)} onSubido={alSubir} />}
       {form === 'decision' && <FormDecision contrato={c} onClose={() => setForm(null)} />}
+      {lectura && <LecturaEnCurso estado={lectura} onCerrar={() => setLectura(null)} onAMano={() => { setLectura(null); setForm('editar') }} />}
     </div>
   )
 }

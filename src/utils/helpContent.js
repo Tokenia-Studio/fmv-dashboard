@@ -391,7 +391,7 @@ export const HELP_CONTENT = {
       },
       {
         titulo: 'Leer un PDF con IA',
-        contenido: '«Leer PDF» (contratos y facturas) y «Certificados (IA)» (calibraciones, admite varios a la vez) proponen los campos a partir del documento. Los campos propuestos se distinguen de los tecleados y los dudosos van señalados; lo que el documento no dice queda vacío. Nada se guarda hasta que usted revisa y confirma. Si la lectura falla, el formulario se rellena a mano.'
+        contenido: '«Leer PDF» (contratos y facturas) y «Certificados (IA)» (calibraciones, admite varios a la vez) proponen los campos a partir del documento. Los campos propuestos se distinguen de los tecleados y los dudosos van señalados; lo que el documento no dice queda vacío. Nada se guarda hasta que usted revisa y confirma. Si la lectura falla, el formulario se rellena a mano. En la ficha de un contrato que ya existe, «Subir documento» guarda el PDF y, si lo deja marcado, lo lee para completar esa ficha: rellena lo que estaba vacío y señala, sin cambiarlo, lo que no coincide con lo que ya había. Los documentos de origen ya subidos tienen «Leer con IA» en su fila. Los documentos están al final de la ficha: el enlace «Documentos» de la cabecera baja hasta ellos.'
       },
       {
         titulo: 'Quién ve qué',

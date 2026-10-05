@@ -124,6 +124,39 @@ export default function LectorDocumento({ tipoInicial = 'contrato', onFicha, onC
   )
 }
 
+/**
+ * Ventana de espera (y de error) cuando se lee un documento que ya está guardado en la
+ * ficha de un contrato. La lectura la lanza la ficha; aquí solo se enseña cómo va.
+ * @param estado  { fase: 'leyendo' | 'error', nombre, mensaje }
+ */
+export function LecturaEnCurso({ estado, onCerrar, onAMano }) {
+  const leyendo = estado.fase === 'leyendo'
+  return (
+    <Modal titulo="Leer el PDF con IA" onClose={leyendo ? () => {} : onCerrar} ancho="max-w-lg">
+      <div className="p-4 text-sm">
+        {leyendo ? (
+          <div className="py-8 text-center text-gray-600">
+            <Loader2 size={28} className="mx-auto mb-3 animate-spin text-fmv-700" />
+            Leyendo <strong>{estado.nombre}</strong>…
+            <span className="block text-xs text-gray-500 mt-1">Suele tardar entre 15 segundos y un minuto. El PDF ya está guardado en la ficha.</span>
+          </div>
+        ) : (
+          <Aviso color="rojo">
+            {estado.mensaje}
+            <span className="block mt-1">El documento está guardado en la ficha; lo que no se ha podido es leerlo.</span>
+          </Aviso>
+        )}
+      </div>
+      {!leyendo && (
+        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+          <Boton variante="secundario" onClick={onCerrar}>Cerrar</Boton>
+          <Boton onClick={onAMano}>Completar a mano</Boton>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 // ── Certificados: se leen y se confirman uno a uno ───────────────────────────
 
 // Una sola lectura por fichero aunque el componente se monte dos veces (StrictMode
