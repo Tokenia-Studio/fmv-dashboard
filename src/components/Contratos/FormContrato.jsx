@@ -328,17 +328,19 @@ export default function FormContrato({ contrato, propuesta, documento, onClose, 
           <Etiqueta texto="Cuenta de gasto BC" ayuda="Necesaria para el cruce con lo contabilizado (fase 3)."><Entrada {...campo('cuenta_gasto')} placeholder="62200000" /></Etiqueta>
           <div />
 
-          <Etiqueta texto={T('Inicio', 'inicio')}><EntradaFecha fecha={f.inicio} precision={f.inicio_precision} onChange={(d, p) => { poner('inicio', d || ''); poner('inicio_precision', p) }} /><Dif c="inicio" /></Etiqueta>
-          <Etiqueta texto={T('Fin', 'fin')} ayuda="Sin fin y con prórroga tácita: vence en el aniversario del inicio (cada año, salvo que se indique otro periodo)."><EntradaFecha fecha={f.fin} precision={f.fin_precision} onChange={(d, p) => { poner('fin', d || ''); poner('fin_precision', p) }} /><Dif c="fin" /></Etiqueta>
-          <div className={`grid gap-2 ${f.renovacion === 'tácita' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            <Etiqueta texto={T('Renovación', 'renovacion')}><Selector opciones={RENOVACIONES} vacio="—" {...campo('renovacion')} /><Dif c="renovacion" /></Etiqueta>
-            {f.renovacion === 'tácita' && (
-              <Etiqueta texto="Cada (meses)" ayuda="Periodo de cada prórroga, no del pago. Vacío = anual.">
-                <Entrada type="number" min="1" max="120" placeholder="12" {...campo('renovacion_meses')} />
-              </Etiqueta>
-            )}
-            <Etiqueta texto={T('Preaviso (días)', 'preaviso_dias')}><Entrada type="number" min="0" {...campo('preaviso_dias')} /><Dif c="preaviso_dias" /></Etiqueta>
+          {/* Cada fecha lleva al lado su selector de precisión: en un tercio de la ventana no cabían y se
+              montaban sobre el campo siguiente. Van a media ventana, y renovación y preaviso en su propia fila. */}
+          <div className="sm:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Etiqueta texto={T('Inicio', 'inicio')}><EntradaFecha fecha={f.inicio} precision={f.inicio_precision} onChange={(d, p) => { poner('inicio', d || ''); poner('inicio_precision', p) }} /><Dif c="inicio" /></Etiqueta>
+            <Etiqueta texto={T('Fin', 'fin')} ayuda="Sin fin y con prórroga tácita: vence en el aniversario del inicio (cada año, salvo que se indique otro periodo)."><EntradaFecha fecha={f.fin} precision={f.fin_precision} onChange={(d, p) => { poner('fin', d || ''); poner('fin_precision', p) }} /><Dif c="fin" /></Etiqueta>
           </div>
+          <Etiqueta texto={T('Renovación', 'renovacion')}><Selector opciones={RENOVACIONES} vacio="—" {...campo('renovacion')} /><Dif c="renovacion" /></Etiqueta>
+          {f.renovacion === 'tácita' && (
+            <Etiqueta texto="Cada (meses)" ayuda="Periodo de cada prórroga, no del pago. Vacío = anual.">
+              <Entrada type="number" min="1" max="120" placeholder="12" {...campo('renovacion_meses')} />
+            </Etiqueta>
+          )}
+          <Etiqueta texto={T('Preaviso (días)', 'preaviso_dias')}><Entrada type="number" min="0" {...campo('preaviso_dias')} /><Dif c="preaviso_dias" /></Etiqueta>
 
           <Etiqueta texto="Observaciones" className="sm:col-span-3"><textarea className="input text-sm" rows={3} {...campo('observaciones')} /><Dif c="observaciones" /></Etiqueta>
 

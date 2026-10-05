@@ -243,11 +243,12 @@ export function EntradaFecha({ fecha, precision, onChange, max }) {
     const f = nuevaP === 'año' ? `${nuevoTexto.slice(0, 4)}-01-01` : nuevaP === 'mes' ? `${nuevoTexto.slice(0, 7)}-01` : nuevoTexto
     onChange(f, nuevaP)
   }
+  // `min-w-0`: en un hueco estrecho la fecha encoge; sin él empuja el selector fuera de su columna
   return (
     <div className="flex gap-2">
-      {p === 'dia' && <input type="date" className="input text-sm" value={s} max={max} onChange={(e) => cambiar(e.target.value, 'dia')} />}
-      {p === 'mes' && <input type="month" className="input text-sm" value={s.slice(0, 7)} onChange={(e) => cambiar(e.target.value, 'mes')} />}
-      {p === 'año' && <input type="number" min="2000" max="2100" className="input text-sm" value={s.slice(0, 4)} onChange={(e) => cambiar(e.target.value ? `${e.target.value}-01-01` : '', 'año')} />}
+      {p === 'dia' && <input type="date" className="input text-sm min-w-0" value={s} max={max} onChange={(e) => cambiar(e.target.value, 'dia')} />}
+      {p === 'mes' && <input type="month" className="input text-sm min-w-0" value={s.slice(0, 7)} onChange={(e) => cambiar(e.target.value, 'mes')} />}
+      {p === 'año' && <input type="number" min="2000" max="2100" className="input text-sm min-w-0" value={s.slice(0, 4)} onChange={(e) => cambiar(e.target.value ? `${e.target.value}-01-01` : '', 'año')} />}
       <select className="input text-sm w-28 shrink-0" value={p} onChange={(e) => (s ? cambiar(s, e.target.value) : onChange(null, e.target.value))} title="Precisión de la fecha">
         <option value="dia">Día</option>
         <option value="mes">Solo mes</option>
