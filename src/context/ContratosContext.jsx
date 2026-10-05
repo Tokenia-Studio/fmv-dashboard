@@ -6,15 +6,25 @@
 // se le añade peso. Tras cada cambio se recarga todo (son cientos de filas),
 // así pantallas, calendario y tareas automáticas salen siempre del mismo estado.
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useData } from './DataContext'
 import { contratosDb } from '../lib/contratosDb'
 import { construirModelo, hoyLocal } from '../utils/contratosVista'
 
 const ContratosContext = createContext(null)
 
+// Las dos vistas son pestañas distintas del menú. Para ir desde una a una lista de la
+// otra (el Mapa enseña las dos a dirección) se deja aquí el destino y se cambia de
+// pestaña: la vista que entra lo recoge en vez de abrir su panel.
+const PESTANA_DE_VISTA = { compras_fabrica: 'contratosEquipos', administracion: 'contratosServicios' }
+let destinoPendiente = null
+
 export function ContratosProvider({ vista, children }) {
-  const { userRole, proveedores } = useData()
+  const { userRole, proveedores, setTab } = useData()
+  // `setTab` se crea de nuevo en cada pintado del Dashboard: se guarda aparte para no
+  // repintar todo el módulo cada vez
+  const cambiarPestana = useRef(setTab)
+  cambiarPestana.current = setTab
   const [datos, setDatos] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
@@ -38,9 +48,11 @@ export function ContratosProvider({ vista, children }) {
     contratosDb.lectorActivo().then(setLectorActivo)
   }, [recargar])
 
-  // Al cambiar de vista (menú) se vuelve al panel
+  // Al cambiar de vista (menú) se vuelve al panel, salvo que se venga con un destino
   useEffect(() => {
-    setNav({ pantalla: 'panel', ficha: null, filtro: null })
+    const destino = destinoPendiente?.vista === vista ? destinoPendiente : null
+    destinoPendiente = null
+    setNav({ pantalla: destino?.pantalla || 'panel', ficha: null, filtro: destino?.filtro || null })
   }, [vista])
 
   const modelo = useMemo(() => (datos ? construirModelo(datos, hoyLocal()) : null), [datos])
@@ -61,6 +73,16 @@ export function ContratosProvider({ vista, children }) {
       nav,
       ir: (pantalla, filtro = null) => {
         setNav({ pantalla, ficha: null, filtro })
+        window.scrollTo(0, 0)
+      },
+      // Como `ir`, pero a una pantalla de la otra vista si hace falta (solo dirección tiene las dos)
+      irAVista: (vistaDestino, pantalla, filtro = null) => {
+        if (vistaDestino !== vista && esDireccion && PESTANA_DE_VISTA[vistaDestino]) {
+          destinoPendiente = { vista: vistaDestino, pantalla, filtro }
+          cambiarPestana.current(PESTANA_DE_VISTA[vistaDestino])
+        } else {
+          setNav({ pantalla, ficha: null, filtro })
+        }
         window.scrollTo(0, 0)
       },
       abrir: (tipo, id) => {

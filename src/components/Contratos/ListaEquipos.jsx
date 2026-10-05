@@ -24,7 +24,8 @@ const SITUACIONES = {
 export default function ListaEquipos() {
   const { modelo, nav, abrir, lectorActivo } = useContratos()
   const inicial = nav.filtro || {}
-  const [f, setF] = useState({ q: '', tipo: '', nave: '', situacion: inicial.situacion || '', noApto: !!inicial.noApto, sinCierre: !!inicial.sinCierre, bajas: inicial.situacion === 'baja' })
+  // `tipo` y `q` llegan desde una pieza del Mapa; el resto, desde una cifra del panel
+  const [f, setF] = useState({ q: inicial.q || '', tipo: inicial.tipo || '', nave: '', situacion: inicial.situacion || '', noApto: !!inicial.noApto, sinCierre: !!inicial.sinCierre, bajas: inicial.situacion === 'baja' })
   const [formulario, setFormulario] = useState(null)
 
   const todas = useMemo(() => filasEquipos(modelo), [modelo])
@@ -76,7 +77,7 @@ export default function ListaEquipos() {
         }
       >
         <div className="flex flex-wrap items-center gap-2 p-3 border-b border-gray-100">
-          <input className="input text-sm !w-64" placeholder="Buscar nº, modelo, serie, operario…" value={f.q} onChange={cambia('q')} />
+          <input className="input text-sm !w-64" placeholder="Buscar nº, modelo, serie, operario, proveedor…" value={f.q} onChange={cambia('q')} />
           <select className="input text-sm !w-auto" value={f.tipo} onChange={cambia('tipo')}>
             <option value="">Todos los tipos</option>
             {tipos.map((t) => <option key={t}>{t}</option>)}

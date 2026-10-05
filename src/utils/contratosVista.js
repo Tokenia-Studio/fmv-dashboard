@@ -587,11 +587,24 @@ export function filasEquipos(m) {
   const hubo = (o) => o.realizadas.some((r) => !r.anulada) || !!o.primera_fecha;
   const situacion = (principal, sinPlan, baja) =>
     baja ? 'baja' : principal ? principal.calc.estado : sinPlan ? 'sinplan' : 'sinobligaciones';
+  // Quién lo mantiene: el proveedor del contrato que cubre su obligación o, si va por
+  // pedido, el anotado en ella («— (sin contrato)» no es un nombre). Sin obligaciones, nadie.
+  const mantenedor = (principal, vivas) => {
+    for (const o of [principal, ...vivas]) {
+      if (!o) continue;
+      const delContrato = o.contrato_id ? m.contrato(o.contrato_id)?.proveedor_nombre : null;
+      if (delContrato) return delContrato;
+      const anotado = String(o.proveedor_nombre || '').trim();
+      if (anotado && !/^[—-]/.test(anotado)) return anotado;
+    }
+    return '';
+  };
 
   const sueltos = m.equipos
     .filter((e) => !e.grupo_id || !m.grupo(e.grupo_id))
     .map((e) => {
       const vivas = e.estado === 'baja' ? [] : e.obligaciones.filter((o) => o.viva);
+      const proveedor = mantenedor(e.principal, vivas);
       return {
         clave: `e${e.id}`,
         tipo: 'equipo',
@@ -611,7 +624,8 @@ export function filasEquipos(m) {
         sinCierre: vivas.some((o) => hubo(o) && !o.calc.cierreOk),
         sinOrigen: vivas.some((o) => !o.origen.ok),
         unidades: 1,
-        texto: [e.nombre, e.modelo, e.num_serie, e.asignado_a, e.activo_fijo_bc, e.identificacion, e.num_interno].join(' ').toLowerCase(),
+        proveedor,
+        texto: [e.nombre, e.modelo, e.num_serie, e.asignado_a, e.activo_fijo_bc, e.identificacion, e.num_interno, proveedor].join(' ').toLowerCase(),
       };
     });
 
@@ -620,6 +634,7 @@ export function filasEquipos(m) {
     const baja = g.unidades.length > 0 && enServicio.length === 0;
     const vivas = g.obligaciones.filter((o) => o.viva);
     const noAptas = new Set(vivas.flatMap((o) => o.noAptoUnidades)).size;
+    const proveedor = mantenedor(g.principal, vivas);
     return {
       clave: `g${g.id}`,
       tipo: 'grupo',
@@ -639,7 +654,8 @@ export function filasEquipos(m) {
       sinCierre: vivas.some((o) => hubo(o) && !o.calc.cierreOk),
       sinOrigen: vivas.some((o) => !o.origen.ok),
       unidades: enServicio.length,
-      texto: [g.nombre, g.tipo, ...g.unidades.map((u) => [u.nombre, u.identificacion, u.num_serie].join(' '))].join(' ').toLowerCase(),
+      proveedor,
+      texto: [g.nombre, g.tipo, proveedor, ...g.unidades.map((u) => [u.nombre, u.identificacion, u.num_serie].join(' '))].join(' ').toLowerCase(),
     };
   });
 

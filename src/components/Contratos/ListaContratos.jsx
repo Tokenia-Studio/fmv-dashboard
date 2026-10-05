@@ -14,12 +14,13 @@ import LectorDocumento from './LectorDocumento'
 export default function ListaContratos() {
   const { modelo, vista, nav, abrir, lectorActivo } = useContratos()
   const inicial = nav.filtro || {}
-  const [f, setF] = useState({ q: '', categoria: '', estadoDoc: inicial.estadoDoc || '', vivos: true })
+  // `categoria` y `q` llegan desde una pieza del Mapa y se ven en los propios filtros
+  const [f, setF] = useState({ q: inicial.q || '', categoria: inicial.categoria || '', estadoDoc: inicial.estadoDoc || '', vivos: true })
   const [nuevo, setNuevo] = useState(false)
   const [lector, setLector] = useState(false)
   const [desdePdf, setDesdePdf] = useState(null) // { propuesta, documento } del lector
   const extra = inicial // filtros que solo llegan desde un KPI del panel
-  const [conExtra, setConExtra] = useState(Object.keys(extra).some((k) => k !== 'estadoDoc'))
+  const [conExtra, setConExtra] = useState(Object.keys(extra).some((k) => !['estadoDoc', 'categoria', 'q'].includes(k)))
 
   const base = modelo.contratos.filter((c) => c.vista === vista)
   const categorias = [...new Set(base.map((c) => c.categoria))].sort()

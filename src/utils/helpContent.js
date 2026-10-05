@@ -361,6 +361,7 @@ export const HELP_CONTENT = {
           cabeceras: ['Pantalla', 'Para qué sirve'],
           filas: [
             ['Panel', 'Lo urgente de un vistazo. Cada cifra abre la lista de equipos que la componen.'],
+            ['Mapa', 'El reparto de todo en dos chapas, como en el programa de corte: lo que se mantiene (una pieza por tipo de equipo, tan grande como equipos tiene) y lo que se paga (una pieza por categoría de contrato, tan grande como su importe anual). Dentro de cada pieza, quién lo mantiene o lo cobra. Los colores dicen el estado y cada pieza abre su lista. Debajo, la lista de piezas con los mismos números. «Imprimir» saca las dos chapas en una hoja apaisada.'],
             ['Equipos', 'Lista con filtros (tipo, nave, situación, no aptos, sin documento de cierre). Desde aquí se dan de alta equipos y grupos, se registran varias realizadas a la vez y se exporta a Excel.'],
             ['Contratos', 'Los contratos de esta vista, con su vencimiento y la fecha límite para avisar al proveedor.'],
             ['Calendario', 'Lo que toca en los próximos 12 meses, lo atrasado y lo que no tiene fecha. Solo se consulta: todo sale de contratos y obligaciones.'],
@@ -429,6 +430,10 @@ export const HELP_CONTENT = {
       {
         titulo: 'Contratos sin fecha de fin',
         contenido: 'Con prórroga tácita y fecha de inicio, el contrato vence en el próximo aniversario del inicio. El periodo de renovación no es el del pago: un renting que se paga cada mes suele renovarse por años. Si el contrato no dice cada cuánto se renueva, se supone anual y, si se paga por meses, sale la tarea «Confirmar periodo de renovación»; el periodo real se indica en «Cada (meses)» al editar el contrato. Si falta el preaviso, no se inventa: sin fecha límite de aviso, el contrato avisa desde 90 días antes del vencimiento.'
+      },
+      {
+        titulo: 'El mapa',
+        contenido: 'La pantalla «Mapa» enseña el reparto de todo en dos chapas, como en el programa de corte: lo que se mantiene (una pieza por tipo de equipo, tan grande como equipos tiene) y lo que se paga (una pieza por categoría, tan grande como su importe anual), con las dos vistas una junto a otra. Los contratos sin importe conocido no se pueden dibujar a escala y van aparte, debajo. Los colores dicen el estado, cada pieza abre su lista y «Imprimir» lo saca en una hoja apaisada.'
       },
       {
         titulo: 'Cerrar un vencimiento',

@@ -22,10 +22,12 @@ import Calendario from './Calendario'
 import Tareas from './Tareas'
 import Documentos from './Documentos'
 import Proveedores from './Proveedores'
+import Mapa from './Mapa'
 
 const PANTALLAS = {
   compras_fabrica: [
     ['panel', 'Panel'],
+    ['mapa', 'Mapa'],
     ['equipos', 'Equipos'],
     ['contratos', 'Contratos'],
     ['calendario', 'Calendario'],
@@ -35,6 +37,7 @@ const PANTALLAS = {
   ],
   administracion: [
     ['panel', 'Panel'],
+    ['mapa', 'Mapa'],
     ['contratos', 'Contratos'],
     ['calendario', 'Calendario'],
     ['tareas', 'Tareas'],
@@ -120,6 +123,8 @@ function Pantalla() {
     if (tipo === 'contrato') return <FichaContrato id={id} />
   }
   switch (nav.pantalla) {
+    case 'mapa':
+      return <Mapa />
     case 'equipos':
       return <ListaEquipos />
     case 'contratos':
