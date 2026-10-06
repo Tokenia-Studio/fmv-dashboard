@@ -1,0 +1,1345 @@
+{
+ "nota": "Fixture del inventario del 07/09/2026 reducido a fechas y periodicidades (sin importes, proveedores ni objetos). Sirve para comprobar que el motor reproduce las columnas calculadas a mano en el Excel. Referencia: HOY = 21/09/2026.",
+ "hoy": "2026-09-21",
+ "contratos": [
+  {
+   "id": "C01",
+   "inicio": "2026-06-30",
+   "fin": "2027-06-29",
+   "renovacion": "expresa",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C02",
+   "inicio": "2026-05",
+   "fin": "2027-05",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 60,
+   "vivo": true,
+   "avisarAntes": "2027-03-02"
+  },
+  {
+   "id": "C03",
+   "inicio": "2026-04",
+   "fin": "2027-04",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 60,
+   "vivo": true,
+   "avisarAntes": "2027-01-31"
+  },
+  {
+   "id": "C04",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "por visita trimestral",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C05",
+   "inicio": "2026-04-01",
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 90,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C06",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C07",
+   "inicio": "2024",
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C08",
+   "inicio": "2025-07-07",
+   "fin": "2027-07-07",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 90,
+   "vivo": true,
+   "avisarAntes": "2027-04-08"
+  },
+  {
+   "id": "C09",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 90,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C10",
+   "inicio": "2026-02-20",
+   "fin": "2031-02-19",
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C11",
+   "inicio": "2023-01-10",
+   "fin": "2027-01-09",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2026-12-10"
+  },
+  {
+   "id": "C12",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C13",
+   "inicio": null,
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": null,
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "C15",
+   "inicio": "2025-12-16",
+   "fin": "2030-12-31",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2030-12-01"
+  },
+  {
+   "id": "C16",
+   "inicio": "2026-02-18",
+   "fin": "2031-02-28",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2031-01-29"
+  },
+  {
+   "id": "C17",
+   "inicio": "2024-11-04",
+   "fin": "2026-11-30",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2026-10-31"
+  },
+  {
+   "id": "C18",
+   "inicio": "2025-02-24",
+   "fin": "2027-02-28",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2027-01-29"
+  },
+  {
+   "id": "C19",
+   "inicio": "2025-07-01",
+   "fin": "2027-06-30",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2027-05-31"
+  },
+  {
+   "id": "C20",
+   "inicio": "2025-11-27",
+   "fin": "2026-11-26",
+   "renovacion": "no consta",
+   "periodicidad": null,
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C21",
+   "inicio": "2025-07-03",
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C22",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C23",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C24",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C25",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C26",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C27",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C28",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C29",
+   "inicio": "2022-10",
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C30",
+   "inicio": "2024-11-05",
+   "fin": "2028-11-05",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2028-10-06"
+  },
+  {
+   "id": "C31",
+   "inicio": "2024-02-08",
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C32",
+   "inicio": "2024-04-05",
+   "fin": "2027-04-05",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2027-03-06"
+  },
+  {
+   "id": "C33",
+   "inicio": "2023-07-01",
+   "fin": "2026-06-30",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2026-05-31"
+  },
+  {
+   "id": "C34",
+   "inicio": "2026-07-01",
+   "fin": "2029-06-30",
+   "renovacion": "no consta",
+   "periodicidad": "único (3 años)",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C35",
+   "inicio": "2023-07-10",
+   "fin": "2026-07-10",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C36",
+   "inicio": "2023-07-07",
+   "fin": "2025-07-07",
+   "renovacion": "expresa",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C37",
+   "inicio": "2026-03-10",
+   "fin": "2027-03-10",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 15,
+   "vivo": true,
+   "avisarAntes": "2027-02-23"
+  },
+  {
+   "id": "C38",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C39",
+   "inicio": "2024-10-01",
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C40",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C41",
+   "inicio": "2022-03-10",
+   "fin": "2027-03-10",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C42",
+   "inicio": "2026-02-19",
+   "fin": "2027-02-19",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C43",
+   "inicio": null,
+   "fin": "2026-12-30",
+   "renovacion": "no consta",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C44",
+   "inicio": "2023-03",
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": null,
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C45",
+   "inicio": "2023-04",
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": null,
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C46",
+   "inicio": "2026-07-16",
+   "fin": "2027-01-16",
+   "renovacion": "tácita",
+   "periodicidad": "mes",
+   "preaviso": 30,
+   "vivo": true,
+   "avisarAntes": "2026-12-17"
+  },
+  {
+   "id": "C47",
+   "inicio": "2026-04-28",
+   "fin": "2027-04-27",
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C48",
+   "inicio": "2026-06",
+   "fin": null,
+   "renovacion": "tácita",
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C49",
+   "inicio": null,
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "por equipo",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C50",
+   "inicio": "2026-04-10",
+   "fin": null,
+   "renovacion": "no consta",
+   "periodicidad": "por revisión",
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C51",
+   "inicio": "2023-03-16",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": null,
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "C52",
+   "inicio": null,
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": null,
+   "preaviso": null,
+   "vivo": true,
+   "avisarAntes": null
+  },
+  {
+   "id": "H01",
+   "inicio": "2022-11-07",
+   "fin": "2026-05-31",
+   "renovacion": null,
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H02",
+   "inicio": "2021-01-07",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H03",
+   "inicio": "2024-11-22",
+   "fin": "2026-03-10",
+   "renovacion": null,
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H04",
+   "inicio": "2024-09-01",
+   "fin": "2026-06-30",
+   "renovacion": null,
+   "periodicidad": "anual",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H05",
+   "inicio": "2025-09-29",
+   "fin": "2026-03-29",
+   "renovacion": null,
+   "periodicidad": "mes",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H06",
+   "inicio": "2026-04-07",
+   "fin": "2026-06-30",
+   "renovacion": null,
+   "periodicidad": "único",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H07",
+   "inicio": "2026-01-29",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": "único",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H08",
+   "inicio": "2024-12",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": "único",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H09",
+   "inicio": "2024-10-07",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": "único",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H10",
+   "inicio": "2025-10-09",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": "único",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H11",
+   "inicio": "2023-02",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": "único",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H12",
+   "inicio": "2024-09",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": "único",
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  },
+  {
+   "id": "H13",
+   "inicio": "2024-10",
+   "fin": null,
+   "renovacion": null,
+   "periodicidad": null,
+   "preaviso": null,
+   "vivo": false,
+   "avisarAntes": null
+  }
+ ],
+ "obligaciones": [
+  {
+   "id": "O001",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O002",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-15",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O003",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O004",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-15",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O005",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O006",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-05",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O007",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-15",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O008",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O009",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O010",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O011",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O012",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O013",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O014",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O015",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O016",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O017",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-10-01",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O018",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-10-01",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O019",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-11-24",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O020",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-12-16",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O021",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-02-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O022",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-02-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O023",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-02-24",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O024",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-02-24",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O025",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-03-23",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O026",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-12",
+   "pistaProxima": "2027-03",
+   "mesHabitual": null
+  },
+  {
+   "id": "O027",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-04-28",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O028",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-04-28",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O029",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-04-28",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O030",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O031",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O032",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O033",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O034",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O035",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O036",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O037",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O038",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O039",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-22",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O040",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-12-05",
+   "pistaProxima": "2027-06",
+   "mesHabitual": null
+  },
+  {
+   "id": "O041",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-24",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O042",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-23",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O043",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-23",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O044",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-23",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O045",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-23",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O046",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-23",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O047",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-24",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O048",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-23",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O049",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-01-19",
+   "pistaProxima": "2027-07",
+   "mesHabitual": null
+  },
+  {
+   "id": "O050",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-01-20",
+   "pistaProxima": "2027-07",
+   "mesHabitual": null
+  },
+  {
+   "id": "O051",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-04",
+   "pistaProxima": "2027-09",
+   "mesHabitual": null
+  },
+  {
+   "id": "O052",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-03-04",
+   "pistaProxima": "2027-09",
+   "mesHabitual": null
+  },
+  {
+   "id": "O053",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-04-16",
+   "pistaProxima": "2027-10",
+   "mesHabitual": null
+  },
+  {
+   "id": "O054",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-08",
+   "pistaProxima": "2027-11",
+   "mesHabitual": null
+  },
+  {
+   "id": "O055",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O056",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O057",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": "2026-02-04",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O058",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O059",
+   "tipo": "Calibración",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O060",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O061",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O062",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-20",
+   "pistaProxima": null,
+   "mesHabitual": 11
+  },
+  {
+   "id": "O063",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": "2026-05-20",
+   "pistaProxima": null,
+   "mesHabitual": 5
+  },
+  {
+   "id": "O064",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": "2026-04-23",
+   "pistaProxima": null,
+   "mesHabitual": 4
+  },
+  {
+   "id": "O065",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": "2025-10-14",
+   "pistaProxima": null,
+   "mesHabitual": 10
+  },
+  {
+   "id": "O066",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": "2024-11-20",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O067",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": "2025-09-16",
+   "pistaProxima": "2026-09-16",
+   "mesHabitual": null
+  },
+  {
+   "id": "O068",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O069",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O070",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O071",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O072",
+   "tipo": "Revisión",
+   "periodicidadMeses": 12,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O073",
+   "tipo": "Revisión",
+   "periodicidadMeses": 6,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O074",
+   "tipo": "Revisión",
+   "periodicidadMeses": null,
+   "ultima": "2025-11-27",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O075",
+   "tipo": "Revisión",
+   "periodicidadMeses": 6,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O076",
+   "tipo": "Inspección",
+   "periodicidadMeses": 6,
+   "ultima": "2026-04-10",
+   "pistaProxima": "2026-09",
+   "mesHabitual": null
+  },
+  {
+   "id": "O077",
+   "tipo": "Revisión",
+   "periodicidadMeses": 6,
+   "ultima": "2023-03-16",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O078",
+   "tipo": "Inspección",
+   "periodicidadMeses": 12,
+   "ultima": "2026-07-21",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O079",
+   "tipo": "Revisión",
+   "periodicidadMeses": null,
+   "ultima": "2026-07-14",
+   "pistaProxima": null,
+   "mesHabitual": null
+  },
+  {
+   "id": "O080",
+   "tipo": "Inspección",
+   "periodicidadMeses": null,
+   "ultima": null,
+   "pistaProxima": null,
+   "mesHabitual": null
+  }
+ ],
+ "vencimientosHoja": [
+  {
+   "fecha": "2026-09-01",
+   "tipo": "Calibración",
+   "grupos": 16
+  },
+  {
+   "fecha": "2026-10-01",
+   "tipo": "Calibración",
+   "grupos": 2
+  },
+  {
+   "fecha": "2026-11-01",
+   "tipo": "Calibración",
+   "grupos": 1
+  },
+  {
+   "fecha": "2026-12-01",
+   "tipo": "Calibración",
+   "grupos": 1
+  },
+  {
+   "fecha": "2027-02-01",
+   "tipo": "Calibración",
+   "grupos": 5
+  },
+  {
+   "fecha": "2027-03-01",
+   "tipo": "Calibración",
+   "grupos": 2
+  },
+  {
+   "fecha": "2027-04-01",
+   "tipo": "Calibración",
+   "grupos": 3
+  },
+  {
+   "fecha": "2027-05-01",
+   "tipo": "Calibración",
+   "grupos": 10
+  },
+  {
+   "fecha": "2027-06-01",
+   "tipo": "Calibración",
+   "grupos": 1
+  },
+  {
+   "fecha": "2027-07-01",
+   "tipo": "Calibración",
+   "grupos": 10
+  },
+  {
+   "fecha": "2027-09-01",
+   "tipo": "Calibración",
+   "grupos": 2
+  }
+ ]
+}

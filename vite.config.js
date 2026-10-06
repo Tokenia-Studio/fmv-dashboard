@@ -22,5 +22,10 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
-  }
+  },
+  // vitest: solo los tests del código de la app. Los de supabase/functions son de Deno
+  // (se ejecutan con `deno test` dentro de cada función).
+  test: {
+    include: ['src/**/*.test.{js,jsx}'],
+  },
 })

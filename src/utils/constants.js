@@ -103,21 +103,32 @@ export const TABS = [
   { id: 'inversiones', label: 'Ppto Inversiones' }, // Pestaña propia rol compras (direccion la ve dentro de Presupuesto)
   // { id: 'seguimientoEstructuras', label: 'Seg. Estructuras' }, // Movido a app independiente FMV Producción
   // { id: 'planificacionProduccion', label: 'Planif. Producción' }, // Movido a app independiente FMV Producción
+  { id: 'contratosEquipos', label: 'Equipos y mantenimiento' },
+  { id: 'contratosServicios', label: 'Servicios y arrendamientos' },
   { id: 'cargar', label: 'Cargar' },
   { id: 'usuarios', label: 'Usuarios' }
 ]
+
+// Módulo de contratos y mantenimiento: lanzado el 06/10/2026 (Carlos), tras el piloto en la
+// preview con Sachi y Daniel. Hasta entonces solo se veía en desarrollo local y donde Vercel
+// definía VITE_MODULO_CONTRATOS=si (entorno Preview); esa variable ya no se lee.
+// No es un secreto: solo enciende la pestaña; los datos los protegen las políticas de la
+// base de datos. Para retirar el menú sin tocar nada más, poner `false` aquí.
+export const MODULO_CONTRATOS_VISIBLE = true
+const conContratos = (tabs) => (MODULO_CONTRATOS_VISIBLE ? tabs : [])
 
 // Secciones de navegación para sidebar (rol direccion)
 export const NAVIGATION_SECTIONS = {
   finanzas: { label: 'Finanzas', tabs: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', 'presupuestoCompras'] },
   // produccion: { label: 'Producción', tabs: [] }, // Movido a app independiente FMV Producción
+  contratos: { label: 'Contratos', tabs: ['contratosEquipos', 'contratosServicios'] },
   admin: { label: 'Administración', tabs: ['cargar', 'usuarios'] }
 }
 
 // Tabs visibles por rol
 export const TABS_POR_ROL = {
-  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', 'cargar', 'usuarios'],
-  compras: ['servicios', 'proveedores', 'presupuestoCompras', 'inversiones', 'cargar']
+  direccion: ['pyg', 'servicios', 'financiacion', 'proveedores', 'cashflow', 'presupuesto', 'cuentasAnuales', 'personal', ...conContratos(['contratosEquipos', 'contratosServicios']), 'cargar', 'usuarios'],
+  compras: ['servicios', 'proveedores', 'presupuestoCompras', 'inversiones', ...conContratos(['contratosEquipos']), 'cargar']
 }
 
 // Umbrales semáforo para Seguimiento Estructuras (% desviación)
