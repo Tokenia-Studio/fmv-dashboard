@@ -109,13 +109,12 @@ export const TABS = [
   { id: 'usuarios', label: 'Usuarios' }
 ]
 
-// Módulo de contratos y mantenimiento: visible en desarrollo local y en la preview del
-// piloto con Sachi y Daniel (Carlos, 24/09/2026), donde Vercel define
-// VITE_MODULO_CONTRATOS=si SOLO en el entorno Preview. No es un secreto: solo enciende la
-// pestaña; los datos los protegen las políticas de la base de datos.
-// Lanzarlo = poner `true` aquí, en el último commit de la fase (arquitectura §7).
-export const MODULO_CONTRATOS_VISIBLE =
-  import.meta.env?.DEV === true || import.meta.env?.VITE_MODULO_CONTRATOS === 'si'  // fuera de Vite (scripts de Node) no hay env: oculto
+// Módulo de contratos y mantenimiento: lanzado el 06/10/2026 (Carlos), tras el piloto en la
+// preview con Sachi y Daniel. Hasta entonces solo se veía en desarrollo local y donde Vercel
+// definía VITE_MODULO_CONTRATOS=si (entorno Preview); esa variable ya no se lee.
+// No es un secreto: solo enciende la pestaña; los datos los protegen las políticas de la
+// base de datos. Para retirar el menú sin tocar nada más, poner `false` aquí.
+export const MODULO_CONTRATOS_VISIBLE = true
 const conContratos = (tabs) => (MODULO_CONTRATOS_VISIBLE ? tabs : [])
 
 // Secciones de navegación para sidebar (rol direccion)
