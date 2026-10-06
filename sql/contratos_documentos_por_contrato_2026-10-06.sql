@@ -115,8 +115,8 @@ $g$;
 
 commit;
 
--- Resultado (lo único que muestra el editor). Las dos últimas filas son informativas:
--- dicen qué había a la vista de compras y conviene mirarlas.
+-- Resultado (lo único que muestra el editor). Las tres últimas filas son informativas:
+-- dicen qué había a la vista de compras y qué PDF se han quedado sin ficha; conviene mirarlas.
 with visibles as (   -- contratos que ve compras: los de su vista y los mixtos
   select c.id from public.ctr_contratos c
   where c.vista = 'compras_fabrica'
@@ -135,6 +135,10 @@ with visibles as (   -- contratos que ve compras: los de su vista y los mixtos
                 where dc.documento_id = d.id and c.vista = 'compras_fabrica')
     and exists (select 1 from public.ctr_documento_contrato dc
                 where dc.documento_id = d.id and dc.contrato_id not in (select id from visibles))
+), sin_ficha as (    -- PDF que siguen en el almacén sin ficha (F7); las lecturas temporales no cuentan
+  select o.name from storage.objects o
+  where o.bucket_id = 'contratos' and o.name not like '\_lectura/%'
+    and not exists (select 1 from public.ctr_documentos d where d.ruta = o.name)
 )
 select 'regla de los enlaces documento—contrato' as comprobacion,
        (select with_check from pg_policies where schemaname = 'public' and tablename = 'ctr_documento_contrato' and policyname = 'ctr_documento_contrato_escribir') as valor,
@@ -155,6 +159,10 @@ union all select 'documentos que compras deja de ver con este cambio (F5)',
        'informativo: son los que estaban a la vista'
 union all select 'documentos que respaldan un contrato de compras y otro de solo Administración',
        (select count(*)::text || coalesce(': ' || string_agg(nombre_original, ' · ' order by nombre_original), '') from compartidos),
-       'informativo: compras los ve; revisar que todos deban estar en los dos';
+       'informativo: compras los ve; revisar que todos deban estar en los dos'
+union all select 'PDF en el almacén que se han quedado sin ficha',
+       (select (select count(*) from sin_ficha)::text
+               || coalesce(': ' || (select string_agg(name, ' · ' order by name) from (select name from sin_ficha order by name limit 15) s), '')),
+       'informativo: lo ideal es 0; si hay alguno, avisar antes de publicar (F7)';
 
 -- SIGUIENTE: sql/contratos_documentos_por_contrato_2026-10-06_comprobacion.sql
