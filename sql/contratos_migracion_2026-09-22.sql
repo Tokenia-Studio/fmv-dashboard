@@ -15,7 +15,9 @@
 --                  algún equipo) y no puede editarlos ni cambiar la vista de nada.
 --   · ctr_lecturas la lee solo direccion y la escribe solo la función de servidor.
 --
--- Idempotente: se puede ejecutar dos veces sin duplicar nada. No toca ninguna
+-- Idempotente mientras sea la última aplicada: se puede ejecutar dos veces sin
+-- duplicar nada, pero se niega a ejecutarse si ya hay migraciones posteriores del
+-- módulo (ver la guarda del punto 0). No toca ninguna
 -- tabla existente (solo añade una clave en `configuracion`). Todo dentro de una
 -- transacción con guarda final: si algo queda abierto, no se aplica nada.
 --
@@ -37,6 +39,18 @@ begin
   end if;
 end;
 $r$;
+
+-- (06/10/2026) Esta migración borra y recrea TODAS las políticas del módulo tal como eran el
+-- 22/09/2026: ejecutarla con las posteriores ya aplicadas (QA del 24/09, altas del 05/10,
+-- documentos del 06/10) las desharía. Si hay alguna aplicada, no hace nada.
+do $s$
+begin
+  if to_regprocedure('public.ctr_permiso_clave(text, boolean)') is not null
+     or to_regprocedure('public.ctr_ve_contrato_fila(bigint, text)') is not null then
+    raise exception 'NO SE HA APLICADO NADA: ya hay migraciones posteriores del módulo de contratos y esta desharía sus reglas de permisos';
+  end if;
+end;
+$s$;
 
 -- ── 1. Tablas ───────────────────────────────────────────────────────────────
 -- Convenciones: prefijo ctr_, identificadores sin tildes, valores en castellano.

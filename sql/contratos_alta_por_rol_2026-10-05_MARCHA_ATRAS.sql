@@ -6,6 +6,19 @@
 -- ============================================================================
 begin;
 
+-- (06/10/2026) Si la migración del 06/10 está aplicada, deshacer esta volvería a abrir F5:
+-- primero contratos_documentos_por_contrato_2026-10-06_MARCHA_ATRAS.sql.
+do $s$
+begin
+  if exists (select 1 from pg_policies
+             where schemaname = 'public' and tablename = 'ctr_documento_contrato'
+               and policyname = 'ctr_documento_contrato_escribir'
+               and with_check like '%ctr_ve_documento(documento_id)%') then
+    raise exception 'NO SE HA APLICADO NADA: antes hay que deshacer contratos_documentos_por_contrato_2026-10-06.sql con su _MARCHA_ATRAS';
+  end if;
+end;
+$s$;
+
 create or replace function public.ctr_ve_contrato(p_id bigint)
 returns boolean language sql security definer stable set search_path = public as $f$
   select case public.app_rol('dashboard')

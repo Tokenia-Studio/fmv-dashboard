@@ -38,6 +38,20 @@ begin
 end;
 $r$;
 
+-- (06/10/2026) Esta migración quedó superada por contratos_documentos_por_contrato_2026-10-06.sql,
+-- que redefine ctr_ve_documento_fila. Ejecutarla después vuelve a abrir F5: pasó en producción
+-- el 06/10/2026, al confundirla con su _comprobacion. Si la del 06/10 ya está aplicada, no hace nada.
+do $s$
+begin
+  if exists (select 1 from pg_policies
+             where schemaname = 'public' and tablename = 'ctr_documento_contrato'
+               and policyname = 'ctr_documento_contrato_escribir'
+               and with_check like '%ctr_ve_documento(documento_id)%') then
+    raise exception 'NO SE HA APLICADO NADA: esta migración está superada por contratos_documentos_por_contrato_2026-10-06.sql y ejecutarla ahora volvería a abrir F5. Si lo que se buscaba era la comprobación, es contratos_alta_por_rol_2026-10-05_comprobacion.sql';
+  end if;
+end;
+$s$;
+
 -- ── Contrato: la regla, con las columnas de la fila ─────────────────────────
 create or replace function public.ctr_ve_contrato_fila(p_id bigint, p_vista text)
 returns boolean language sql security definer stable set search_path = public as $f$
