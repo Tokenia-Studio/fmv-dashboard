@@ -37,6 +37,19 @@ const APPS = {
       { value: 'seccion', label: 'Sección' }
     ]
   },
+  comercial: {
+    // FMV Ofertas (repo fmv-comercial, Vercel fmv-ofertas). La invitación
+    // aterriza en /login, que fija la contraseña. Roles decididos con Carlos el
+    // 16-oct-2026 y validados por la base (restricción app_user_roles_comercial_rol,
+    // migración 0005 de fmv-comercial). «Solo administración toca tarifas.»
+    label: 'Comercial',
+    url: 'https://fmv-ofertas-tokenia-studios-projects.vercel.app/login',
+    roles: [
+      { value: 'comercial', label: 'Comercial' },
+      { value: 'comercial_admin', label: 'Comercial administrador' },
+      { value: 'direccion', label: 'Dirección' }
+    ]
+  },
   web: {
     // La web (Astro + Decap CMS) no usa Supabase: se mantiene solo para mostrar
     // filas antiguas; no se puede invitar a ella.
@@ -53,6 +66,7 @@ const APPS_INVITABLES = Object.entries(APPS).filter(([, cfg]) => cfg.url)
 const APP_BADGE_STYLES = {
   dashboard: 'bg-blue-50 text-blue-700 border-blue-200',
   produccion: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  comercial: 'bg-amber-50 text-amber-700 border-amber-200',
   web: 'bg-cyan-50 text-cyan-700 border-cyan-200'
 }
 
@@ -60,6 +74,7 @@ const APP_BADGE_STYLES = {
 const APP_FILTER_ACTIVE_STYLES = {
   dashboard: 'bg-blue-600 text-white',
   produccion: 'bg-emerald-600 text-white',
+  comercial: 'bg-amber-600 text-white',
   web: 'bg-cyan-600 text-white'
 }
 
@@ -69,6 +84,8 @@ const ROLE_BADGE_STYLES = {
   planificacion: 'bg-purple-50 text-purple-700 border-purple-200',
   taller: 'bg-amber-50 text-amber-700 border-amber-200',
   seccion: 'bg-teal-50 text-teal-700 border-teal-200',
+  comercial: 'bg-rose-50 text-rose-700 border-rose-200',
+  comercial_admin: 'bg-rose-50 text-rose-800 border-rose-300',
   editor: 'bg-cyan-50 text-cyan-700 border-cyan-200'
 }
 
