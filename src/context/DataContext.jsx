@@ -34,6 +34,14 @@ const AÑOS_SNAPSHOT = [2022, 2023, 2024]
 const DataContext = createContext(null)
 
 // Estado inicial
+
+// Pestaña pedida en el enlace (p.ej. https://fmv-dashboard-v2.vercel.app/#contratos).
+// Solo se reconocen nombres de pestaña conocidos; cualquier otro hash se ignora.
+const ENLACES_PESTANA = { contratos: 'contratosEquipos' }
+export function tabDesdeEnlace(hash) {
+  if (!hash || typeof hash !== 'string') return null
+  return ENLACES_PESTANA[hash.replace(/^#/, '').toLowerCase()] || null
+}
 const initialState = {
   // Datos crudos
   movimientos: [],
@@ -90,7 +98,9 @@ const initialState = {
   // de recargar): la UI muestra skeleton en vez del overlay bloqueante
   recargaCompleta: false,
   error: null,
-  tabActiva: 'pyg',
+  // Entrada directa desde la Suite: #contratos abre el módulo de contratos y
+  // mantenimiento. Si el rol no lo tiene, el reducer vuelve a su primera pestaña.
+  tabActiva: tabDesdeEnlace(window.location.hash) || 'pyg',
   supabaseSync: false // indica si los datos estan sincronizados con Supabase
 }
 
