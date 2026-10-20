@@ -1,3 +1,6 @@
+-- ⛔ NO EJECUTAR. Esquema histórico, anterior al cierre de seguridad del 21/09/2026:
+-- sus reglas (USING (true), acceso de cualquier usuario con sesión) son las que se
+-- quitaron en producción. Se conserva solo como referencia. Movido desde la raíz el 20/10/2026.
 -- ============================================
 -- FMV DASHBOARD - Schema de Base de Datos
 -- Ejecutar en Supabase SQL Editor

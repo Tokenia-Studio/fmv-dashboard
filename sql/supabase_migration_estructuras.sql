@@ -1,3 +1,6 @@
+-- ⛔ NO EJECUTAR. Migración histórica (Seguimiento Estructuras, hoy en la app FMV Producción),
+-- anterior al cierre de seguridad del 21/09/2026: sus reglas abiertas a cualquier usuario
+-- con sesión son las que se quitaron en producción. Movida desde la raíz el 20/10/2026.
 -- ============================================
 -- MIGRATION: Tables for Seguimiento Estructuras
 -- Run this in Supabase SQL Editor
