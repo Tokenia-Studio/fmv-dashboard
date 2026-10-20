@@ -3,7 +3,7 @@
 // ============================================
 
 import React, { useState } from 'react'
-import { ClipboardCheck, Pencil, Upload, Undo2 } from 'lucide-react'
+import { ClipboardCheck, FilePlus2, Pencil, Upload, Undo2 } from 'lucide-react'
 import { useContratos } from '../../context/ContratosContext'
 import { contratosDb } from '../../lib/contratosDb'
 import { textoFecha } from '../../utils/contratosVista'
@@ -11,12 +11,14 @@ import { Badge, Pendiente, Boton, BotonPdf, eur, fechaFila, EST_OBLIGACION } fro
 import FormRealizada from './FormRealizada'
 import FormObligacion from './FormObligacion'
 import FormDocumento from './FormDocumento'
+import FormCierre from './FormCierre'
 
 export default function BloqueObligacion({ o, conSujeto = false, editable = true }) {
   const { modelo, recargar, abrir } = useContratos()
   const [form, setForm] = useState(null)
   const [error, setError] = useState(null)
   const [anulando, setAnulando] = useState(null)
+  const [cerrando, setCerrando] = useState(null) // realizada sin documento a la que se le pone
   const [color, texto] = EST_OBLIGACION[o.calc.estado]
 
   const anular = async (r) => {
@@ -83,7 +85,15 @@ export default function BloqueObligacion({ o, conSujeto = false, editable = true
               <li key={r.id} className={`flex flex-wrap items-center gap-2 ${r.anulada ? 'line-through text-gray-400' : ''}`}>
                 <span className="font-medium">{fechaFila(r.fecha, 'dia')}</span>
                 {r.resultado && <Badge color={r.resultado === 'no apto' ? 'rojo' : r.resultado === 'apto' ? 'verde' : 'gris'}>{r.resultado}</Badge>}
-                {r.documento ? <BotonPdf doc={r.documento} /> : <span className="text-amber-700">sin documento de cierre</span>}
+                {r.documento ? (
+                  <BotonPdf doc={r.documento} />
+                ) : editable && !r.anulada && !r.documento_id ? (
+                  <button className="text-amber-700 hover:underline inline-flex items-center gap-0.5" onClick={() => setCerrando(r)} title="Elegir o subir el PDF que prueba esta realizada">
+                    <FilePlus2 size={12} /> poner documento de cierre
+                  </button>
+                ) : (
+                  <span className="text-amber-700">sin documento de cierre</span>
+                )}
                 {r.unidades.length > 0 && (
                   <span className="text-xs text-gray-500">
                     {r.unidades.filter((u) => u.resultado === 'no apto').length} de {r.unidades.length} no aptas
@@ -123,6 +133,7 @@ export default function BloqueObligacion({ o, conSujeto = false, editable = true
       {form === 'realizada' && <FormRealizada obligaciones={[o]} onClose={() => setForm(null)} />}
       {form === 'editar' && <FormObligacion obligacion={o} onClose={() => setForm(null)} />}
       {form === 'documento' && <FormDocumento destino={{ obligacion: o }} onClose={() => setForm(null)} />}
+      {cerrando && <FormCierre o={o} r={cerrando} onClose={() => setCerrando(null)} />}
     </div>
   )
 }

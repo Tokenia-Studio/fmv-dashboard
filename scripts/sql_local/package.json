@@ -1,0 +1,8 @@
+{
+  "name": "fmv-sql-local",
+  "private": true,
+  "type": "module",
+  "description": "Base local de pruebas SQL (PGlite) del módulo de contratos: ver probar.mjs",
+  "scripts": { "probar": "node probar.mjs" },
+  "devDependencies": { "@electric-sql/pglite": "0.2.17" }
+}

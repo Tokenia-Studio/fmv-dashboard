@@ -25,6 +25,12 @@ import {
   equipoExistente,
   propuestaSobreContrato,
   tipoLecturaDeDocumento,
+  esDescartable,
+  tareaPendiente,
+  realizadasSinCierre,
+  documentosParaCierre,
+  cambiosDeDocumento,
+  CAMPOS_EDITABLES_DOCUMENTO,
 } from './contratosVista.js';
 
 const HOY = new Date(2026, 8, 23); // 23/09/2026
@@ -591,5 +597,104 @@ describe('prórroga tácita con pago mensual (QA 24/09/2026)', () => {
 
   it('pago anual con prórroga tácita: el año se da por bueno, sin tarea', () => {
     expect(tarea(2)).toBeUndefined();
+  });
+});
+
+describe('descartar tareas automáticas (piloto 20/10/2026)', () => {
+  const tareaDe = (d, clave) => construirModelo(d, HOY).tareasAutomaticas.find((t) => t.clave === clave);
+
+  it('una tarea descartada con el mismo texto deja de contar, pero sigue en la lista', () => {
+    const d = datosBase();
+    const t0 = tareaDe(d, 'fechadoc:documento:22');
+    d.tareasNotas = [{ clave: 'fechadoc:documento:22', motivo_descarte: 'Es una foto, no lleva fecha', descartada_texto: t0.texto, descartada_en: '2026-09-20T10:00:00Z' }];
+    const t = tareaDe(d, 'fechadoc:documento:22');
+    expect(t.descartada).toBe(true);
+    expect(t.descarteCaducado).toBe(false);
+    expect(tareaPendiente(t)).toBe(false);
+  });
+
+  it('si la situación cambia (otro texto), vuelve y se señala que se había descartado', () => {
+    const d = datosBase();
+    d.tareasNotas = [{ clave: 'origen:obligacion:1000', motivo_descarte: 'Sin pedido', descartada_texto: 'Calibración anual: lo que decía antes' }];
+    const t = tareaDe(d, 'origen:obligacion:1000');
+    expect(t.descartada).toBe(false);
+    expect(t.descarteCaducado).toBe(true);
+    expect(tareaPendiente(t)).toBe(true);
+  });
+
+  it('«Fuera de plazo» y «Resultado no apto» no se descartan aunque la nota diga lo contrario', () => {
+    expect(esDescartable('plazo:obligacion:1000')).toBe(false);
+    expect(esDescartable('noapto:obligacion:1003')).toBe(false);
+    expect(esDescartable('cierre:obligacion:1000')).toBe(true);
+    const d = datosBase();
+    const tp = tareaDe(d, 'plazo:obligacion:1000');
+    const tn = tareaDe(d, 'noapto:obligacion:1003');
+    d.tareasNotas = [
+      { clave: tp.clave, motivo_descarte: 'No aplica', descartada_texto: tp.texto },
+      { clave: tn.clave, motivo_descarte: 'No aplica', descartada_texto: tn.texto },
+    ];
+    for (const clave of [tp.clave, tn.clave]) {
+      const t = tareaDe(d, clave);
+      expect(t.descartable).toBe(false);
+      expect(t.descartada).toBe(false);
+      expect(tareaPendiente(t)).toBe(true);
+    }
+  });
+
+  it('pospuesta o descartada: ninguna de las dos cuenta como pendiente', () => {
+    expect(tareaPendiente({ pospuesta: true, descartada: false })).toBe(false);
+    expect(tareaPendiente({ pospuesta: false, descartada: true })).toBe(false);
+    expect(tareaPendiente({ pospuesta: false, descartada: false })).toBe(true);
+  });
+
+  it('recuperar (sin motivo) la devuelve a pendientes y conserva el resto de la nota', () => {
+    const d = datosBase();
+    d.tareasNotas = [{ clave: 'fechadoc:documento:22', motivo_descarte: null, descartada_texto: null, responsable: 'Sachi' }];
+    const t = tareaDe(d, 'fechadoc:documento:22');
+    expect(t.descartada).toBe(false);
+    expect(t.descarteCaducado).toBe(false);
+    expect(t.nota.responsable).toBe('Sachi');
+  });
+});
+
+describe('cierre de una realizada después (F4) y ficha de documento', () => {
+  const conRealizadaSinCierre = () => {
+    const d = datosBase();
+    d.realizadas.push({ id: 6001, obligacion_id: 1000, fecha: '2025-09-04', resultado: 'apto', documento_id: null, anulada: false });
+    d.realizadas.push({ id: 6002, obligacion_id: 1000, fecha: '2024-09-04', resultado: 'apto', documento_id: null, anulada: true });
+    d.documentos.push({ id: 23, ruta: 'x/cal.pdf', nombre_original: 'cal.pdf', tipo: 'otro', rol: 'otro', fecha: null, equipo_id: 100 });
+    return d;
+  };
+
+  it('lista las realizadas vigentes sin documento, por obligación o por equipo', () => {
+    const m = construirModelo(conRealizadaSinCierre(), HOY);
+    expect(realizadasSinCierre(m, { obligacionId: 1000 }).map((x) => x.r.id)).toEqual([6001]);
+    expect(realizadasSinCierre(m, { equipoId: 100 }).map((x) => x.r.id)).toEqual([6001]);
+    expect(realizadasSinCierre(m, { equipoId: 101 })).toEqual([]);
+    expect(realizadasSinCierre(m, {})).toEqual([]);
+  });
+
+  it('propone como cierre los documentos de la obligación y del equipo que no cierran ya otra', () => {
+    const m = construirModelo(conRealizadaSinCierre(), HOY);
+    expect(documentosParaCierre(m, m.obligacion(1000)).map((d) => d.id)).toEqual([23]);
+    // El 20 ya cierra la realizada 5000: no se ofrece otra vez
+    expect(documentosParaCierre(m, m.obligacion(1003)).map((d) => d.id)).toEqual([]);
+  });
+
+  it('con el documento puesto, desaparece «falta documento de cierre» y la realizada sale de la lista', () => {
+    const d = conRealizadaSinCierre();
+    expect(construirModelo(d, HOY).tareasAutomaticas.map((t) => t.clave)).toContain('cierre:obligacion:1000');
+    d.realizadas = d.realizadas.map((r) => (r.id === 6001 ? { ...r, documento_id: 23 } : r));
+    d.documentos = d.documentos.map((x) => (x.id === 23 ? { ...x, rol: 'cierre', tipo: 'certificado', obligacion_id: 1000, fecha: '2025-09-04' } : x));
+    const m = construirModelo(d, HOY);
+    expect(m.tareasAutomaticas.map((t) => t.clave)).not.toContain('cierre:obligacion:1000');
+    expect(realizadasSinCierre(m, { obligacionId: 1000 })).toEqual([]);
+  });
+
+  it('de la ficha solo viajan los campos que la base de datos deja cambiar (nunca la ruta del PDF)', () => {
+    const c = cambiosDeDocumento({ fecha: '2026-01-01', tipo: 'certificado', ruta: 'otro/fichero.pdf', nombre_original: 'x.pdf', subido_por: 'u', id: 9, obligacion_id: 1 });
+    expect(c).toEqual({ fecha: '2026-01-01', tipo: 'certificado', obligacion_id: 1 });
+    expect(CAMPOS_EDITABLES_DOCUMENTO).not.toContain('ruta');
+    expect(CAMPOS_EDITABLES_DOCUMENTO).not.toContain('nombre_original');
   });
 });

@@ -365,8 +365,8 @@ export const HELP_CONTENT = {
             ['Equipos', 'Lista con filtros (tipo, nave, situación, no aptos, sin documento de cierre). Desde aquí se dan de alta equipos y grupos, se registran varias realizadas a la vez y se exporta a Excel.'],
             ['Contratos', 'Los contratos de esta vista, con su vencimiento y la fecha límite para avisar al proveedor.'],
             ['Calendario', 'Lo que toca en los próximos 12 meses, lo atrasado y lo que no tiene fecha. Solo se consulta: todo sale de contratos y obligaciones.'],
-            ['Tareas', 'Lo que falta para cerrar el inventario. Las automáticas desaparecen solas al resolver la causa; se les puede poner responsable, nota y «posponer hasta».'],
-            ['Documentos', 'Todos los PDF, que se abren con un enlace temporal (el almacenamiento es privado).'],
+            ['Tareas', 'Lo que falta para cerrar el inventario. Las automáticas desaparecen solas al resolver la causa; se les puede poner responsable, nota y «posponer hasta». Si una no aplica, «Descartar» con el motivo: deja de contar y vuelve sola si cambia la situación (se pueden ver y recuperar con «Ver descartadas»). «Fuera de plazo» y «Resultado no apto» no se descartan: se quitan al registrar la realizada. Marcando varias se asignan, posponen o descartan de una vez.'],
+            ['Documentos', 'Todos los PDF, que se abren con un enlace temporal (el almacenamiento es privado). «Editar ficha» cambia la fecha, el tipo, el rol o la descripción (el PDF no cambia) y permite ponerlo como cierre de una realizada que se registró sin él.'],
             ['Proveedores', 'Contratos e importe anual por proveedor, con su nº de proveedor de Business Central.']
           ]
         }
@@ -388,7 +388,7 @@ export const HELP_CONTENT = {
       },
       {
         titulo: 'Registrar una revisión o calibración',
-        contenido: 'En la ficha del equipo o del grupo, botón «Registrar realizada»: fecha (no se admite una fecha futura), resultado y, si lo tiene, el certificado en PDF. Si no lo tiene aún, se guarda igual y nace la tarea de reclamarlo. En los grupos (extintores, eslingas) el resultado se marca unidad a unidad. Para un pedido con varias calibraciones: en Equipos, filtre y pulse «Registrar varias». Un registro erróneo no se borra: se anula y queda en el historial.'
+        contenido: 'En la ficha del equipo o del grupo, botón «Registrar realizada»: fecha (no se admite una fecha futura), resultado y, si lo tiene, el certificado en PDF. La fecha es la del certificado o del parte, no la del día en que se registra, y el resultado se elige siempre (no viene puesto). Si el PDF no lo tiene aún, se guarda igual y nace la tarea de reclamarlo; cuando llegue, en el historial de la obligación «poner documento de cierre» (o al subirlo, «¿Es el documento de cierre de una realizada?»). En los grupos (extintores, eslingas) el resultado se marca unidad a unidad. Para un pedido con varias calibraciones: en Equipos, filtre y pulse «Registrar varias». Un registro erróneo no se borra: se anula y queda en el historial.'
       },
       {
         titulo: 'Leer un PDF con IA',
