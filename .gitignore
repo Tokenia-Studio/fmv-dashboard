@@ -34,3 +34,8 @@ npm-debug.log*
 
 # Contratos y PDF de FMV (confidenciales): nunca al repositorio. La carga va al bucket privado.
 Mantenimientos/
+
+# Documentos de trabajo de FMV (albaranes, pedidos, actas, cuentas): datos de negocio, nunca al repositorio
+MODELO CCAA/
+PLANIFICACIÓN PRODUCCION/
+PROCEDIMIENTO PPTO COMPRAS/
