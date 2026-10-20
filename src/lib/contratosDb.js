@@ -7,6 +7,7 @@
 // las de las pantallas son solo para no ofrecer botones que van a fallar.
 
 import { supabase } from './supabase'
+import { cambiosDeDocumento } from '../utils/contratosVista'
 
 const BUCKET = 'contratos'
 const TAMANO_MAXIMO = 20 * 1024 * 1024 // mismo tope que el bucket
@@ -168,6 +169,40 @@ export const contratosDb = {
   },
 
   /**
+   * Varias notas de una vez (acciones en bloque). Todas las filas llevan las mismas columnas:
+   * quien llama pasa la nota entera para no vaciar lo que no cambia. Quién y cuándo se
+   * descarta lo pone la base de datos.
+   */
+  guardarNotasTareas: async (filas) => {
+    if (!filas.length) return
+    const { error } = await supabase.from(TABLAS.tareasNotas).upsert(filas.map(limpiar), { onConflict: 'clave' })
+    fallo(error, 'guardar las tareas')
+  },
+
+  /** ¿Quién lleva las tareas automáticas de cada vista? (configuracion.ctr_responsables_por_defecto, P2) */
+  responsablesPorDefecto: async () => {
+    const { data, error } = await supabase.from('configuracion').select('value').eq('key', 'ctr_responsables_por_defecto').maybeSingle()
+    if (error || !data?.value || typeof data.value !== 'object') return {}
+    return data.value
+  },
+
+  /** Cambia la ficha de un documento ya subido. Solo los campos que la base de datos deja: el PDF no se cambia. */
+  actualizarDocumento: async (id, cambios) => {
+    const { data, error } = await supabase.from(TABLAS.documentos).update(cambiosDeDocumento(cambios)).eq('id', id).select()
+    fallo(error, 'guardar la ficha del documento')
+    if (!data?.length) throw new Error('No tienes permiso para cambiar la ficha de este documento.')
+    return data[0]
+  },
+
+  /** Documento de cierre de una realizada registrada sin él (F4). Solo si aún no tiene. */
+  ponerCierre: async (realizadaId, documentoId) => {
+    const { data, error } = await supabase.from(TABLAS.realizadas).update({ documento_id: documentoId })
+      .eq('id', realizadaId).is('documento_id', null).select()
+    fallo(error, 'poner el documento de cierre')
+    if (!data?.length) throw new Error('Esa realizada ya tiene documento de cierre o no la puedes modificar.')
+  },
+
+  /**
    * Sube un PDF y crea su ficha. `ruta` es la propuesta (Proveedor/nombre.pdf); si ya
    * existe se añade -2, -3… La ficha se crea después de subir; si la ficha falla, el
    * fichero se borra para no dejar huérfanos.
@@ -207,11 +242,16 @@ export const contratosDb = {
     fallo(error, 'enlazar el documento')
   },
 
-  /** Borra ficha y fichero. La RLS decide si se puede. */
+  /**
+   * Borra fichero y ficha. La RLS decide si se puede. Primero el PDF, mientras la ficha
+   * existe (la regla del almacén pregunta por ella): al revés, el PDF de un documento que
+   * no subió uno mismo se quedaba huérfano (F7).
+   */
   borrarDocumento: async (doc) => {
+    const { error: ea } = await supabase.storage.from(BUCKET).remove([doc.ruta])
+    fallo(ea, 'borrar el PDF')
     const { error } = await supabase.from(TABLAS.documentos).delete().eq('id', doc.id)
     fallo(error, 'borrar el documento')
-    await supabase.storage.from(BUCKET).remove([doc.ruta])
   },
 
   /** Enlace firmado de 60 s para abrir el PDF. */

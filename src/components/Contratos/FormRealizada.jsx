@@ -10,23 +10,24 @@
 import React, { useState } from 'react'
 import { useContratos } from '../../context/ContratosContext'
 import { contratosDb } from '../../lib/contratosDb'
-import { componerNombreFichero, proveedorCortoPropuesto, fechaRealizadaValida, hoyISO, hoyLocal } from '../../utils/contratosVista'
+import { componerNombreFichero, proveedorCortoPropuesto, fechaRealizadaValida, hoyISO, hoyLocal, TIPO_CIERRE } from '../../utils/contratosVista'
 import { resumenUnidades } from '../../utils/contratosMotor'
 import { Modal, Etiqueta, Entrada, PieFormulario, Aviso, useGuardar } from './ui'
 
-const TIPO_CIERRE = { Calibración: 'certificado', Certificación: 'certificado', Revisión: 'parte_visita', Inspección: 'informe_revision' }
 
 export default function FormRealizada({ obligaciones, onClose }) {
   const { modelo, recargar } = useContratos()
   const varias = obligaciones.length > 1
-  const [fecha, setFecha] = useState(hoyISO())
+  // Ni fecha ni resultado vienen puestos: con la fecha de hoy por defecto, el 08/10/2026 se registraron
+  // 31 calibraciones con la fecha del registro, y una no apta como apta (piloto, 20/10/2026)
+  const [fecha, setFecha] = useState('')
   const [nota, setNota] = useState('')
   const [comun, setComun] = useState(null) // un único documento para todas
   const [filas, setFilas] = useState(() =>
     Object.fromEntries(
       obligaciones.map((o) => {
         const unidades = o.grupo_id ? (modelo.grupo(o.grupo_id)?.unidades || []).filter((u) => u.estado !== 'baja') : []
-        return [o.id, { incluir: !varias, resultado: 'apto', fichero: null, unidades: Object.fromEntries(unidades.map((u) => [u.id, 'apto'])) }]
+        return [o.id, { incluir: !varias, resultado: '', fichero: null, unidades: Object.fromEntries(unidades.map((u) => [u.id, 'apto'])) }]
       }),
     ),
   )
@@ -67,7 +68,9 @@ export default function FormRealizada({ obligaciones, onClose }) {
   const enviar = async (e) => {
     e.preventDefault()
     if (!incluidas.length) return setError('Marca al menos una obligación.')
+    if (!fecha) return setError('Pon la fecha en que se hizo: la del certificado o del parte, no la de hoy.')
     if (!fechaRealizadaValida(fecha, hoyLocal())) return setError('La fecha no puede ser futura.')
+    if (incluidas.some((o) => !o.grupo_id && !filas[o.id].resultado)) return setError('Elige el resultado de cada una: apto, no apto o sin resultado (míralo en el documento).')
     const hecho = await guardar(async () => {
       const idComun = comun ? await subir(incluidas[0], comun) : null
       const lista = []
@@ -90,7 +93,9 @@ export default function FormRealizada({ obligaciones, onClose }) {
       <form onSubmit={enviar}>
         <div className="p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Etiqueta texto="Fecha en que se hizo"><Entrada type="date" value={fecha} max={hoyISO()} onChange={(e) => setFecha(e.target.value)} required /></Etiqueta>
+            <Etiqueta texto="Fecha en que se hizo *" ayuda={fecha === hoyISO() ? '¿Se hizo hoy? Si no, pon la del certificado o del parte, no la del registro.' : 'La del certificado o del parte.'}>
+              <Entrada type="date" value={fecha} max={hoyISO()} onChange={(e) => setFecha(e.target.value)} required />
+            </Etiqueta>
             <Etiqueta texto="Nota" className="sm:col-span-2"><Entrada value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Pedido, técnico, incidencias…" /></Etiqueta>
             {varias && (
               <Etiqueta texto="Un solo documento para todas (opcional)" className="sm:col-span-3" ayuda="Por ejemplo, un parte que recoge todas las revisiones. Si cada una tiene su certificado, súbelo en su fila.">
@@ -104,6 +109,21 @@ export default function FormRealizada({ obligaciones, onClose }) {
               <button type="button" className="text-fmv-700 underline" onClick={() => setFilas((p) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, { ...v, incluir: true }])))}>Marcar todas</button>
               <button type="button" className="text-fmv-700 underline" onClick={() => setFilas((p) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, { ...v, incluir: false }])))}>Ninguna</button>
               <span className="text-gray-500">{incluidas.length} de {obligaciones.length} marcadas</span>
+              {incluidas.some((o) => !o.grupo_id) && (
+                <label className="ml-auto flex items-center gap-1 text-gray-600">
+                  Resultado de las marcadas:
+                  <select
+                    className="input text-sm !w-36"
+                    value=""
+                    onChange={(e) => e.target.value && setFilas((p) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, v.incluir ? { ...v, resultado: e.target.value } : v])))}
+                  >
+                    <option value="">— Elegir —</option>
+                    <option value="apto">Apto</option>
+                    <option value="no apto">No apto</option>
+                    <option value="sin resultado">Sin resultado</option>
+                  </select>
+                </label>
+              )}
             </div>
           )}
 
@@ -119,6 +139,7 @@ export default function FormRealizada({ obligaciones, onClose }) {
                     <span className="font-medium flex-1 min-w-[12rem]">{o.sujeto.nombre}<span className="block text-xs text-gray-500">{o.tipo} · {o.etiqueta}</span></span>
                     {!o.grupo_id && (
                       <select className="input text-sm !w-36" value={fila.resultado} onChange={(e) => cambiar(o.id, { resultado: e.target.value, incluir: true })}>
+                        <option value="">— Resultado —</option>
                         <option value="apto">Apto</option>
                         <option value="no apto">No apto</option>
                         <option value="sin resultado">Sin resultado</option>

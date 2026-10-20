@@ -3,11 +3,12 @@
 // ============================================
 
 import React, { useState } from 'react'
-import { FileSearch, Trash2 } from 'lucide-react'
+import { FileSearch, Pencil, Trash2 } from 'lucide-react'
 import { useContratos } from '../../context/ContratosContext'
 import { contratosDb } from '../../lib/contratosDb'
 import { etiquetaTipoDocumento, tipoLecturaDeDocumento } from '../../utils/contratosVista'
 import { Tabla, Fila, Td, Sec, Vacio, Badge, Pendiente, BotonPdf, fechaFila } from './ui'
+import FormDocumento from './FormDocumento'
 
 const ROL = { origen: ['azul', 'Origen'], cierre: ['verde', 'Cierre'], otro: ['gris', 'Otro'] }
 
@@ -18,6 +19,7 @@ const ROL = { origen: ['azul', 'Origen'], cierre: ['verde', 'Cierre'], otro: ['g
 export default function TablaDocumentos({ docs, vacio = 'Sin documentos.', conEnlaces = true, conBorrar = false, max, resaltar, onLeer }) {
   const { modelo, abrir, recargar } = useContratos()
   const [borrando, setBorrando] = useState(null)
+  const [editando, setEditando] = useState(null)
   const [error, setError] = useState(null)
   if (!docs.length) return <Vacio>{vacio}</Vacio>
 
@@ -50,6 +52,9 @@ export default function TablaDocumentos({ docs, vacio = 'Sin documentos.', conEn
                 <BotonPdf doc={d} texto={d.descripcion || d.nombre_original} />
                 {d.id === resaltar && <> <Badge color="verde">Recién subido</Badge></>}
                 <Sec>{d.ruta}{d.referencia ? ` · ref. ${d.referencia}` : ''}{d.legible === false ? ' · no legible' : ''}</Sec>
+                <button type="button" className="mt-0.5 mr-3 inline-flex items-center gap-1 text-xs text-fmv-700 hover:underline" onClick={() => setEditando(d)} title="Fecha, tipo, rol, descripción… y, si cierra una realizada que se registró sin él, enlazarlo">
+                  <Pencil size={12} /> Editar ficha
+                </button>
                 {onLeer && tipoLecturaDeDocumento(d.tipo) && (
                   <button type="button" className="mt-0.5 inline-flex items-center gap-1 text-xs text-fmv-700 hover:underline" onClick={() => onLeer(d)} title="Lee este PDF con IA y propone los datos del contrato. No cambia nada hasta que lo confirmas.">
                     <FileSearch size={12} /> Leer con IA
@@ -82,6 +87,7 @@ export default function TablaDocumentos({ docs, vacio = 'Sin documentos.', conEn
           )
         })}
       </Tabla>
+      {editando && <FormDocumento documento={editando} onClose={() => setEditando(null)} />}
     </>
   )
 }

@@ -99,6 +99,37 @@ export const TIPOS_DOCUMENTO = [
   { valor: 'otro', etiqueta: 'Otro', rol: 'otro', bloque: 'Otro' },
 ];
 const TIPO_DOC = Object.fromEntries(TIPOS_DOCUMENTO.map((t) => [t.valor, t]));
+
+// Lo que se puede cambiar de la ficha de un documento ya subido. La ruta del PDF y el nombre
+// original no: la base de datos solo concede estas columnas (F10, 20/10/2026).
+export const CAMPOS_EDITABLES_DOCUMENTO = ['tipo', 'rol', 'fecha', 'fecha_precision', 'referencia', 'descripcion', 'legible', 'equipo_id', 'obligacion_id'];
+export const cambiosDeDocumento = (cambios) => Object.fromEntries(Object.entries(cambios || {}).filter(([k]) => CAMPOS_EDITABLES_DOCUMENTO.includes(k)));
+
+/** Tipo de documento que cierra cada tipo de obligación (lo que se sube al registrar la realizada). */
+export const TIPO_CIERRE = { Calibración: 'certificado', Certificación: 'certificado', Revisión: 'parte_visita', Inspección: 'informe_revision' };
+
+/**
+ * Realizadas sin documento de cierre de una obligación, o de todas las de un equipo (F4:
+ * el PDF llega después). De la más reciente a la más antigua: [{ r, o }].
+ */
+export function realizadasSinCierre(m, { obligacionId, equipoId } = {}) {
+  const obs = obligacionId ? [m.obligacion(obligacionId)].filter(Boolean) : equipoId ? m.obligaciones.filter((o) => o.equipo_id === equipoId) : [];
+  return obs
+    .flatMap((o) => o.realizadas.filter((r) => !r.anulada && !r.documento_id).map((r) => ({ r, o })))
+    .sort((a, b) => (a.r.fecha < b.r.fecha ? 1 : a.r.fecha > b.r.fecha ? -1 : 0));
+}
+
+/**
+ * Documentos ya subidos que pueden cerrar una realizada de la obligación `o`: los de la propia
+ * obligación y los del equipo, salvo los que ya cierran otra realizada vigente.
+ */
+export function documentosParaCierre(m, o) {
+  const usados = new Set(m.obligaciones.flatMap((x) => x.realizadas.filter((r) => !r.anulada && r.documento_id).map((r) => r.documento_id)));
+  return m.documentos
+    .filter((d) => !usados.has(d.id) && (d.obligacion_id === o.id || (o.equipo_id && d.equipo_id === o.equipo_id)))
+    .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+}
+
 export const etiquetaTipoDocumento = (valor) => TIPO_DOC[valor]?.etiqueta || String(valor || '').replace(/_/g, ' ');
 /** 'contrato' | 'factura' si el lector asistido puede leer ese tipo de documento; si no, null. */
 export const tipoLecturaDeDocumento = (valor) => TIPO_DOC[valor]?.lectura || null;
@@ -393,12 +424,25 @@ export function construirModelo(datos, hoy) {
  * `ctr_tareas_notas` el responsable, la nota y el «posponer hasta» que añada una persona.
  * Desaparecen solas cuando se resuelve la causa.
  */
+// «Fuera de plazo» y «Resultado no apto» no se descartan: se quitan solas al resolverlas
+// (Carlos, 20/10/2026). La base de datos lo impide también (trigger ctr_tareas_notas_descarte).
+export const PREFIJOS_NO_DESCARTABLES = ['plazo', 'noapto'];
+export const esDescartable = (clave) => !PREFIJOS_NO_DESCARTABLES.includes(String(clave).split(':')[0]);
+
+/** Tarea automática que cuenta como pendiente: ni pospuesta ni descartada. */
+export const tareaPendiente = (t) => !t.pospuesta && !t.descartada;
+
 export function derivarTareasAutomaticas(m) {
   const out = [];
   const push = (clave, tipo, texto, sujeto, vista) => {
     const nota = m.notas.get(clave) || null;
     const pospuesta = !!(nota?.pospuesta_hasta && parseFecha(String(nota.pospuesta_hasta).slice(0, 10))?.d > m.hoy);
-    out.push({ clave, tipo, texto, sujeto, vista, nota, pospuesta });
+    const descartable = esDescartable(clave);
+    // Un descarte vale mientras la tarea diga lo mismo: si cambia la situación (otra fecha,
+    // otro documento), la tarea vuelve y se señala que se había descartado
+    const conDescarte = descartable && !!nota?.motivo_descarte;
+    const descartada = conDescarte && nota.descartada_texto === texto;
+    out.push({ clave, tipo, texto, sujeto, vista, nota, pospuesta, descartable, descartada, descarteCaducado: conDescarte && !descartada });
   };
   const fmt = (f) => (f ? textoFecha(f) : '');
 

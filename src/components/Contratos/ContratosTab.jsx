@@ -6,10 +6,10 @@
 //   · 'administracion'  → «Servicios y arrendamientos» (solo direccion)
 // Mismas piezas en las dos; cambia qué se cuenta y qué pantallas hay.
 
-import React from 'react'
+import React, { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { ContratosProvider, useContratos } from '../../context/ContratosContext'
-import { VISTAS } from '../../utils/contratosVista'
+import { VISTAS, tareaPendiente } from '../../utils/contratosVista'
 import { Aviso, Boton } from './ui'
 import PanelEquipos from './PanelEquipos'
 import PanelContratos from './PanelContratos'
@@ -60,7 +60,7 @@ function Contenido() {
   const pantallas = PANTALLAS[vista]
   const tareasAbiertas = modelo
     ? modelo.tareas.filter((t) => t.vista === vista && t.estado !== 'Resuelta').length +
-      modelo.tareasAutomaticas.filter((t) => t.vista === vista && !t.pospuesta).length
+      modelo.tareasAutomaticas.filter((t) => t.vista === vista && tareaPendiente(t)).length
     : 0
 
   return (
@@ -74,9 +74,7 @@ function Contenido() {
               : '¿Qué servicios indirectos pagamos, hasta cuándo y cuándo hay que decidir?'}
           </p>
         </div>
-        <Boton variante="secundario" onClick={recargar} title="Volver a leer los datos">
-          <RefreshCw size={14} /> Actualizar
-        </Boton>
+        <BotonActualizar recargar={recargar} />
       </div>
 
       <nav className="flex flex-wrap gap-1 border-b border-gray-200 print:hidden">
@@ -110,6 +108,26 @@ function Contenido() {
       ) : modelo ? (
         <Pantalla />
       ) : null}
+    </div>
+  )
+}
+
+/** «El botón Actualizar no hace nada» (Sachi, 20/10/2026): ahora gira mientras lee y dice a qué hora quedó al día. */
+function BotonActualizar({ recargar }) {
+  const [leyendo, setLeyendo] = useState(false)
+  const [hora, setHora] = useState(null)
+  const actualizar = async () => {
+    setLeyendo(true)
+    await recargar()
+    setLeyendo(false)
+    setHora(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
+  }
+  return (
+    <div className="flex items-center gap-2">
+      {hora && !leyendo && <span className="text-xs text-gray-500">Actualizado a las {hora}</span>}
+      <Boton variante="secundario" onClick={actualizar} disabled={leyendo} title="Volver a leer los datos">
+        <RefreshCw size={14} className={leyendo ? 'animate-spin' : ''} /> {leyendo ? 'Actualizando…' : 'Actualizar'}
+      </Boton>
     </div>
   )
 }
