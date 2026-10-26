@@ -10,7 +10,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useData } from './DataContext'
 import { contratosDb } from '../lib/contratosDb'
 import { construirModelo, hoyLocal } from '../utils/contratosVista'
-import { estadoHistorial, entradaDelHistorial, mismaNav } from '../utils/contratosHistorial'
+import { estadoHistorial, entradaDelHistorial, mismaNav, entradaAlEntrar } from '../utils/contratosHistorial'
 
 const ContratosContext = createContext(null)
 
@@ -29,7 +29,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('popstate', (e) => {
     const entrada = entradaDelHistorial(e.state)
     if (!entrada || entrada.vista === vistaMontada || !cambiarPestanaGlobal || !PESTANA_DE_VISTA[entrada.vista]) return
-    destinoPendiente = { vista: entrada.vista, ...entrada.nav, desdeHistorial: true }
+    destinoPendiente = { vista: entrada.vista, ...entrada.nav, paso: entrada.paso, desdeHistorial: true }
     cambiarPestanaGlobal(PESTANA_DE_VISTA[entrada.vista])
   })
 }
@@ -47,6 +47,10 @@ export function ContratosProvider({ vista, children }) {
   const [nav, setNav] = useState({ pantalla: 'panel', ficha: null, filtro: null })
   const navActual = useRef(nav)
   navActual.current = nav
+  // Pantallas del módulo que hay detrás de la actual en el historial (botón «Atrás»)
+  const [paso, setPaso] = useState(0)
+  const pasoActual = useRef(paso)
+  pasoActual.current = paso
   // Lector asistido de PDF: apagado hasta que dirección lo encienda en configuracion (P9)
   const [lectorActivo, setLectorActivo] = useState(false)
   // Responsable que se enseña en las tareas automáticas sin uno asignado (configuracion, P2)
@@ -70,7 +74,11 @@ export function ContratosProvider({ vista, children }) {
 
   // Ir a otra pantalla deja una entrada en el historial; volver la restaura sin apilar otra
   const navegar = useCallback((nueva) => {
-    if (!mismaNav(nueva, navActual.current)) window.history.pushState(estadoHistorial(window.history.state, vista, nueva), '')
+    if (!mismaNav(nueva, navActual.current)) {
+      const siguiente = pasoActual.current + 1
+      window.history.pushState(estadoHistorial(window.history.state, vista, nueva, siguiente), '')
+      setPaso(siguiente)
+    }
     setNav(nueva)
     window.scrollTo(0, 0)
   }, [vista])
@@ -80,7 +88,10 @@ export function ContratosProvider({ vista, children }) {
     cambiarPestanaGlobal = (pestana) => cambiarPestana.current(pestana)
     const alVolver = (e) => {
       const entrada = entradaDelHistorial(e.state)
-      if (entrada?.vista === vista) setNav(entrada.nav)
+      if (entrada?.vista === vista) {
+        setNav(entrada.nav)
+        setPaso(entrada.paso)
+      }
     }
     window.addEventListener('popstate', alVolver)
     return () => {
@@ -93,12 +104,14 @@ export function ContratosProvider({ vista, children }) {
   useEffect(() => {
     const destino = destinoPendiente?.vista === vista ? destinoPendiente : null
     destinoPendiente = null
-    const inicial = { pantalla: destino?.pantalla || 'panel', ficha: destino?.ficha || null, filtro: destino?.filtro || null }
     // Un salto desde la otra vista es un paso adelante (se apila); entrar por el menú o volver
     // con «atrás» reutiliza la entrada en la que ya se está
-    if (destino && !destino.desdeHistorial) window.history.pushState(estadoHistorial(window.history.state, vista, inicial), '')
-    else window.history.replaceState(estadoHistorial(window.history.state, vista, inicial), '')
+    const { apilar, nav: inicial, paso: pasoInicial } = entradaAlEntrar(destino, window.history.state)
+    const estado = estadoHistorial(window.history.state, vista, inicial, pasoInicial)
+    if (apilar) window.history.pushState(estado, '')
+    else window.history.replaceState(estado, '')
     setNav(inicial)
+    setPaso(pasoInicial)
   }, [vista])
 
   const modelo = useMemo(() => (datos ? construirModelo(datos, hoyLocal()) : null), [datos])
@@ -131,11 +144,17 @@ export function ContratosProvider({ vista, children }) {
       },
       abrir: (tipo, id) => navegar({ ...navActual.current, ficha: { tipo, id } }),
       cerrarFicha: () => navegar({ ...navActual.current, ficha: null }),
+      // «Atrás» dentro de la sección: solo si la entrada anterior es del módulo; la restaura
+      // el mismo `popstate` que el botón del navegador
+      puedeIrAtras: paso > 0,
+      atras: () => {
+        if (pasoActual.current > 0) window.history.back()
+      },
       // Solo para no ofrecer botones que van a fallar: quien decide es la RLS
       puedeEditarContrato: (c) => esDireccion || c?.vista === 'compras_fabrica',
       puedeCambiarVista: esDireccion,
     }
-  }, [vista, userRole, datos, modelo, cargando, error, recargar, proveedores, nav, lectorActivo, responsablesPorDefecto, navegar])
+  }, [vista, userRole, datos, modelo, cargando, error, recargar, proveedores, nav, paso, lectorActivo, responsablesPorDefecto, navegar])
 
   return <ContratosContext.Provider value={value}>{children}</ContratosContext.Provider>
 }
