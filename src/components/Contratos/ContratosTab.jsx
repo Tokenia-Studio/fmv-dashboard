@@ -7,7 +7,7 @@
 // Mismas piezas en las dos; cambia qué se cuenta y qué pantallas hay.
 
 import React, { useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { ContratosProvider, useContratos } from '../../context/ContratosContext'
 import { VISTAS, tareaPendiente } from '../../utils/contratosVista'
 import { Aviso, Boton } from './ui'
@@ -55,7 +55,7 @@ export default function ContratosTab({ vista }) {
 }
 
 function Contenido() {
-  const { vista, modelo, cargando, error, recargar, nav, ir } = useContratos()
+  const { vista, modelo, cargando, error, recargar, nav, ir, puedeIrAtras, atras } = useContratos()
 
   const pantallas = PANTALLAS[vista]
   const tareasAbiertas = modelo
@@ -78,6 +78,18 @@ function Contenido() {
       </div>
 
       <nav className="flex flex-wrap gap-1 border-b border-gray-200 print:hidden">
+        {/* «Atrás» dentro de la sección (Carlos, 26/10/2026): en la primera pantalla queda apagado
+            en vez de desaparecer, para que las pestañas no se muevan */}
+        <button
+          type="button"
+          onClick={atras}
+          disabled={!puedeIrAtras}
+          title={puedeIrAtras ? 'Volver a la pantalla anterior' : 'Estás en la primera pantalla de la sección'}
+          className="inline-flex items-center gap-1 px-2 py-2 text-sm -mb-px border-b-2 border-transparent text-fmv-700 hover:text-fmv-900 disabled:text-gray-300 disabled:cursor-default"
+        >
+          <ArrowLeft size={14} /> Atrás
+        </button>
+        <span className="self-center h-5 w-px bg-gray-200 mx-1" aria-hidden="true" />
         {pantallas.map(([id, etiqueta]) => {
           const activa = nav.pantalla === id && !nav.ficha
           return (
