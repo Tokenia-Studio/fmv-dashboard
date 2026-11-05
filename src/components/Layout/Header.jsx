@@ -24,30 +24,30 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
 
   return (
     <header className="sticky top-0 z-50 shadow-md bg-fmv-900 print:hidden">
-      <div className="max-w-7xl mx-auto px-4 py-3">
+      <div className="max-w-7xl mx-auto px-4 py-3 max-lg:pt-[max(0.75rem,env(safe-area-inset-top))] max-lg:pl-[max(1rem,env(safe-area-inset-left))] max-lg:pr-[max(1rem,env(safe-area-inset-right))]">
         {/* Fila superior */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-3 max-lg:gap-2">
           {/* Título */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 max-lg:gap-3 max-lg:min-w-0">
             {/* Sidebar toggle (solo direccion) */}
             {userRole === 'direccion' && onToggleSidebar && (
               <button
                 onClick={onToggleSidebar}
-                className="w-10 h-10 rounded-lg bg-fmv-800 hover:bg-fmv-700 flex items-center justify-center text-white transition-colors lg:hidden"
+                className="w-10 h-10 max-lg:w-11 max-lg:h-11 max-lg:shrink-0 rounded-lg bg-fmv-800 hover:bg-fmv-700 flex items-center justify-center text-white transition-colors lg:hidden"
                 title="Menu"
               >
                 <Menu size={20} />
               </button>
             )}
-            <h1 className="text-2xl font-bold text-white tracking-tight">
+            <h1 className="text-2xl max-lg:text-lg max-lg:truncate font-bold text-white tracking-tight">
               Dashboard Financiero
             </h1>
           </div>
 
           {/* Controles */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 max-lg:gap-1.5 max-lg:flex-wrap max-lg:w-full">
             {/* Estado de cuadre */}
-            <div className={`px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5
+            <div className={`px-3 py-1.5 max-lg:px-2.5 max-lg:min-h-[44px] rounded-full text-sm max-lg:text-xs font-medium flex items-center gap-1.5
                             ${estado.color === 'green' ? 'bg-green-100 text-green-700' :
                               estado.color === 'red' ? 'bg-red-100 text-red-700' :
                               'bg-gray-100 text-gray-700'}`}>
@@ -59,19 +59,19 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
             <button
               onClick={cargarDatosDesdeSupabase}
               disabled={loading}
-              className="px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5
+              className="px-3 py-1.5 max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:justify-center rounded-full text-sm font-medium flex items-center gap-1.5
                          bg-fmv-600 text-white hover:bg-fmv-500 transition-colors
                          disabled:opacity-50 disabled:cursor-not-allowed"
               title="Actualizar datos"
             >
               <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-              <span>{loading ? 'Cargando...' : 'Actualizar'}</span>
+              <span className="max-lg:sr-only">{loading ? 'Cargando...' : 'Actualizar'}</span>
             </button>
 
             {/* Selector de año */}
             {años.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">Año:</span>
+                <span className="text-xs text-gray-400 max-lg:sr-only">Año:</span>
                 <select
                   value={añoActual}
                   onChange={(e) => {
@@ -80,7 +80,7 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
                       setAño(nuevoAño)
                     }
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white text-fmv-800 font-medium text-sm
+                  className="px-3 py-1.5 max-lg:px-2 rounded-lg bg-white text-fmv-800 font-medium text-sm
                              border-0 focus:ring-2 focus:ring-fmv-500 cursor-pointer"
                 >
                   {años.map(año => (
@@ -93,7 +93,7 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
             {/* Botón de ayuda */}
             <button
               onClick={() => setShowHelp(true)}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-colors max-lg:w-11 max-lg:h-11 max-lg:flex max-lg:items-center max-lg:justify-center max-lg:ml-auto"
               title="Ayuda sobre esta pestaña"
             >
               <HelpCircle size={19} />
@@ -107,7 +107,7 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
                 </span>
                 <button
                   onClick={onLogout}
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors max-lg:w-11 max-lg:h-11 max-lg:flex max-lg:items-center max-lg:justify-center"
                   title="Cerrar sesión"
                 >
                   <LogOut size={18} />
@@ -119,7 +119,7 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
 
         {/* Tabs de navegación - solo para roles sin sidebar */}
         {showHorizontalTabs && (
-          <nav className="flex gap-1 mt-4 -mb-px overflow-x-auto">
+          <nav className="flex gap-1 mt-4 -mb-px overflow-x-auto max-lg:mt-3 max-lg:[scrollbar-width:none]">
             {TABS.filter(tab => {
               const allowedTabs = TABS_POR_ROL[userRole] || TABS_POR_ROL.direccion
               return allowedTabs.includes(tab.id)
@@ -127,7 +127,7 @@ export default function Header({ user, onLogout, onToggleSidebar }) {
               <button
                 key={tab.id}
                 onClick={() => setTab(tab.id)}
-                className={`px-4 py-2 rounded-t-lg font-medium text-sm whitespace-nowrap
+                className={`px-4 py-2 max-lg:min-h-[44px] rounded-t-lg font-medium text-sm whitespace-nowrap
                            transition-all duration-200 flex items-center gap-1.5
                            ${tabActiva === tab.id ? 'tab-active' : 'tab-inactive'}`}
               >

@@ -39,7 +39,7 @@ export default function KPICard({
         )}
       </div>
 
-      <div className={`text-2xl font-bold ${claseColor}`}>
+      <div className={`text-2xl max-lg:text-lg max-lg:break-words font-bold ${claseColor}`}>
         {formatearValor(valor)}
       </div>
 

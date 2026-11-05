@@ -40,7 +40,7 @@ export default function UpdateBanner() {
   return (
     <button
       onClick={() => window.location.reload()}
-      className="fixed bottom-4 right-4 z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-full
+      className="fixed bottom-4 right-4 max-lg:bottom-[max(1rem,env(safe-area-inset-bottom))] max-lg:right-[max(1rem,env(safe-area-inset-right))] z-[9999] flex items-center gap-2 px-4 py-2.5 rounded-full
                  bg-fmv-600 text-white text-sm font-semibold shadow-lg hover:bg-fmv-500
                  transition-colors print:hidden"
       title="Hay una versión nueva de la aplicación desplegada. Pulsa para recargar y actualizarte."

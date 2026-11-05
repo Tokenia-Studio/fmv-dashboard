@@ -159,3 +159,105 @@ body {
 .custom-tooltip {
   @apply bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3;
 }
+
+/* ============================================================
+   MÓVIL (< 1024 px). Todo este bloque va dentro de la media query: en PC
+   (≥ 1024 px) no existe ninguna de estas reglas y la vista no cambia.
+   ============================================================ */
+@media (max-width: 1023px) {
+  html {
+    /* Safari iOS en horizontal agranda el texto por su cuenta */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    /* Red de seguridad: nada de scroll horizontal de toda la página */
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Safari hace zoom al enfocar un campo con fuente < 16 px */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  /* Campos y desplegables con altura táctil */
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+    min-height: 44px;
+  }
+
+  /* Objetivos táctiles ≥ 44 px en los botones de contenido (los de dentro de
+     tablas, que son pequeños y densos, se dejan como están) */
+  main button:not(:where(table button)),
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+  }
+
+  /* Tarjetas KPI más compactas */
+  .kpi-card {
+    padding: 0.75rem;
+  }
+  .card-header {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Tablas con scroll horizontal dentro de su contenedor: primera columna fija.
+     Se activa añadiendo la clase `tabla-movil` a la <table>. */
+  .tabla-movil th:first-child,
+  .tabla-movil td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 7.5rem;
+    max-width: 38vw;
+    white-space: normal;
+    background-color: inherit;
+    box-shadow: 1px 0 0 rgba(148, 163, 184, 0.35);
+  }
+  /* El contenido de la celda fija se parte en vez de salirse por debajo de la celda siguiente */
+  .tabla-movil td:first-child {
+    overflow-wrap: anywhere;
+  }
+  .tabla-movil td:first-child > * {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  /* La fila (y la cabecera) parten de blanco con especificidad 0: cualquier fondo
+     propio de la fila (bg-*, .table-row, subtotales…) manda; así la celda fija,
+     que hereda el fondo de su fila, nunca es transparente */
+  :where(.tabla-movil tbody > tr) {
+    background-color: #fff;
+  }
+  :where(.tabla-movil thead) {
+    background-color: #fff;
+  }
+  .tabla-movil thead > tr {
+    background-color: inherit;
+  }
+  /* Filas con fondo translúcido (bg-gray-50/50): la celda fija necesita uno opaco */
+  .tabla-movil tbody tr[class*="/"] > :first-child {
+    background-color: #f8fafc;
+  }
+  .tabla-movil thead th:first-child {
+    z-index: 3;
+  }
+  /* Cabecera legible: sin cortar el texto a media palabra */
+  .tabla-movil thead th {
+    white-space: normal;
+    line-height: 1.2;
+    vertical-align: bottom;
+  }
+
+  /* Cabecera del dashboard: en móvil no se queda fija (ocupa menos pantalla) */
+  header.sticky {
+    position: static;
+    /* es hijo de un contenedor flex: su z-index seguiría tapando el cajón del menú */
+    z-index: auto;
+  }
+}

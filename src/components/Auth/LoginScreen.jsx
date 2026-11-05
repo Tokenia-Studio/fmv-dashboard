@@ -159,7 +159,7 @@ export default function LoginScreen({ onLogin, forceMode }) {
   // Pantalla de carga mientras verifica token
   if (checkingToken) {
     return (
-      <div className="min-h-screen bg-fmv-900 flex items-center justify-center p-4">
+      <div className="min-h-screen max-lg:min-h-[100dvh] bg-fmv-900 flex items-center justify-center p-4 max-lg:pt-[max(1rem,env(safe-area-inset-top))] max-lg:pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="text-center">
           <img
             src="/logo-fmv-icono.png"
@@ -173,7 +173,7 @@ export default function LoginScreen({ onLogin, forceMode }) {
   }
 
   return (
-    <div className="min-h-screen bg-fmv-900 flex items-center justify-center p-4">
+    <div className="min-h-screen max-lg:min-h-[100dvh] bg-fmv-900 flex items-center justify-center p-4 max-lg:pt-[max(1rem,env(safe-area-inset-top))] max-lg:pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">

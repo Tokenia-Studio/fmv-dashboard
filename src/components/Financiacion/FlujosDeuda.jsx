@@ -115,7 +115,7 @@ export default function FlujosDeuda({ datos, año, proyeccion, deudaInicial = 0 
 
         {/* Tabla mensual: entradas y salidas por separado, con signo */}
         <div className="overflow-x-auto mt-4">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm tabla-movil">
             <thead>
               <tr className="border-b-2 border-gray-200 text-gray-600">
                 <th className="text-left py-2 px-2 font-semibold">Mes</th>

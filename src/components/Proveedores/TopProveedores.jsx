@@ -105,7 +105,7 @@ export default function TopProveedores({ datos, totalPagos, año }) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm tabla-movil">
           <thead className="table-header">
             <tr>
               <th className="p-3 text-center w-12">#</th>

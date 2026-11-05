@@ -261,7 +261,7 @@ function HorizonteCuadros({ prestamos, fechaInicio }) {
 
         {/* Detalle por ejercicio */}
         <div className="overflow-x-auto mt-5">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm tabla-movil">
             <thead>
               <tr className="border-b-2 border-gray-200 text-gray-600">
                 <th className="text-left py-2 px-2 font-semibold">Ejercicio</th>

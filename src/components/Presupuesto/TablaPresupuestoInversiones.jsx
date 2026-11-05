@@ -334,7 +334,7 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
           <Building2 size={40} className="mx-auto mb-4 text-gray-300" />
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Sin inversiones en {año}</h3>
           <p className="text-gray-500 mb-4">No hay movimientos ni presupuesto en cuentas del grupo 2 (sin contar 28x/29x)</p>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 max-lg:flex-wrap">
             <select
               value={nuevaCuenta}
               onChange={(e) => setNuevaCuenta(e.target.value)}
@@ -356,8 +356,8 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
         </div>
       ) : (
         <>
-          <div className="overflow-auto max-h-[82vh]">
-            <table className="w-full text-sm">
+          <div className="overflow-auto max-h-[82vh] max-lg:max-h-[75dvh]">
+            <table className="w-full text-sm tabla-movil">
               <thead className="table-header sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="p-3 text-left min-w-[240px]">Concepto</th>
@@ -513,7 +513,7 @@ export default function TablaPresupuestoInversiones({ mesSeleccionado, onMesChan
               Real = altas de inmovilizado (debe − haber) del grupo 2, sin amortización acumulada (28x) ni deterioros (29x).
               El presupuesto se escribe a mano en las celdas "Ppto. Mes" (cambia de mes con el selector). Clic en cifras Real para exportar.
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-lg:flex-wrap">
               <select
                 value={nuevaCuenta}
                 onChange={(e) => setNuevaCuenta(e.target.value)}

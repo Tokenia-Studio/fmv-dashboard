@@ -44,7 +44,7 @@ export default function UltimaActualizacion({ variant = 'flotante', collapsed = 
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-40 flex items-center gap-2 px-4 py-2 rounded-full
+      className="fixed bottom-4 right-4 max-lg:bottom-[max(1rem,env(safe-area-inset-bottom))] max-lg:right-[max(1rem,env(safe-area-inset-right))] max-lg:max-w-[calc(100vw-2rem)] max-lg:text-xs z-40 flex items-center gap-2 px-4 py-2 rounded-full
                  bg-fmv-900 text-white text-sm shadow-lg print:hidden"
       title={titulo}
     >

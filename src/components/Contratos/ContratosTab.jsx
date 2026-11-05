@@ -77,7 +77,7 @@ function Contenido() {
         <BotonActualizar recargar={recargar} />
       </div>
 
-      <nav className="flex flex-wrap gap-1 border-b border-gray-200 print:hidden">
+      <nav className="flex flex-wrap gap-1 border-b border-gray-200 print:hidden max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:[scrollbar-width:none]">
         {/* «Atrás» dentro de la sección (Carlos, 26/10/2026): en la primera pantalla queda apagado
             en vez de desaparecer, para que las pestañas no se muevan */}
         <button
@@ -85,18 +85,18 @@ function Contenido() {
           onClick={atras}
           disabled={!puedeIrAtras}
           title={puedeIrAtras ? 'Volver a la pantalla anterior' : 'Estás en la primera pantalla de la sección'}
-          className="inline-flex items-center gap-1 px-2 py-2 text-sm -mb-px border-b-2 border-transparent text-fmv-700 hover:text-fmv-900 disabled:text-gray-300 disabled:cursor-default"
+          className="inline-flex items-center gap-1 px-2 py-2 text-sm max-lg:shrink-0 max-lg:whitespace-nowrap -mb-px border-b-2 border-transparent text-fmv-700 hover:text-fmv-900 disabled:text-gray-300 disabled:cursor-default"
         >
           <ArrowLeft size={14} /> Atrás
         </button>
-        <span className="self-center h-5 w-px bg-gray-200 mx-1" aria-hidden="true" />
+        <span className="self-center h-5 w-px bg-gray-200 mx-1 max-lg:shrink-0" aria-hidden="true" />
         {pantallas.map(([id, etiqueta]) => {
           const activa = nav.pantalla === id && !nav.ficha
           return (
             <button
               key={id}
               onClick={() => ir(id)}
-              className={`px-3 py-2 text-sm -mb-px border-b-2 transition-colors ${
+              className={`px-3 py-2 text-sm max-lg:shrink-0 max-lg:whitespace-nowrap -mb-px border-b-2 transition-colors ${
                 activa ? 'border-fmv-700 text-fmv-800 font-semibold' : 'border-transparent text-gray-500 hover:text-slate-800'
               }`}
             >

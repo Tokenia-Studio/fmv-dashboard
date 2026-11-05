@@ -16,6 +16,12 @@ export default function Sidebar({ collapsed, onToggle }) {
   const allowedTabs = TABS_POR_ROL[userRole] || TABS_POR_ROL.direccion
   const tabsMap = Object.fromEntries(TABS.map(t => [t.id, t]))
 
+  // En móvil el menú es un cajón: al elegir pestaña se cierra solo (en PC no hace nada)
+  const elegirTab = (tabId) => {
+    setTab(tabId)
+    if (!collapsed && typeof window !== 'undefined' && window.innerWidth < 1024) onToggle()
+  }
+
   const toggleSection = (section) => {
     if (collapsed) return
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))
@@ -26,15 +32,16 @@ export default function Sidebar({ collapsed, onToggle }) {
       {/* Mobile overlay */}
       {!collapsed && (
         <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/30 z-30 max-lg:bg-black/40 max-lg:z-40 lg:hidden"
           onClick={onToggle}
         />
       )}
 
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen bg-fmv-900 text-white z-40 print:hidden
+        className={`fixed lg:sticky top-0 left-0 h-screen max-lg:h-[100dvh] bg-fmv-900 text-white z-50 lg:z-40 print:hidden
+          max-lg:pt-[env(safe-area-inset-top)] max-lg:pb-[env(safe-area-inset-bottom)] max-lg:pl-[env(safe-area-inset-left)]
           transition-all duration-300 flex flex-col
-          ${collapsed ? 'w-16' : 'w-60'}
+          ${collapsed ? 'w-16' : 'w-60 max-lg:w-72 max-lg:max-w-[85vw]'}
           ${collapsed ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'}`}
         style={{ top: 0 }}
       >
@@ -49,7 +56,7 @@ export default function Sidebar({ collapsed, onToggle }) {
           </div>
           <button
             onClick={onToggle}
-            className={`flex items-center py-1.5 mt-2 w-full text-gray-400 hover:text-white hover:bg-fmv-800/50 transition-colors text-sm
+            className={`flex items-center py-1.5 max-lg:py-3 mt-2 w-full text-gray-400 hover:text-white hover:bg-fmv-800/50 transition-colors text-sm
               ${collapsed ? 'justify-center' : 'justify-end pr-3'}`}
             title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
           >
@@ -58,7 +65,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         </div>
 
         {/* Navigation sections */}
-        <nav className="flex-1 overflow-y-auto py-2">
+        <nav className="flex-1 overflow-y-auto max-lg:overscroll-contain py-2">
           {Object.entries(NAVIGATION_SECTIONS).map(([key, section]) => {
             const sectionTabs = section.tabs.filter(t => allowedTabs.includes(t))
             if (sectionTabs.length === 0) return null
@@ -70,7 +77,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 {/* Section header */}
                 <button
                   onClick={() => toggleSection(key)}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 max-lg:py-3.5 text-xs font-semibold uppercase tracking-wider
                     text-gray-400 hover:text-gray-200 transition-colors
                     ${collapsed ? 'justify-center' : ''}`}
                   title={collapsed ? section.label : ''}
@@ -104,8 +111,8 @@ export default function Sidebar({ collapsed, onToggle }) {
                   return (
                     <button
                       key={tabId}
-                      onClick={() => setTab(tabId)}
-                      className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-all
+                      onClick={() => elegirTab(tabId)}
+                      className={`w-full flex items-center gap-3 px-4 py-2 max-lg:py-3 text-sm transition-all
                         ${collapsed ? 'justify-center' : 'pl-8'}
                         ${active
                           ? 'bg-fmv-800 text-white border-l-3 border-white font-medium'

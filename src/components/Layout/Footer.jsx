@@ -7,8 +7,8 @@ import { BRAND } from '../../utils/constants'
 
 export default function Footer() {
   return (
-    <footer className="text-center py-4 text-xs text-gray-500 border-t border-gray-200 bg-white/50 print:hidden">
-      <div className="flex items-center justify-center gap-3">
+    <footer className="text-center py-4 max-lg:pb-[calc(1rem+env(safe-area-inset-bottom))] text-xs text-gray-500 border-t border-gray-200 bg-white/50 print:hidden">
+      <div className="flex items-center justify-center gap-3 max-lg:flex-wrap max-lg:gap-x-2 max-lg:gap-y-1 max-lg:px-4">
         <div className="w-5 h-5 bg-fmv-900 rounded flex items-center justify-center p-0.5">
           <img src="/logo-fmv-icono.png" alt="FMV" className="max-h-full w-auto" />
         </div>

@@ -102,14 +102,14 @@ export default function CuentasAnualesTab() {
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 max-lg:w-full">
             {/* Corte por mes */}
-            <label className="flex items-center gap-2 text-sm text-gray-600">
+            <label className="flex items-center gap-2 text-sm text-gray-600 max-lg:w-full">
               <span className="font-medium">Cuentas hasta:</span>
               <select
                 value={mesHasta}
                 onChange={e => setMesHasta(Number(e.target.value))}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500"
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500 max-lg:flex-1 max-lg:min-w-0"
               >
                 {MONTHS.map((m, i) => (
                   <option key={i} value={i + 1}>{m}{i === 11 ? ' (cierre)' : ''}</option>
@@ -119,12 +119,12 @@ export default function CuentasAnualesTab() {
 
             {/* Comparativo del PyG (solo con corte intermedio) */}
             {mesHasta < 12 && hayAñoAnterior && (
-              <label className="flex items-center gap-2 text-sm text-gray-600">
+              <label className="flex items-center gap-2 text-sm text-gray-600 max-lg:w-full">
                 <span className="font-medium">PyG comparado con:</span>
                 <select
                   value={comparativoPyG}
                   onChange={e => setComparativoPyG(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500"
+                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500 max-lg:flex-1 max-lg:min-w-0"
                 >
                   <option value="periodo">enero–{MONTHS[mesHasta - 1].toLowerCase()} {añoAnterior}</option>
                   <option value="completo">{añoAnterior} completo</option>
@@ -133,11 +133,11 @@ export default function CuentasAnualesTab() {
             )}
 
             {/* Impresión */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-lg:flex-wrap max-lg:w-full">
               <select
                 value={ejerciciosPrint}
                 onChange={e => setEjerciciosPrint(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500"
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500 max-lg:flex-1 max-lg:min-w-0"
                 title="Ejercicio(s) que se incluyen en el documento impreso"
               >
                 <option value="actual">Imprimir {etiquetaActual}</option>
@@ -147,7 +147,7 @@ export default function CuentasAnualesTab() {
               <select
                 value={desglosePrint}
                 onChange={e => setDesglosePrint(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500"
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-fmv-500 max-lg:flex-1 max-lg:min-w-0"
                 title="Nivel de detalle del documento impreso"
               >
                 <option value="epigrafes">Solo epígrafes</option>
@@ -155,7 +155,7 @@ export default function CuentasAnualesTab() {
               </select>
               <button
                 onClick={() => window.print()}
-                className="btn-primary flex items-center gap-1.5 !py-1.5 text-sm"
+                className="btn-primary flex items-center gap-1.5 !py-1.5 text-sm max-lg:w-full max-lg:justify-center"
               >
                 <Printer size={15} />
                 Imprimir / PDF

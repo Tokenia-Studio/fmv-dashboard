@@ -216,7 +216,7 @@ export default function PuenteCajaSection() {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs md:text-sm">
+          <table className="w-full text-xs md:text-sm tabla-movil">
             <thead className="table-header">
               <tr>
                 <th className="p-2 text-left whitespace-nowrap">Concepto</th>

@@ -3,6 +3,7 @@
 // ============================================
 
 import React, { useState, useEffect } from 'react'
+import { Menu } from 'lucide-react'
 import { useData } from './context/DataContext'
 import { auth } from './lib/supabase'
 import Header from './components/Layout/Header'
@@ -133,7 +134,7 @@ function App() {
   // Pantalla de carga inicial
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-fmv-900 flex items-center justify-center">
+      <div className="min-h-screen max-lg:min-h-[100dvh] bg-fmv-900 flex items-center justify-center">
         <div className="text-center">
           <img
             src="/logo-fmv-icono.png"
@@ -154,7 +155,7 @@ function App() {
   // Sin rol asignado en esta app
   if (userRole === null && !loading) {
     return (
-      <div className="min-h-screen bg-fmv-900 flex items-center justify-center">
+      <div className="min-h-screen max-lg:min-h-[100dvh] bg-fmv-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-4">
           <img
             src="/logo-fmv-icono.png"
@@ -231,11 +232,11 @@ function App() {
   const useSidebar = userRole === 'direccion'
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen max-lg:min-h-[100dvh] flex flex-col">
       {/* Loading overlay */}
       {loading && !mostrarSkeleton && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 text-center shadow-2xl min-w-[320px]">
+          <div className="bg-white rounded-xl p-8 text-center shadow-2xl min-w-[320px] max-lg:min-w-0 max-lg:w-[85vw]">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-fmv-900 rounded-xl mb-4 p-2.5">
               <img src="/logo-fmv-icono.png" alt="FMV" className="max-h-full w-auto" />
             </div>
@@ -254,13 +255,24 @@ function App() {
       {useSidebar ? (
         <div className="flex flex-1">
           <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+          {/* Botón flotante de menú: en móvil la cabecera no se queda fija, así que el
+              menú se alcanza siempre desde aquí. En PC (lg:hidden) no existe. */}
+          <button
+            onClick={toggleSidebar}
+            aria-label="Abrir menú"
+            className="lg:hidden fixed z-30 right-[max(1rem,env(safe-area-inset-right))] bottom-[max(1rem,env(safe-area-inset-bottom))]
+                       w-12 h-12 rounded-full bg-fmv-800 text-white shadow-lg border border-white/20
+                       flex items-center justify-center active:bg-fmv-700 print:hidden"
+          >
+            <Menu size={22} />
+          </button>
           <div className="flex flex-col flex-1 min-w-0">
             <Header
               user={user}
               onLogout={handleLogout}
               onToggleSidebar={toggleSidebar}
             />
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 max-lg:py-4 max-lg:pl-[max(1rem,env(safe-area-inset-left))] max-lg:pr-[max(1rem,env(safe-area-inset-right))]">
               <ErrorBoundary>
                 {renderTab()}
               </ErrorBoundary>
@@ -270,7 +282,7 @@ function App() {
       ) : (
         <>
           <Header user={user} onLogout={handleLogout} />
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 max-lg:py-4 max-lg:pl-[max(1rem,env(safe-area-inset-left))] max-lg:pr-[max(1rem,env(safe-area-inset-right))]">
             <ErrorBoundary>
               {renderTab()}
             </ErrorBoundary>

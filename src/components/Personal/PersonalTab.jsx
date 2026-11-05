@@ -513,7 +513,7 @@ export default function PersonalTab() {
           <h3 className="font-bold text-white">Ratios de Personal por Mes - {añoActual}</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs tabla-movil">
             <thead>
               <tr className="bg-gray-50 border-b">
                 <th className="px-3 py-2 text-left font-semibold text-gray-600">Mes</th>
@@ -688,7 +688,7 @@ export default function PersonalTab() {
             <span className="text-xs text-white/80 italic">Pasa el ratón sobre cada columna para ver su significado</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm tabla-movil">
               <thead>
                 <tr className="bg-gray-50 border-b">
                   <th className="px-4 py-3 text-left font-semibold text-gray-600 cursor-help" title="Año natural al que corresponden los datos. La fila resaltada es el ejercicio actual.">Ejercicio</th>
@@ -815,7 +815,7 @@ export default function PersonalTab() {
 
         {/* Tabla mensual productividad */}
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px]">
+          <table className="w-full text-[11px] tabla-movil">
             <thead>
               <tr className="bg-gray-50 border-b">
                 <th className="px-2 py-2 text-left font-semibold text-gray-600">Mes</th>

@@ -54,10 +54,10 @@ function RatioCard({ label, value, valueAnt, formato, ideal, tooltip, color }) {
   }
 
   return (
-    <div className={`rounded-xl p-4 ${s.card} cursor-help transition-transform hover:scale-[1.02]`} title={`${tooltip}\n${ideal}`}>
+    <div className={`rounded-xl p-4 max-lg:p-3 ${s.card} cursor-help transition-transform hover:scale-[1.02]`} title={`${tooltip}\n${ideal}`}>
       <p className="text-xs font-semibold uppercase tracking-wider opacity-80 truncate">{label}</p>
       <div className="flex items-end gap-2 mt-1">
-        <p className="text-2xl font-black">{valorActual}</p>
+        <p className="text-2xl max-lg:text-xl font-black">{valorActual}</p>
         {tendencia && <span className={`text-sm font-bold ${s.arrow} mb-0.5`}>{tendencia}</span>}
       </div>
       <div className="flex items-center justify-between mt-2">
@@ -434,8 +434,8 @@ export default function TablaBalanceCCAA({ cuentasAnuales: ccaaProp, mesHasta = 
           </div>
         </div>
 
-        <div className="overflow-auto max-h-[82vh]">
-          <table className="w-full text-sm">
+        <div className="overflow-auto max-h-[82vh] max-lg:max-h-[75dvh]">
+          <table className="w-full text-sm tabla-movil">
             <thead className="table-header sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="p-3 text-left min-w-[300px]">Concepto</th>

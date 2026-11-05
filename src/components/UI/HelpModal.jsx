@@ -12,22 +12,22 @@ export default function HelpModal({ tabActiva, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 max-lg:p-2 max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] max-lg:pb-[max(0.5rem,env(safe-area-inset-bottom))]"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] max-lg:max-h-[100%] overflow-y-auto max-lg:overscroll-contain"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-6 max-lg:p-4 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-800">{help.titulo}</h2>
             <p className="text-sm text-slate-500 mt-1">{help.descripcion}</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0 ml-4"
+            className="w-8 h-8 max-lg:w-11 max-lg:h-11 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0 ml-4"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -36,7 +36,7 @@ export default function HelpModal({ tabActiva, onClose }) {
         </div>
 
         {/* Content sections */}
-        <div className="p-6 space-y-6">
+        <div className="p-6 max-lg:p-4 space-y-6">
           {help.secciones.map((seccion, idx) => (
             <div key={idx}>
               <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-2">

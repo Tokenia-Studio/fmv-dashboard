@@ -66,7 +66,7 @@ export function Kpi({ etiqueta, valor: v, pie, color, onClick }) {
   return (
     <Comp onClick={onClick} className={`kpi-card border-l-4 ${borde} text-left w-full ${onClick ? 'hover:shadow-md transition-shadow cursor-pointer' : ''}`}>
       <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">{etiqueta}</div>
-      <div className="text-2xl font-bold text-slate-800 mt-1">{v}</div>
+      <div className="text-2xl max-lg:text-lg max-lg:break-words font-bold text-slate-800 mt-1">{v}</div>
       {pie && <div className="text-xs text-gray-500 mt-1">{pie}</div>}
     </Comp>
   )
@@ -191,11 +191,11 @@ export function BotonPdf({ doc, texto }) {
 export function Modal({ titulo, onClose, children, ancho = 'max-w-2xl' }) {
   useEffect(() => bloquearScrollPagina(), [])
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 max-lg:p-2 max-lg:pt-[max(0.5rem,env(safe-area-inset-top))] max-lg:pb-[max(0.5rem,env(safe-area-inset-bottom))]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={`bg-white rounded-lg shadow-xl w-full ${ancho} max-h-full flex flex-col overflow-hidden`}>
         <div className="card-header flex items-center justify-between shrink-0">
           <h3 className="font-bold text-white">{titulo}</h3>
-          <button type="button" onClick={onClose} className="text-white/80 hover:text-white" aria-label="Cerrar">
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white max-lg:w-11 max-lg:h-11 max-lg:-my-2 max-lg:-mr-2 max-lg:flex max-lg:items-center max-lg:justify-center" aria-label="Cerrar">
             <X size={18} />
           </button>
         </div>

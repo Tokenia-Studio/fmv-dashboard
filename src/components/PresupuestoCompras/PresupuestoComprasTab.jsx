@@ -60,9 +60,9 @@ export default function PresupuestoComprasTab() {
         <MapeoProveedorCuenta onClose={() => setMostrarMapeoProveedor(false)} />
       )}
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center max-lg:flex-wrap max-lg:gap-3">
         {/* Plan de cuentas */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 max-lg:flex-wrap">
           <input
             type="file"
             ref={fileInputRef}
@@ -90,7 +90,7 @@ export default function PresupuestoComprasTab() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 max-lg:flex-wrap">
           {/* Mapeo cuenta pedidos */}
           <button
             onClick={() => setMostrarMapeoProveedor(!mostrarMapeoProveedor)}

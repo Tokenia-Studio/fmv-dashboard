@@ -113,7 +113,7 @@ export default function DetallePrestamos({ prestamos, año }) {
 
       <div className="p-4">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm tabla-movil">
             <thead>
               <tr className="border-b-2 border-gray-200 text-gray-600">
                 <th className="text-left py-2 px-2 font-semibold">Préstamo / línea</th>

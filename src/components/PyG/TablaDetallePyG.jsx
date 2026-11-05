@@ -52,7 +52,7 @@ export default function TablaDetallePyG({ datos, totales }) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm tabla-movil">
           <thead className="table-header">
             <tr>
               <th className="p-3 text-left min-w-[200px]">Concepto</th>

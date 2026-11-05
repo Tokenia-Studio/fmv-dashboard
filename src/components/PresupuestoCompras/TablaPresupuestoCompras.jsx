@@ -573,8 +573,8 @@ export default function TablaPresupuestoCompras({ mesSeleccionado, onMesChange, 
         </div>
       </div>
 
-      <div className="overflow-auto max-h-[82vh]">
-        <table className="w-full text-sm">
+      <div className="overflow-auto max-h-[82vh] max-lg:max-h-[75dvh]">
+        <table className="w-full text-sm tabla-movil">
           <thead className="table-header sticky top-0 z-10 shadow-sm">
             <tr>
               <th className="p-3 text-left min-w-[200px]">Concepto</th>
