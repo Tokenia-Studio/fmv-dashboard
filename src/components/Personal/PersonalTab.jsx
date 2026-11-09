@@ -13,6 +13,7 @@ import { calcularPyG } from '../../utils/calculations'
 import KPICard from '../UI/KPICard'
 import { formatCurrency, formatPercent, formatCompact, mesKeyToNombre, formatNumber } from '../../utils/formatters'
 import { MONTHS_SHORT, CHART_COLORS, ACCOUNT_GROUPS_3 } from '../../utils/constants'
+import { agregarProductividad, acumuladoHasta, tieneDatosProd } from '../../utils/productividadAcumulada'
 import { calcularHorasLaborables, calcularDiasLaborables, obtenerCalendarioParaAño } from '../../utils/calendario'
 import { BENCHMARKS_SECTOR, evaluarBenchmark, posicionEnEscala, rangoSaludableTexto } from '../../utils/benchmarksSector'
 
@@ -67,7 +68,7 @@ export default function PersonalTab() {
   const [editValue, setEditValue] = useState('')
   const [editHorasMes, setEditHorasMes] = useState(null)
   const [editHorasValue, setEditHorasValue] = useState('')
-  const [mesProd, setMesProd] = useState('año') // periodo de las tarjetas de productividad
+  const [mesProd, setMesProd] = useState(null) // tarjetas de productividad: acumulado hasta este mes (null = último con datos)
   const [saving, setSaving] = useState(false)
   const [mensaje, setMensaje] = useState(null)
   const [dragActive, setDragActive] = useState(false)
@@ -278,44 +279,18 @@ export default function PersonalTab() {
   }, [datosMensuales, horasLabMes, diasLabMes, gastosPorMes, horasManualesAño, añoActual])
 
   // Totales anuales productividad
-  const productividadTotales = useMemo(() => {
-    const mesesConDatosProd = productividadMensual.filter(d => !d.futuro && (d.ingresos !== 0 || d.totalGastos !== 0))
-    const sum = (key) => mesesConDatosProd.reduce((s, d) => s + (d[key] || 0), 0)
-    const totalHoras = sum('horasTotales')
-    const totalDias = mesesConDatosProd.reduce((s, d) => s + (d.diasLab || 0), 0)
-    const totalIngresos = sum('ingresos')
-    const totalGastos = sum('totalGastos')
-    const totalPersonal = sum('personalCompleto')
-    const totalProveedores = sum('proveedores')
-    const totalAcreedores = sum('acreedores')
-    const totalResto = sum('resto')
-    const plantillaMediaProd = mesesConDatosProd.filter(d => d.trabajadores).length > 0
-      ? mesesConDatosProd.filter(d => d.trabajadores).reduce((s, d) => s + d.trabajadores, 0) / mesesConDatosProd.filter(d => d.trabajadores).length
-      : 0
-    return {
-      totalHoras,
-      totalDias,
-      totalIngresos,
-      totalGastos,
-      totalPersonal,
-      totalProveedores,
-      totalAcreedores,
-      totalResto,
-      plantillaMediaProd,
-      gastosHoraTotal: totalHoras ? totalGastos / totalHoras : 0,
-      ingresosHora: totalHoras ? totalIngresos / totalHoras : 0,
-      ingresosPorTrabajador: plantillaMediaProd ? totalIngresos / plantillaMediaProd : 0,
-      ventasDiaLab: totalDias ? totalIngresos / totalDias : 0,
-      pctGastosVentas: totalIngresos ? (totalGastos / totalIngresos) * 100 : 0
-    }
-  }, [productividadMensual])
+  const productividadTotales = useMemo(() => agregarProductividad(productividadMensual), [productividadMensual])
 
-  // KPIs de las tarjetas de productividad: media del año o un mes concreto
-  // (útil cuando un mes viene incompleto, p.ej. sin nóminas contabilizadas)
-  const mesesProdConDatos = productividadMensual.filter(d => !d.futuro && (d.ingresos !== 0 || d.totalGastos !== 0))
-  const kpisProd = mesProd === 'año'
-    ? productividadTotales
-    : (productividadMensual.find(d => d.mesNum === mesProd) || productividadTotales)
+  // KPIs de las tarjetas de productividad: ACUMULADO del año hasta el mes elegido
+  // (el dato de cada mes ya está en su fila de la tabla). Por defecto, el último
+  // mes con datos, que equivale al total del año hasta hoy.
+  const mesesProdConDatos = productividadMensual.filter(tieneDatosProd)
+  const ultimoMesProd = mesesProdConDatos.length ? mesesProdConDatos[mesesProdConDatos.length - 1].mesNum : null
+  const mesProdEfectivo = mesesProdConDatos.some(d => d.mesNum === mesProd) ? mesProd : ultimoMesProd
+  const kpisProd = useMemo(() => acumuladoHasta(productividadMensual, mesProdEfectivo), [productividadMensual, mesProdEfectivo])
+  const etiquetaAcum = mesProdEfectivo
+    ? (mesProdEfectivo === 1 ? 'Ene' : `Ene–${MONTHS_SHORT[mesProdEfectivo - 1]}`)
+    : ''
 
   // ============================================
   // POSICIONAMIENTO SECTOR (benchmarks CNAE 25)
@@ -769,14 +744,15 @@ export default function PersonalTab() {
                 : 'Sin calendario laboral configurado (revisa FMV Producción → Admin → Calendario)'}
             </span>
             <select
-              value={mesProd}
-              onChange={(e) => setMesProd(e.target.value === 'año' ? 'año' : parseInt(e.target.value))}
+              value={mesProdEfectivo ?? ''}
+              onChange={(e) => setMesProd(parseInt(e.target.value))}
               className="px-2 py-1 bg-white/20 text-white rounded border border-white/30 text-xs"
-              title="Periodo de cálculo de las tarjetas: media del año o un mes concreto (útil si un mes viene incompleto)"
+              title="Las tarjetas muestran el acumulado del año desde enero hasta el mes elegido. El dato de cada mes suelto está en su fila de la tabla."
             >
-              <option value="año" className="text-gray-800">Media del año</option>
               {mesesProdConDatos.map(d => (
-                <option key={d.mesNum} value={d.mesNum} className="text-gray-800">{MONTHS_SHORT[d.mesNum - 1]}</option>
+                <option key={d.mesNum} value={d.mesNum} className="text-gray-800">
+                  Acumulado {d.mesNum === 1 ? 'Ene' : `Ene–${MONTHS_SHORT[d.mesNum - 1]}`}
+                </option>
               ))}
             </select>
           </div>
@@ -785,27 +761,27 @@ export default function PersonalTab() {
         {/* KPIs resumen productividad */}
         <div className="p-4 grid grid-cols-2 md:grid-cols-5 gap-3 border-b">
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-            <div className="text-[10px] font-semibold text-blue-700 uppercase">Gastos/Hora{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-[10px] font-semibold text-blue-700 uppercase">Gastos/Hora{etiquetaAcum && ` · ${etiquetaAcum}`}</div>
             <div className="text-xl font-bold text-blue-700">{formatCurrency(kpisProd.gastosHoraTotal)}</div>
             <div className="text-[10px] text-blue-600 mt-1">Total coste por hora trabajada</div>
           </div>
           <div className="bg-green-50 rounded-lg p-3 border border-green-100">
-            <div className="text-[10px] font-semibold text-green-700 uppercase">Ingresos/Hora{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-[10px] font-semibold text-green-700 uppercase">Ingresos/Hora{etiquetaAcum && ` · ${etiquetaAcum}`}</div>
             <div className="text-xl font-bold text-green-700">{formatCurrency(kpisProd.ingresosHora)}</div>
             <div className="text-[10px] text-green-600 mt-1">Facturación por hora trabajada</div>
           </div>
           <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
-            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Ingresos/Trabajador{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-[10px] font-semibold text-emerald-700 uppercase">Ingresos/Trabajador{etiquetaAcum && ` · ${etiquetaAcum}`}</div>
             <div className="text-xl font-bold text-emerald-700">{formatCurrency(kpisProd.ingresosPorTrabajador)}</div>
-            <div className="text-[10px] text-emerald-600 mt-1">{mesProd === 'año' ? 'Facturación media anual por empleado' : 'Facturación del mes por empleado'}</div>
+            <div className="text-[10px] text-emerald-600 mt-1">Facturación acumulada por empleado (plantilla media)</div>
           </div>
           <div className="bg-indigo-50 rounded-lg p-3 border border-indigo-100">
-            <div className="text-[10px] font-semibold text-indigo-700 uppercase">Ventas/Día Lab.{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-[10px] font-semibold text-indigo-700 uppercase">Ventas/Día Lab.{etiquetaAcum && ` · ${etiquetaAcum}`}</div>
             <div className="text-xl font-bold text-indigo-700">{formatCurrency(kpisProd.ventasDiaLab)}</div>
             <div className="text-[10px] text-indigo-600 mt-1">Facturación media por día laborable</div>
           </div>
           <div className={`rounded-lg p-3 border ${kpisProd.pctGastosVentas > 95 ? 'bg-red-50 border-red-100' : kpisProd.pctGastosVentas > 85 ? 'bg-amber-50 border-amber-100' : 'bg-green-50 border-green-100'}`}>
-            <div className="text-[10px] font-semibold uppercase text-gray-700">% Gastos/Ventas{mesProd !== 'año' && ` · ${MONTHS_SHORT[mesProd - 1]}`}</div>
+            <div className="text-[10px] font-semibold uppercase text-gray-700">% Gastos/Ventas{etiquetaAcum && ` · ${etiquetaAcum}`}</div>
             <div className={`text-xl font-bold ${kpisProd.pctGastosVentas > 95 ? 'text-red-700' : kpisProd.pctGastosVentas > 85 ? 'text-amber-700' : 'text-green-700'}`}>
               {formatPercent(kpisProd.pctGastosVentas)}
             </div>
